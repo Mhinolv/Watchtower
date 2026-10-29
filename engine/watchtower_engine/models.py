@@ -65,10 +65,16 @@ def _under_roots(path: str, roots: tuple[str, ...]) -> bool:
     return False
 
 
+def _starts_new_path(word: str) -> bool:
+    """True for a word that is a path, a file:// URL or another URL on its own."""
+    return word.startswith(("/", "~/")) or "://" in word
+
+
 def _extend_path(line: str, end: int) -> int:
     """Move `end` over the words that may still belong to a path with spaces.
 
     Take the words up to the last one that has a "/" (the next folder or file).
+    Stop at a word that starts another path or URL. That one is checked on its own.
     If none has, take the capitalized words ("Application Support").
     If the end is still not clear, redact more, not less.
     """
@@ -76,11 +82,13 @@ def _extend_path(line: str, end: int) -> int:
         words = line[end + 1:].split(" ")[:_MAX_SPACE_WORDS]
         take = 0
         for i, word in enumerate(words, 1):
-            if "/" in word and "://" not in word and word.lower() != "and/or":
+            if _starts_new_path(word):
+                break  # It is a path of its own. Do not join it to this path.
+            if "/" in word and word.lower() != "and/or":
                 take = i
         if take == 0:
             for word in words:
-                if not (word[:1].isupper() or word[:1].isdigit()) or "://" in word:
+                if not (word[:1].isupper() or word[:1].isdigit()) or _starts_new_path(word):
                     break
                 take += 1
                 if word[-1] in _END_PUNCTUATION:

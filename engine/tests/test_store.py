@@ -358,3 +358,24 @@ def test_store_from_schema_1_gets_new_item_columns(tmp_path):
         assert (w.origin, w.source_at, w.note) == (
             "acme/tools", "2026-10-29T09:00:00Z", "Watchtower cannot check tap acme/tools."
         )
+
+
+def test_owner_error_redacts_a_second_path_after_a_path_inside_the_roots():
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Cannot copy ~/Projects/app to /etc/shadow", roots) == (
+        "Cannot copy ~/Projects/app to <path>"
+    )
+    assert owner_error("Cannot copy ~/Projects/app to /Users/me/.ssh/id_rsa", roots) == (
+        "Cannot copy ~/Projects/app to <path>"
+    )
+    assert owner_error("Copy /Applications/Zed.app /var/log/system.log failed", roots) == (
+        "Copy /Applications/Zed.app <path> failed"
+    )
+    assert owner_error("Copy ~/Projects/my app/x to /etc/shadow", roots) == (
+        "Copy ~/Projects/my app/x to <path>"
+    )
+    assert owner_error("Copy ~/Projects/app To /etc/shadow", roots) == "Copy ~/Projects/app To <path>"
+    assert owner_error("Copy ~/Projects/a b/c /etc/shadow", roots) == "Copy ~/Projects/a b/c <path>"
+    assert owner_error("Copy ~/Projects/a ~/.ssh/id_rsa", roots) == "Copy ~/Projects/a <path>"
+    assert owner_error("Copy ~/Projects/a file:///etc/shadow", roots) == "Copy ~/Projects/a <path>"
+    assert owner_error("Copy /etc/hosts to /etc/shadow", roots) == "Copy <path> to <path>"
