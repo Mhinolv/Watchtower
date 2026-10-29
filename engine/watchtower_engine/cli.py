@@ -24,6 +24,7 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("version", help="print the engine version as JSON")
     sub.add_parser("state", help="print the last refresh, coverage and items as JSON")
+    sub.add_parser("refresh", help="run every source, save the result, print the state as JSON")
     sub.add_parser("homebrew", help="check Homebrew formulae and casks, print coverage and items as JSON")
     sub.add_parser("macos", help="print the macOS version and build as JSON")
     sub.add_parser("apps", help="print installed apps and their cask links as JSON")
@@ -40,6 +41,24 @@ def main(argv=None) -> int:
         if args.cmd == "state":
             with Store(args.data_dir) as store:
                 state = store.state()
+            _emit(sys.stdout, state)
+            return 0
+        if args.cmd == "refresh":
+            from .refresh import Cancelled, StopOnSigterm, default_sources, run_refresh
+            from .store import default_data_dir
+
+            data_dir = args.data_dir or default_data_dir()
+
+            def progress(done, total, label):
+                _emit(sys.stderr, {"progress": {"done": done, "total": total, "source": label}})
+                sys.stderr.flush()
+
+            with StopOnSigterm() as guard, Store(data_dir) as store:
+                try:
+                    state = run_refresh(store, default_sources(data_dir), progress, guard)
+                except Cancelled:
+                    _emit(sys.stderr, {"error": "Refresh stopped.", "detail": None})
+                    return 130
             _emit(sys.stdout, state)
             return 0
         if args.cmd == "homebrew":

@@ -36,6 +36,17 @@ public struct RefreshRecord: Codable, Hashable, Sendable {
     public var error: String?
     /// Full error text. The UI shows it in a disclosure.
     public var detail: String?
+
+    public init(id: Int, status: RefreshStatus, startedAt: Date, finishedAt: Date? = nil,
+                lastCompleteAt: Date? = nil, error: String? = nil, detail: String? = nil) {
+        self.id = id
+        self.status = status
+        self.startedAt = startedAt
+        self.finishedAt = finishedAt
+        self.lastCompleteAt = lastCompleteAt
+        self.error = error
+        self.detail = detail
+    }
 }
 
 /// Coverage of one source, for example Homebrew.
@@ -52,6 +63,17 @@ public struct CoverageRecord: Codable, Hashable, Sendable, Identifiable {
     public var sourceAt: Date?
 
     public var id: String { source }
+
+    public init(source: String, label: String, state: CoverageState, lastSuccessAt: Date? = nil,
+                error: String? = nil, detail: String? = nil, sourceAt: Date? = nil) {
+        self.source = source
+        self.label = label
+        self.state = state
+        self.lastSuccessAt = lastSuccessAt
+        self.error = error
+        self.detail = detail
+        self.sourceAt = sourceAt
+    }
 }
 
 /// One installed thing: a formula, cask, app or project dependency.
@@ -78,6 +100,27 @@ public struct ItemRecord: Codable, Hashable, Sendable {
     public var attributes: [String: String]?
 
     public var key: String { "\(source)/\(id)" }
+
+    public init(id: String, source: String, name: String, state: ItemState, kind: String? = nil,
+                installedVersion: String? = nil, latestVersion: String? = nil, project: String? = nil,
+                seenAt: Date? = nil, error: String? = nil, detail: String? = nil, origin: String? = nil,
+                sourceAt: Date? = nil, note: String? = nil, attributes: [String: String]? = nil) {
+        self.id = id
+        self.source = source
+        self.name = name
+        self.state = state
+        self.kind = kind
+        self.installedVersion = installedVersion
+        self.latestVersion = latestVersion
+        self.project = project
+        self.seenAt = seenAt
+        self.error = error
+        self.detail = detail
+        self.origin = origin
+        self.sourceAt = sourceAt
+        self.note = note
+        self.attributes = attributes
+    }
 }
 
 /// Output of `watchtower state`.
@@ -87,6 +130,13 @@ public struct EngineState: Codable, Hashable, Sendable {
     public var refresh: RefreshRecord?
     public var coverage: [CoverageRecord]
     public var items: [ItemRecord]
+
+    public init(schemaVersion: Int, refresh: RefreshRecord?, coverage: [CoverageRecord], items: [ItemRecord]) {
+        self.schemaVersion = schemaVersion
+        self.refresh = refresh
+        self.coverage = coverage
+        self.items = items
+    }
 }
 
 /// Output of `watchtower version`.
