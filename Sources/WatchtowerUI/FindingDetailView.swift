@@ -86,6 +86,7 @@ public struct FindingDetailView: View {
     let model: DashboardModel
     let finding: FindingRecord
     private let time = TimeText()
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     public init(model: DashboardModel, finding: FindingRecord) {
         self.model = model
@@ -186,14 +187,26 @@ public struct FindingDetailView: View {
                                 Text(path.dependencyPath.map { "Path: " + $0.joined(separator: " › ") }
                                      ?? "Dependency path not available.")
                                     .font(.caption).foregroundStyle(.secondary)
+                                if let block = path.updateBlock, UVUpdate.key(finding: finding, path: path) != nil {
+                                    Label(block, systemImage: "hand.raised").font(.caption).foregroundStyle(.orange)
+                                }
                             }
                             .textSelection(.enabled)
                             Spacer()
-                            Button("Reveal in Finder", systemImage: "folder") {
-                                NSWorkspace.shared.activateFileViewerSelecting([path.lockfileURL])
+                            VStack(alignment: .trailing, spacing: 6) {
+                                Button("Reveal in Finder", systemImage: "folder") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([path.lockfileURL])
+                                }
+                                .controlSize(.small)
+                                .help("Show \(path.lockfile) in Finder")
+                                if UVUpdate.key(finding: finding, path: path) != nil {
+                                    let block = updates == nil ? "Updates are not available here." : path.updateBlock
+                                    Button("Update…") { Task { await updates?.start(finding: finding, path: path) } }
+                                        .controlSize(.small)
+                                        .disabled(block != nil)
+                                        .help(block ?? "Show the update plan for \(finding.package). Nothing runs before you confirm.")
+                                }
                             }
-                            .controlSize(.small)
-                            .help("Show \(path.lockfile) in Finder")
                         }
                         .padding(10)
                         .accessibilityElement(children: .contain)

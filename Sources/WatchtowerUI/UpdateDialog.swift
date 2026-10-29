@@ -84,23 +84,32 @@ struct PlanStep: View {
                         .help("Copy the command")
                     }
                 }
-                GridRow {
-                    Text("Also changes").foregroundStyle(.secondary)
-                    if plan.alsoChanges.isEmpty {
-                        Text("No other packages change.")
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(plan.alsoChanges, id: \.name) { change in
-                                Text(change.change == "install"
-                                     ? "\(change.name) \(change.after ?? "") (new)"
-                                     : "\(change.name) \(change.before ?? "?") → \(change.after ?? "?")")
+                if let rows = plan.rows, !rows.isEmpty {
+                    ForEach(rows, id: \.label) { row in
+                        GridRow {
+                            Text(row.label).foregroundStyle(.secondary)
+                            PlanRowValue(row: row)
+                        }
+                    }
+                } else {
+                    GridRow {
+                        Text("Also changes").foregroundStyle(.secondary)
+                        if plan.alsoChanges.isEmpty {
+                            Text("No other packages change.")
+                        } else {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(plan.alsoChanges, id: \.name) { change in
+                                    Text(change.change == "install"
+                                         ? "\(change.name) \(change.after ?? "") (new)"
+                                         : "\(change.name) \(change.before ?? "?") → \(change.after ?? "?")")
+                                }
                             }
                         }
                     }
-                }
-                GridRow {
-                    Text("Scripts").foregroundStyle(.secondary)
-                    Text(plan.scripts.isEmpty ? "Disabled" : "Needed: \(plan.scripts.joined(separator: ", "))")
+                    GridRow {
+                        Text("Scripts").foregroundStyle(.secondary)
+                        Text(plan.scripts.isEmpty ? "Disabled" : "Needed: \(plan.scripts.joined(separator: ", "))")
+                    }
                 }
             }
             if let refusal = plan.refusal {
@@ -117,6 +126,25 @@ struct PlanStep: View {
             }
         }
         .onAppear { cancelFocused = true }
+    }
+}
+
+/// The value of a plan row. A row with a list opens it under a disclosure, for example `3 packages`.
+struct PlanRowValue: View {
+    let row: PlanRow
+    @State private var opened = false
+
+    var body: some View {
+        if let items = row.items, !items.isEmpty {
+            DisclosureGroup(row.value, isExpanded: $opened) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(items, id: \.self) { Text($0).font(.callout.monospaced()) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            Text(row.value).textSelection(.enabled)
+        }
     }
 }
 
@@ -172,6 +200,13 @@ struct ResultStep: View {
             Label(style.text, systemImage: style.symbol)
                 .foregroundStyle(style.tone.color)
                 .accessibilityAddTraits(.isHeader)
+            if let rows = attempt.resultRows, !rows.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(rows, id: \.label) { row in
+                        Text("\(row.label): \(row.value)").textSelection(.enabled)
+                    }
+                }
+            }
             if attempt.status == .verified, !attempt.manualSteps.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Manual steps").font(.headline)

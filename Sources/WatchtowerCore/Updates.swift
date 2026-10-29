@@ -20,6 +20,20 @@ public struct PackageChange: Codable, Hashable, Sendable {
     }
 }
 
+/// One more row of the plan step or the result step: a label, a value and an optional list.
+public struct PlanRow: Codable, Hashable, Sendable {
+    public var label: String
+    public var value: String
+    /// A list that opens under the value, for example the other packages that change.
+    public var items: [String]?
+
+    public init(label: String, value: String, items: [String]? = nil) {
+        self.label = label
+        self.value = value
+        self.items = items
+    }
+}
+
 public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var itemKey: String
@@ -38,11 +52,16 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     /// Set when Watchtower must not run this plan. One sentence for the owner.
     public var refusal: String?
     public var detail: String?
+    /// More plan rows. A uv plan has them: project, environment, files, groups, other packages, build.
+    public var rows: [PlanRow]?
+    /// The text of the scripts step, if it is not `<name> needs install scripts: <reasons>.`
+    public var scriptsMessage: String?
 
     public init(id: String, itemKey: String, name: String, kind: String, fullName: String,
                 installedVersion: String?, targetVersion: String?, command: [String], alsoChanges: [PackageChange] = [],
                 majorChange: Bool = false, scripts: [String] = [], manualSteps: [String] = [],
-                refusal: String? = nil, detail: String? = nil) {
+                refusal: String? = nil, detail: String? = nil, rows: [PlanRow]? = nil,
+                scriptsMessage: String? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -58,6 +77,8 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         self.manualSteps = manualSteps
         self.refusal = refusal
         self.detail = detail
+        self.rows = rows
+        self.scriptsMessage = scriptsMessage
     }
 
     /// `2.4.1 → 2.5.0`.
@@ -73,7 +94,7 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
 
     /// `<name> needs install scripts: <reason>.`
     public var scriptsText: String {
-        "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
+        scriptsMessage ?? "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
     }
 }
 
@@ -114,11 +135,14 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
     public var planId: String?
     public var startedAt: Date
     public var finishedAt: Date?
+    /// Lines for the result step, for example `Lockfile: httpx 0.27.2` of a uv update.
+    public var resultRows: [PlanRow]?
 
     public init(id: Int, itemKey: String, name: String, kind: String?, command: [String], beforeVersion: String?,
                 targetVersion: String?, afterVersion: String?, status: UpdateStatus, exitCode: Int?, output: String,
                 error: String?, manualSteps: [String] = [], confirmedMajor: Bool = false,
-                confirmedScripts: Bool = false, planId: String? = nil, startedAt: Date, finishedAt: Date? = nil) {
+                confirmedScripts: Bool = false, planId: String? = nil, startedAt: Date, finishedAt: Date? = nil,
+                resultRows: [PlanRow]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -137,6 +161,7 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
         self.planId = planId
         self.startedAt = startedAt
         self.finishedAt = finishedAt
+        self.resultRows = resultRows
     }
 
     public var commandText: String { command.joined(separator: " ") }
@@ -154,7 +179,9 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
         case .notVerified:
-            let text = if let after = attempt.afterVersion, after != attempt.beforeVersion {
+            let text = if attempt.kind == "uv", let error = attempt.error {
+                error  // The engine says what is not verified: the lockfile or the environment.
+            } else if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
             } else {
                 "The command finished, but the installed version is still \(attempt.afterVersion ?? "unknown")."
@@ -174,6 +201,20 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("hourglass", .secondary, "Running…")
         }
     }
+}
+
+/// The item key and the policy of the uv update, from a finding (#11).
+public enum UVUpdate {
+    /// `uv/httpx@0.27.2|~/Real/tool|uv.lock`. nil if this path has no uv update: another lockfile,
+    /// another ecosystem, or no fixed version.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "PyPI", (path.lockfile as NSString).lastPathComponent == "uv.lock",
+              let fixed = finding.fixedIn, !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        return "uv/\(finding.package)@\(fixed)|\(path.projectPath)|\(path.lockfile)"
+    }
+
+    /// Nil if `Update…` can open the plan, else why it is off.
+    public static func blockReason(_ path: FindingPath) -> String? { path.updateBlock }
 }
 
 public enum UpdatePolicy {
@@ -280,6 +321,12 @@ public final class UpdateModel {
     /// Open the sheet for one item and load its plan. Nothing runs yet.
     public func start(_ item: ItemRecord) async {
         await loadPlan(itemKey: item.key, name: item.name)
+    }
+
+    /// Open the sheet for one uv dependency of a finding. Nothing runs yet.
+    public func start(finding: FindingRecord, path: FindingPath) async {
+        guard let key = UVUpdate.key(finding: finding, path: path) else { return }
+        await loadPlan(itemKey: key, name: finding.package)
     }
 
     func loadPlan(itemKey: String, name: String) async {

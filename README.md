@@ -61,6 +61,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
+| GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -85,6 +86,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - Every attempt goes in the update log (`update_attempts` table in the store): command, versions, output, result.
 - `brew upgrade` downloads the new bottle or app from Homebrew's usual sources. Watchtower sends nothing itself.
 - There is no "update all" and no `brew update`.
+
+### uv dependency update
+
+`Update…` in a finding or in the project detail plans the update of one direct dependency in a uv project. The item key is `uv/<package>@<fixed version>|<project path>|uv.lock`.
+- The one command is `uv --project <folder> sync --upgrade-package <package>==<version> --inexact --no-build [--group <group>] [--extra <extra>]`. The groups and extras come from `pyproject.toml` and show in the plan.
+- The plan reads `pyproject.toml`, `uv.lock`, the files of the existing `.venv` and one PyPI page. `uv lock --dry-run` shows the other packages that change. The engine starts no program to read the environment.
+- `--no-build` keeps source builds off. If the target has no wheel for this Mac, the scripts step asks first, and only the second confirmation runs the command without `--no-build`.
+- uv runs with `UV_PYTHON_DOWNLOADS=never` and without `UV_*` variables of the owner. Watchtower never creates or rebuilds an environment. It refuses a project with no `.venv`, a workspace, a git or path dependency, a package that is not a direct dependency, and a requirement in `pyproject.toml` that does not allow the target.
+- Watchtower does not edit `pyproject.toml`. Before the run it copies `pyproject.toml` and `uv.lock` to `update-backups/attempt-<id>/` in the data folder.
+- Success needs both: `uv.lock` and the installed package in `.venv` show the target. A new lock with the old installed version stays `Not verified`. A changed file other than `uv.lock`, or a replaced environment, is also `Not verified`.
 
 ## Findings
 

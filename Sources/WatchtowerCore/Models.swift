@@ -158,16 +158,19 @@ public struct FindingPath: Codable, Hashable, Sendable, Identifiable {
     public var version: String
     /// Packages from the project to the vulnerable one. nil if the scanner gives no path.
     public var dependencyPath: [String]?
+    /// Why `Update…` is off for this lockfile, for example a uv project with no environment.
+    public var updateBlock: String?
 
     public var id: String { "\(projectPath)/\(lockfile)@\(version)" }
 
     public init(project: String, projectPath: String, lockfile: String, version: String,
-                dependencyPath: [String]? = nil) {
+                dependencyPath: [String]? = nil, updateBlock: String? = nil) {
         self.project = project
         self.projectPath = projectPath
         self.lockfile = lockfile
         self.version = version
         self.dependencyPath = dependencyPath
+        self.updateBlock = updateBlock
     }
 
     /// The lockfile in Finder. `~` in `projectPath` becomes the home folder.

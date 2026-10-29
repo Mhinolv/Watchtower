@@ -73,6 +73,10 @@ MainActor.assumeIsolated {
                 if scenario == .settingsInactive {
                     try render(SettingsView(model: model), size: CGSize(width: 560, height: 380), dark: dark,
                                to: out.appendingPathComponent(name))
+                } else if scenario == .findingUv {
+                    // The Update… buttons need an update model in the environment.
+                    try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
+                               size: CGSize(width: 1180, height: 660), dark: dark, to: out.appendingPathComponent(name))
                 } else {
                     try render(DashboardView(model: model), size: CGSize(width: 1180, height: 660), dark: dark,
                                to: out.appendingPathComponent(name))
@@ -102,7 +106,9 @@ MainActor.assumeIsolated {
                                     buttons: ["Update to \(plan.targetVersion ?? "?")", "Cancel"], dark: dark,
                                     to: out.appendingPathComponent(name))
                 default:
-                    try render(UpdateDialog(model: updates), size: CGSize(width: 580, height: 400), dark: dark,
+                    // A uv plan has more rows than a Homebrew plan.
+                    let height: CGFloat = scenario.rawValue.hasPrefix("update-uv") ? 520 : 400
+                    try render(UpdateDialog(model: updates), size: CGSize(width: 580, height: height), dark: dark,
                                to: out.appendingPathComponent(name))
                 }
                 print(name)

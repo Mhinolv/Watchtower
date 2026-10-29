@@ -283,7 +283,8 @@
           "project_path": "~/Projects/admin",
           "lockfile": "package-lock.json",
           "version": "4.17.19",
-          "dependency_path": null
+          "dependency_path": null,
+          "update_block": null
         },
         {
           "project": "web",
@@ -293,7 +294,8 @@
           "dependency_path": [
             "web",
             "lodash"
-          ]
+          ],
+          "update_block": null
         }
       ],
       "next_steps": [
@@ -334,7 +336,8 @@
           "project_path": "~/Projects/web",
           "lockfile": "package-lock.json",
           "version": "4.17.20",
-          "dependency_path": null
+          "dependency_path": null,
+          "update_block": null
         }
       ],
       "next_steps": [
