@@ -28,6 +28,7 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower version` | `{"schema_version", "engine"}` |
 | `watchtower state` | `{"schema_version", "refresh", "coverage", "items"}` |
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
+| `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
 The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine tests and the Swift tests both check them.
@@ -38,7 +39,14 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 |---|---|---|
 | GET `https://formulae.brew.sh/api/formula.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if formulae are installed |
 | GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed |
+| GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
+| GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
 The engine keeps a small catalog index in `cache/homebrew/` in the data folder. If a fetch fails, the engine uses that index and reports its original age.
+
+The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
+The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
+The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
+It scans `package-lock.json` and `uv.lock` only. A database older than 7 days makes the OSV coverage `stale`.

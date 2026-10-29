@@ -16,7 +16,8 @@
       "state": "failed",
       "last_success_at": "2026-10-28T09:02:10Z",
       "error": "App folder scan stopped early.",
-      "detail": "PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'"
+      "detail": "PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'",
+      "source_at": null
     },
     {
       "source": "homebrew",
@@ -24,7 +25,8 @@
       "state": "complete",
       "last_success_at": "2026-10-29T08:31:45Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "source_at": "2026-10-29T08:30:40Z"
     },
     {
       "source": "macos",
@@ -32,7 +34,8 @@
       "state": "stale",
       "last_success_at": "2026-10-28T09:02:10Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "source_at": null
     },
     {
       "source": "osv",
@@ -40,7 +43,8 @@
       "state": "not_run",
       "last_success_at": null,
       "error": null,
-      "detail": null
+      "detail": null,
+      "source_at": null
     },
     {
       "source": "projects",
@@ -48,7 +52,8 @@
       "state": "partial",
       "last_success_at": null,
       "error": "2 projects could not be read.",
-      "detail": null
+      "detail": null,
+      "source_at": null
     }
   ],
   "items": [
