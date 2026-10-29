@@ -150,8 +150,9 @@ private let old = ProjectRecord(name: "old", path: "/Users/me/Projects/old", roo
 }
 
 @Test func sidebarOrderAndShortcuts() {
-    #expect(SidebarSection.allCases.map(\.title) == ["Apps", "Homebrew", "Projects", "Findings", "Backlog"])
-    #expect(SidebarSection.allCases.map(\.shortcutDigit) == ["1", "2", "3", "4", "5"])
+    #expect(SidebarSection.allCases.map(\.title) == ["Apps", "Homebrew", "Projects", "Findings", "Backlog",
+                                                     "Update Log"])
+    #expect(SidebarSection.allCases.map(\.shortcutDigit) == ["1", "2", "3", "4", "5", "7"])
 }
 
 @Test func coverageRowsShowStateAndLastSuccess() {
@@ -183,7 +184,7 @@ private let old = ProjectRecord(name: "old", path: "/Users/me/Projects/old", roo
     #expect(model.items(in: .homebrew).map(\.name) == ["z", "a", "b"])
     #expect(model.items(in: .apps).map(\.name) == ["macOS", "Slack"])
     #expect(model.items(in: .findings).map(\.name) == ["x"])  // the inactive project is in Backlog
-    #expect(SidebarSection.allCases.map { model.count($0) } == [2, 3, 1, 1, 1])
+    #expect(SidebarSection.allCases.map { model.count($0) } == [2, 3, 1, 1, 1, 0])
     #expect(model.hasOpenFindings)
     model.searchText = "Z"
     #expect(model.visibleItems(in: .homebrew).map(\.name) == ["z"])

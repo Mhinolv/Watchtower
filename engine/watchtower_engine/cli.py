@@ -18,6 +18,39 @@ def _emit(stream, payload: dict) -> None:
     stream.write("\n")
 
 
+def _updates(args) -> int:
+    from .update_log import UpdateLog
+    from .updater import InterruptOnSigterm, Interrupted, UpdateError, plan_update, run_update
+
+    with Store(args.data_dir) as store:
+        try:
+            if args.cmd == "update-plan":
+                _emit(sys.stdout, {"plan": plan_update(store, args.item).to_dict()})
+                return 0
+            if args.cmd == "update-log":
+                _emit(sys.stdout, {"attempts": [a.to_dict() for a in UpdateLog(store).attempts()]})
+                return 0
+
+            def output(line):
+                try:
+                    _emit(sys.stderr, {"output": line})
+                    sys.stderr.flush()
+                except OSError:
+                    pass  # The app went away. The update goes on and the log keeps the output.
+
+            with InterruptOnSigterm():
+                attempt, plan = run_update(store, args.item, args.plan_id, args.confirm_major,
+                                           args.confirm_scripts, output)
+            _emit(sys.stdout, {"attempt": attempt.to_dict(), "plan": plan})
+            return 0
+        except UpdateError as exc:
+            _emit(sys.stderr, {"error": str(exc), "detail": exc.detail})
+            return 1
+        except Interrupted:
+            _emit(sys.stderr, {"error": "The update was interrupted.", "detail": None})
+            return 130
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="watchtower")
     parser.add_argument("--data-dir", help="data folder (default: ~/Library/Application Support/Watchtower)")
@@ -30,6 +63,14 @@ def main(argv=None) -> int:
     sub.add_parser("apps", help="print installed apps and their cask links as JSON")
     sub.add_parser("projects", help="print the projects, root errors and skipped links as JSON")
     sub.add_parser("osv", help="scan the lockfiles of active projects offline with OSV-Scanner, print JSON")
+    uplan = sub.add_parser("update-plan", help="plan one Homebrew update, print the plan as JSON")
+    uplan.add_argument("item", help="item key, for example homebrew/formula:git")
+    urun = sub.add_parser("update-run", help="run one confirmed update, print the logged attempt as JSON")
+    urun.add_argument("item", help="item key, for example homebrew/formula:git")
+    urun.add_argument("--plan-id", required=True, help="id of the plan that the owner confirmed")
+    urun.add_argument("--confirm-major", action="store_true", help="the owner confirmed a new major version")
+    urun.add_argument("--confirm-scripts", action="store_true", help="the owner confirmed install scripts")
+    sub.add_parser("update-log", help="print the update log as JSON")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
@@ -61,6 +102,8 @@ def main(argv=None) -> int:
                     return 130
             _emit(sys.stdout, state)
             return 0
+        if args.cmd in ("update-plan", "update-run", "update-log"):
+            return _updates(args)
         if args.cmd == "homebrew":
             from .inventory import homebrew
             from .store import default_data_dir
