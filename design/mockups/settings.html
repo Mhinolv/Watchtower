@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: Settings (#2, #5, #17)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>
+body { background: var(--bg-desktop); } .stage { padding: 30px; }
+.th, .tr { --cols: 60px 190px 1fr; } .tr { height: 34px; }
+.tbl { border: .5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.root { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: .5px solid var(--sep); font-size: 13px; }
+.root:last-child { border-bottom: 0; }
+</style></head>
+<body><script>
+P['person.crop.circle'] = '<circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="6.4" r="2"/><path d="M3.9 12.4c1-1.7 2.4-2.4 4.1-2.4s3.1.7 4.1 2.4"/>';
+const tab = q.get('tab') || 'projects';
+const tabs = [['general', 'General', 'gearshape'], ['projects', 'Projects', 'folder'], ['services', 'Services', 'antenna.radiowaves.left.and.right']];
+const head = `<div class="stabs"><div class="lights"><i></i><i></i><i></i></div><div class="ttl">${tabs.find(t => t[0] === tab)[1]}</div><div style="display:flex;gap:4px">${tabs.map(t => `<div class="stab ${t[0] === tab ? 'on' : ''}">${sf(t[2])}${t[1]}</div>`).join('')}</div></div>`;
+const tog = (on, t, h) => `<div class="srow"><span class="switch ${on ? 'on' : ''}"></span><div><div class="b">${t}</div><div class="help">${h}</div></div></div>`;
+const pr = (a, n, p, extra) => `<div class="tr"><span><span class="switch ${a ? 'on' : ''}" style="transform:scale(.8);transform-origin:left"></span></span><span class="b">${n}</span><span class="mono sec" style="font-size:11.5px">${p}${extra || ''}</span></div>`;
+const body = {
+  general: `<div class="sbody">${tog(true, 'Check running versions', 'Reads process versions. Watchtower never starts services or reads credentials.')}
+    <div class="srow"><div style="width:36px"></div><div><div class="b">Data folder</div><div class="help mono">~/Library/Application Support/Watchtower</div><div class="help">Scan data stays on this Mac. It is never in the repository.</div></div></div>
+    <div class="srow"><div style="width:36px"></div><div><div class="b">Refresh</div><div class="help">Watchtower scans only when you click Refresh. There is no schedule.</div></div></div></div>`,
+  projects: `<div class="sbody"><div class="h">Scan roots</div>
+    <div style="margin-bottom:14px"><div class="root">${sf('checkmark.circle', 't-green')}<span class="mono">~/Projects</span><span class="sec" style="margin-left:auto">12 projects</span></div>
+    <div class="root">${sf('exclamationmark.triangle', 't-orange')}<span class="mono">~/Real</span><span style="margin-left:auto;color:var(--orange)">Cannot read ~/Real: permission denied.</span></div>
+    <div class="root">${sf('checkmark.circle', 't-green')}<span class="mono">~/Applications</span><span class="sec" style="margin-left:auto">3 apps</span></div>
+    <div class="root">${sf('checkmark.circle', 't-green')}<span class="mono">/Applications</span><span class="sec" style="margin-left:auto">41 apps</span></div></div>
+    <div class="h">Projects</div><div class="tbl"><div class="th"><span>Active</span><span>Name</span><span>Path</span></div>
+    ${pr(true, 'storefront', '~/Projects/storefront')}${pr(true, 'dashboard', '~/Projects/dashboard')}${pr(false, 'old-site', '~/Projects/old-site')}${pr(true, 'tool', '~/Projects/tool')}${pr(true, 'notes', '~/Projects/notes', '')}</div>
+    <div class="help" style="margin-top:8px">Turn off Active to move a project to Backlog at once. Watchtower keeps your choice.</div></div>`,
+  services: `<div class="sbody"><div class="h">Breach watch</div>
+    ${tog(true, 'GitHub', 'Check.Sources reads public incident sources for GitHub.'.replace('Check.Sources', 'Check Sources'))}
+    ${tog(true, 'Google / Gmail', 'Check Sources reads public incident sources for Google and Gmail.')}
+    <div class="help" style="margin-top:10px;line-height:1.5">Watchtower never infers accounts from installed apps. It never reads your email, passwords or tokens. Web-only claims stay Unconfirmed until a primary source confirms them.</div></div>`,
+}[tab];
+document.body.innerHTML = `<div class="stage"><div class="swin">${head}${body}</div></div>`; fillIcons();
+</script></body></html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: Backlog (#5, #8)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>.th, .tr { --cols: 1fr 84px 170px; } .tr { height: 42px; }</style></head>
+<body><script>
+const empty = q.get('view') === 'empty';
+const rows = `<div class="tr sel"><span class="nm"><span class="ico" style="background:#475569">${sf('folder').replace('class="sf','style="width:13px;height:13px" class="sf')}</span><span><div>old-site</div><div class="sec" style="font-size:11px;font-weight:400">~/Projects/old-site</div></span></span><span>Project</span><span class="v">Inactive since Oct 22</span></div>
+<div class="tr"><span class="nm"><span class="ico" style="background:#475569">${sf('exclamationmark.shield').replace('class="sf','style="width:13px;height:13px" class="sf')}</span><span><div><span class="mono">SEC-0008</span> yaml-tools</div><div class="sec" style="font-size:11px;font-weight:400">Regular expression slowdown in the parser</div></span></span><span>Finding</span><span class="v">Moved Oct 27</span></div>`;
+const detail = empty ? `<div class="detail"><div class="empty"><div class="t">Select an item</div></div></div>` : `<div class="detail"><div style="display:flex;gap:12px;align-items:center"><span class="ico" style="width:44px;height:44px;border-radius:10px;background:#475569">${sf('folder').replace('class="sf','style="width:22px;height:22px" class="sf')}</span><div><div style="font-size:18px;font-weight:700">old-site</div><span class="badge gray" style="margin-top:4px">${sf('tray')}Backlog</span></div></div>
+  <div class="kv"><span>Path</span><span class="mono">~/Projects/old-site</span><span>Root</span><span>~/Projects</span><span>Files found</span><span class="mono">package.json, package-lock.json</span><span>Since</span><span>Inactive since Oct 22</span></div>
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-top:.5px solid var(--sep)"><span class="switch"></span><div><div class="b">Active</div><div class="help">Turn on to move the project back to Projects at once.</div></div></div></div>`;
+mount({ active: 'Backlog', title: 'Backlog', tool: SEARCH, body: `<div class="list" style="width:560px"><div class="strip"><span class="sec" style="font-size:12.5px">Items you moved here. They stay here until you move them back.</span></div>
+  <div class="th"><span>Name</span><span>Kind</span><span>Status</span></div>${empty ? `<div class="empty"><i data-i="tray"></i><div class="t">Backlog is empty</div><div>Inactive projects and findings you move here appear in this list.</div></div>` : rows}</div>${empty ? '<div class="detail"><div class="empty"><div class="t">No selection</div></div></div>' : detail}` });
+if (empty) document.querySelectorAll('.side-i .n').forEach(n => { if (n.previousElementSibling.textContent === 'Backlog') n.textContent = '0'; });
+</script></body></html>

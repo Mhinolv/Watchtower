@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: Update Log (#6)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>.th, .tr { --cols: 112px 1fr 70px 70px 132px; } .tr { height: 40px; } .out { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11.5px; line-height: 1.5; color: var(--label2); }</style></head>
+<body><script>
+T['Verified'] = ['green', 'checkmark.seal']; T['Not verified'] = ['orange', 'exclamationmark.triangle']; T['Failed'] = ['red', 'xmark.octagon']; T['Interrupted'] = ['gray', 'minus.circle'];
+const view = q.get('view') || 'verified';
+const R = [ // time, item, source, before, after, result
+  ['Oct 29, 09:41', 'ripgrep', 'Homebrew', '14.1.0', '14.1.1', 'Verified'],
+  ['Oct 29, 09:12', 'acme-router', '~/Projects/storefront', '4.17.1', '4.19.2', 'Verified'],
+  ['Oct 28, 18:20', 'fastjson-lite', '~/Real/tool', '0.26.0', '0.26.0', 'Not verified'],
+  ['Oct 28, 08:05', 'yaml-tools', '~/Projects/storefront', '2.1.0', '2.1.0', 'Failed'],
+  ['Oct 27, 21:30', 'wget', 'Homebrew', '1.24.5', '—', 'Interrupted'],
+  ['Oct 26, 10:02', 'jq', 'Homebrew', '1.7', '1.7.1', 'Verified'],
+];
+const sel = { verified: 0, notverified: 2, failed: 3 }[view] ?? 0;
+const rows = R.map((r, i) => `<div class="tr ${i === sel ? 'sel' : ''}"><span class="v">${r[0]}</span><span><div class="b">${r[1]}</div><div class="sec" style="font-size:11px">${r[2]}</div></span><span class="v">${r[3]}</span><span class="v hi">${r[4]}</span><span>${badge(r[5])}</span></div>`).join('');
+const D = {
+  0: { res: 'Verified', t: 'Updated. Installed version is now 14.1.1.', cmd: 'brew upgrade ripgrep', ver: ['checkmark.circle', 't-green', 'Installed version re-read: 14.1.1 (brew list --versions ripgrep)'], exit: '0', out: '==> Upgrading ripgrep\n  14.1.0 -> 14.1.1\n==> Pouring ripgrep--14.1.1.arm64.bottle.tar.gz\n==> Cleaning up old versions' },
+  2: { res: 'Not verified', t: 'The command finished, but the installed version is still 0.26.0.', cmd: 'uv lock --upgrade-package fastjson-lite', ver: ['exclamationmark.triangle', 't-orange', 'Lockfile: fastjson-lite 0.27.2. Installed (.venv): 0.26.0.'], exit: '0', out: 'Resolved 14 packages in 212ms\nUpdated fastjson-lite v0.26.0 -> v0.27.2' },
+  3: { res: 'Failed', t: 'The update failed (exit code 1).', cmd: 'npm install yaml-tools@2.2.0 --ignore-scripts', ver: ['xmark.octagon', 't-red', 'No version was read. The lockfile did not change.'], exit: '1', out: 'npm error code ERESOLVE\nnpm error ERESOLVE unable to resolve dependency tree\nnpm error Found: acme-router@4.17.1' },
+}[sel];
+const R0 = R[sel];
+const detail = `<div class="detail"><div><div style="font-size:17px;font-weight:700">${R0[1]}</div><div class="sec" style="margin:2px 0 8px">${R0[0]} · ${R0[2]}</div>${badge(D.res)}</div>
+  <div style="font-size:13px;font-weight:600">${D.t}</div>
+  <div class="kv"><span>Before</span><span class="num">${R0[3]}</span><span>After</span><span class="num">${R0[4]}</span><span>Exit code</span><span class="num">${D.exit}</span><span>Verification</span><span style="display:flex;gap:6px">${sf(D.ver[0], D.ver[1])}<span>${D.ver[2]}</span></span></div>
+  <div><div class="h">Command</div><div class="code" style="display:flex;align-items:center;gap:8px"><span class="mono" style="flex:1">${D.cmd}</span>${sf('doc.on.doc')}</div></div>
+  <div><div class="h">Output</div><div class="code mono out">${D.out}</div></div></div>`;
+mount({ active: 'Update Log', title: 'Update Log', tool: SEARCH, body: `<div class="list" style="width:640px"><div class="th"><span>Time ▾</span><span>Item</span><span>Before</span><span>After</span><span>Result</span></div>${rows}</div>${detail}` });
+</script></body></html>

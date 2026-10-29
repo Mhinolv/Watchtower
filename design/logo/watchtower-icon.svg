@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Watchtower app icon</title>
+  <defs>
+    <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#4338B5"/>
+      <stop offset="1" stop-color="#1B1850"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFC247" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFC247" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#bg)" filter="url(#shadow)"/>
+  <g transform="translate(0,-34)">
+    <circle cx="512" cy="408" r="150" fill="url(#glow)"/>
+    <g fill="none" stroke-width="22" stroke-linecap="round">
+      <path d="M656.2 317.9A170 170 0 0 1 656.2 498.1M367.8 317.9A170 170 0 0 0 367.8 498.1" stroke="#FFC247"/>
+      <path d="M724 275.5A250 250 0 0 1 724 540.5M300 275.5A250 250 0 0 0 300 540.5" stroke="#A9A3FF" opacity="0.7"/>
+    </g>
+    <g fill="#F5F4FF">
+      <path d="M428 806 L596 806 L568 486 L456 486 Z"/>
+      <rect x="372" y="806" width="280" height="22" rx="11"/>
+      <path d="M394 452 H630 V492 H394 Z"/>
+      <path fill-rule="evenodd" d="M438 366 H586 A12 12 0 0 1 598 378 V452 H426 V378 A12 12 0 0 1 438 366 Z M474 390 H550 A10 10 0 0 1 560 400 V420 A10 10 0 0 1 550 430 H474 A10 10 0 0 1 464 420 V400 A10 10 0 0 1 474 390 Z"/>
+      <path d="M414 366 L512 302 L610 366 Z" stroke="#F5F4FF" stroke-width="16" stroke-linejoin="round"/>
+    </g>
+    <rect x="464" y="390" width="96" height="40" rx="10" fill="#FFC247"/>
+    <path d="M490 806 V752 A22 22 0 0 1 534 752 V806 Z" fill="#2B2678"/>
+    <rect x="470" y="640" width="84" height="12" rx="6" fill="#2B2678" opacity="0.55"/>
+  </g>
+</svg>
