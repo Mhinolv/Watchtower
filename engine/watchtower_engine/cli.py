@@ -8,6 +8,7 @@ import json
 import sys
 
 from . import __version__
+from .findings import FindingError
 from .models import SCHEMA_VERSION
 from .scope import list_projects, set_project_active
 from .store import Store, StoreError
@@ -30,6 +31,13 @@ def main(argv=None) -> int:
     sub.add_parser("apps", help="print installed apps and their cask links as JSON")
     sub.add_parser("projects", help="print the projects, root errors and skipped links as JSON")
     sub.add_parser("osv", help="scan the lockfiles of active projects offline with OSV-Scanner, print JSON")
+    for name, helptext in (("finding-defer", "defer a finding for 7 or 30 days"),
+                           ("finding-backlog", "move a finding to the backlog"),
+                           ("finding-reopen", "take a deferred or backlog finding back to open")):
+        fp = sub.add_parser(name, help=helptext)
+        fp.add_argument("id", help="finding id, for example SEC-0001")
+        if name == "finding-defer":
+            fp.add_argument("days", type=int, choices=(7, 30))
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
@@ -85,6 +93,16 @@ def main(argv=None) -> int:
             projects = list_projects(args.data_dir).projects
             _emit(sys.stdout, osv.collect(args.data_dir or default_data_dir(), projects).to_dict())
             return 0
+        if args.cmd in ("finding-defer", "finding-backlog", "finding-reopen"):
+            with Store(args.data_dir) as store:
+                if args.cmd == "finding-defer":
+                    finding = store.defer_finding(args.id, args.days)
+                elif args.cmd == "finding-backlog":
+                    finding = store.backlog_finding(args.id)
+                else:
+                    finding = store.reopen_finding(args.id)
+            _emit(sys.stdout, {"finding": finding.to_dict()})
+            return 0
         if args.cmd == "projects":
             _emit(sys.stdout, list_projects(args.data_dir).to_dict())
             return 0
@@ -94,6 +112,9 @@ def main(argv=None) -> int:
             return 0
     except StoreError as exc:
         _emit(sys.stderr, {"error": str(exc), "detail": exc.detail})
+        return 1
+    except FindingError as exc:
+        _emit(sys.stderr, {"error": str(exc), "detail": None})
         return 1
     except Exception as exc:  # Never let a traceback reach stdout.
         _emit(sys.stderr, {"error": "The Watchtower engine failed.", "detail": repr(exc)})

@@ -149,3 +149,54 @@ private func utc(_ text: String) -> Date {
     let git = try #require(state.items.first { $0.key == "homebrew/formula:git" })
     #expect(git.attributes == nil)
 }
+
+@Test func decodesFindingsFromTheEngineFixture() throws {
+    let state = try EngineJSON.decode(EngineState.self, from: fixture("state-partial"))
+    #expect(state.findings.map(\.id).sorted() == ["SEC-0001", "SEC-0002", "SEC-0003"])
+
+    let lodash = try #require(state.findings.first { $0.id == "SEC-0001" })
+    #expect(lodash.package == "lodash")
+    #expect(lodash.severity == .high)
+    #expect(lodash.status == .open)
+    #expect(lodash.fixedIn == "4.17.21")
+    #expect(lodash.advisoryIds == ["CVE-2021-23337", "GHSA-35jh-r3h4-6jhm"])
+    #expect(lodash.paths.count == 2)
+    #expect(lodash.projectNames == ["admin", "web"])
+    let web = try #require(lodash.paths.first { $0.project == "web" })
+    #expect(web.dependencyPath == ["web", "lodash"])
+    #expect(web.lockfile == "package-lock.json" && web.version == "4.17.20")
+    let admin = try #require(lodash.paths.first { $0.project == "admin" })
+    #expect(admin.dependencyPath == nil)
+    #expect(lodash.firstSeen == utc("2026-10-28T09:02:10Z"))
+    #expect(lodash.sourceAt == utc("2026-10-28T06:00:00Z"))
+    #expect(lodash.nextSteps.count == 2)
+
+    let deferred = try #require(state.findings.first { $0.id == "SEC-0002" })
+    #expect(deferred.status == .deferred)
+    #expect(deferred.deferredUntil == utc("2099-01-01T00:00:00Z"))
+    #expect(deferred.fixedIn == nil)
+
+    let resolved = try #require(state.findings.first { $0.id == "SEC-0003" })
+    #expect(resolved.status == .resolved && resolved.severity == .critical)
+    #expect(resolved.resolvedScanAt == utc("2026-10-28T09:02:10Z"))
+    #expect(resolved.paths.isEmpty)
+}
+
+@Test func stateWithoutFindingsKeyDecodesAsEmpty() throws {
+    let json = #"{"schema_version": 1, "refresh": null, "coverage": [], "items": []}"#
+    let state = try EngineJSON.decode(EngineState.self, from: Data(json.utf8))
+    #expect(state.findings.isEmpty)
+    let empty = try EngineJSON.decode(EngineState.self, from: fixture("state-empty"))
+    #expect(empty.findings.isEmpty)
+}
+
+@Test func refusesAnUnknownFindingSeverity() throws {
+    let json = #"""
+    {"schema_version": 1, "refresh": null, "coverage": [], "items": [], "findings": [
+     {"id": "SEC-0001", "ecosystem": "npm", "package": "x", "title": "t", "severity": "catastrophic",
+      "advisory_ids": [], "fixed_in": null, "status": "open", "deferred_until": null,
+      "first_seen": "2026-10-28T09:02:10Z", "last_seen": "2026-10-28T09:02:10Z", "resolved_at": null,
+      "resolved_scan_at": null, "source": "OSV", "source_at": null, "paths": [], "next_steps": []}]}
+    """#
+    #expect(throws: DecodingError.self) { try EngineJSON.decode(EngineState.self, from: Data(json.utf8)) }
+}

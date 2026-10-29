@@ -112,6 +112,14 @@ public protocol EngineClient: Sendable {
     func refresh(progress: @escaping @Sendable (RefreshProgress) -> Void) async throws -> EngineState
     func projects() async throws -> ProjectList
     func setProject(path: String, active: Bool) async throws -> ProjectRecord
+    func deferFinding(id: String, days: Int) async throws -> FindingRecord
+    func moveFindingToBacklog(id: String) async throws -> FindingRecord
+    func reopenFinding(id: String) async throws -> FindingRecord
+}
+
+struct FindingResponse: Codable, Sendable {
+    var schemaVersion: Int
+    var finding: FindingRecord
 }
 
 /// How to start the engine.
@@ -181,6 +189,18 @@ public struct Engine: EngineClient {
 
     public func setProject(path: String, active: Bool) async throws -> ProjectRecord {
         try await call(["project-state", path, active ? "active" : "inactive"], as: ProjectStateResponse.self).project
+    }
+
+    public func deferFinding(id: String, days: Int) async throws -> FindingRecord {
+        try await call(["finding-defer", id, String(days)], as: FindingResponse.self).finding
+    }
+
+    public func moveFindingToBacklog(id: String) async throws -> FindingRecord {
+        try await call(["finding-backlog", id], as: FindingResponse.self).finding
+    }
+
+    public func reopenFinding(id: String) async throws -> FindingRecord {
+        try await call(["finding-reopen", id], as: FindingResponse.self).finding
     }
 
     func call<T: Decodable>(_ args: [String], as type: T.Type,

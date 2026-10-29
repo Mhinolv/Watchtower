@@ -72,7 +72,9 @@ struct ListPane: View {
 
     var body: some View {
         Group {
-            if section.listsItems {
+            if section == .findings {
+                FindingTable(model: model)
+            } else if section.listsItems {
                 ItemTable(model: model, section: section)
             } else {
                 ProjectTable(model: model, section: section)
@@ -112,9 +114,6 @@ struct ItemTable: View {
         } else if model.state?.refresh == nil {
             ContentUnavailableView("Never refreshed", systemImage: "arrow.clockwise",
                                    description: Text("Click Refresh to check this Mac."))
-        } else if section == .findings {
-            ContentUnavailableView("No open findings", systemImage: "checkmark.shield",
-                                   description: Text("No scanned lockfile has a known vulnerability."))
         } else {
             ContentUnavailableView("Nothing here", systemImage: section.symbol,
                                    description: Text("The last refresh found no \(section.title.lowercased())."))
@@ -177,7 +176,14 @@ struct DetailPane: View {
     let section: SidebarSection
 
     var body: some View {
-        if section.listsItems, let item = model.selectedItem {
+        if section == .findings {
+            if let finding = model.selectedFinding {
+                FindingDetailView(model: model, finding: finding)
+            } else {
+                ContentUnavailableView("No selection", systemImage: "sidebar.right",
+                                       description: Text("Select a finding to see its details."))
+            }
+        } else if section.listsItems, let item = model.selectedItem {
             ItemDetail(model: model, item: item)
         } else if !section.listsItems,
                   let project = model.projects.first(where: { $0.path == model.selectedItemKey }) {
@@ -276,13 +282,13 @@ struct ProjectDetail: View {
                 let findings = model.findings(in: project)
                 if !findings.isEmpty {
                     Text("Findings").font(.headline)
-                    ForEach(findings.map(ItemRow.init)) { row in
+                    ForEach(findings) { finding in
                         HStack {
-                            Text("\(row.item.name) \(row.item.installedVersion ?? "")")
+                            Text(finding.id).font(.callout.monospaced())
+                            Text("\(finding.package) \(finding.paths.first { $0.projectPath == project.displayPath }?.version ?? "")")
                             Spacer()
-                            StatusBadge(row.item.state)
+                            SeverityBadge(severity: finding.severity)
                         }
-                        Text("Dependency path not available.").font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
