@@ -1,0 +1,43 @@
+{
+  "results": [
+    {
+      "source": {"path": "__NPM_LOCK__", "type": "lockfile"},
+      "packages": [
+        {
+          "package": {"name": "lodash", "version": "4.17.20", "ecosystem": "npm"},
+          "dependency_groups": ["prod"],
+          "vulnerabilities": [
+            {"modified": "2026-09-01T00:00:00Z", "id": "GHSA-35jh-r3h4-6jhm",
+             "aliases": ["CVE-2021-23337"], "summary": "Command Injection in lodash"},
+            {"modified": "2026-09-01T00:00:00Z", "id": "GHSA-29mw-wpgm-hmr9",
+             "aliases": ["CVE-2020-28500"], "summary": "ReDoS in lodash"}
+          ],
+          "groups": [
+            {"ids": ["GHSA-35jh-r3h4-6jhm"], "aliases": ["CVE-2021-23337", "GHSA-35jh-r3h4-6jhm"], "max_severity": "7.2"},
+            {"ids": ["GHSA-29mw-wpgm-hmr9"], "aliases": ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], "max_severity": "5.3"}
+          ]
+        },
+        {
+          "package": {"name": "minimist", "version": "1.2.5", "ecosystem": "npm"},
+          "vulnerabilities": [
+            {"id": "GHSA-xvch-5gv4-984h", "aliases": ["CVE-2021-44906"], "summary": "Prototype Pollution in minimist"}
+          ],
+          "groups": [{"ids": ["GHSA-xvch-5gv4-984h"], "aliases": ["CVE-2021-44906", "GHSA-xvch-5gv4-984h"]}]
+        }
+      ]
+    },
+    {
+      "source": {"path": "__UV_LOCK__", "type": "lockfile"},
+      "packages": [
+        {
+          "package": {"name": "jinja2", "version": "3.1.2", "ecosystem": "PyPI"},
+          "vulnerabilities": [
+            {"id": "GHSA-h5c8-rqwp-cp95", "aliases": ["CVE-2024-22195"], "summary": "Jinja vulnerable to HTML attribute injection"},
+            {"id": "PYSEC-2024-1", "aliases": ["CVE-2024-22195"], "summary": "Same issue, PyPA record"}
+          ],
+          "groups": [{"ids": ["GHSA-h5c8-rqwp-cp95", "PYSEC-2024-1"], "aliases": ["CVE-2024-22195"]}]
+        }
+      ]
+    }
+  ]
+}

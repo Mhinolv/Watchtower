@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS items (
 """
 
 # Columns added after schema 1 shipped. Old stores get them with ALTER TABLE.
-_ADDED_COLUMNS = {"items": ("origin", "source_at", "note")}
+_ADDED_COLUMNS = {"items": ("origin", "source_at", "note"), "coverage": ("source_at",)}
 
 
 class Store:
@@ -216,12 +216,13 @@ class Store:
             ).fetchone()
             last_success = now if c.state == "complete" else (row["last_success_at"] if row else None)
             self.db.execute(
-                "INSERT INTO coverage (source, label, state, last_success_at, error, detail, refresh_id) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "INSERT INTO coverage (source, label, state, last_success_at, error, detail, refresh_id, "
+                "source_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT (source) DO UPDATE SET label = excluded.label, state = excluded.state, "
                 "last_success_at = excluded.last_success_at, error = excluded.error, "
-                "detail = excluded.detail, refresh_id = excluded.refresh_id",
-                (c.source, c.label, c.state, last_success, owner_error(c.error), c.detail, refresh_id),
+                "detail = excluded.detail, refresh_id = excluded.refresh_id, source_at = excluded.source_at",
+                (c.source, c.label, c.state, last_success, owner_error(c.error), c.detail, refresh_id,
+                 c.source_at),
             )
         for row in self.db.execute(
             "SELECT source FROM coverage WHERE state IN ('complete', 'partial')"
@@ -272,7 +273,8 @@ class Store:
 
     def coverage(self) -> list[CoverageRecord]:
         rows = self.db.execute(
-            "SELECT source, label, state, last_success_at, error, detail FROM coverage ORDER BY source"
+            "SELECT source, label, state, last_success_at, error, detail, source_at FROM coverage "
+            "ORDER BY source"
         ).fetchall()
         return [CoverageRecord(**dict(r)) for r in rows]
 

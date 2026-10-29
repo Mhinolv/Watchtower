@@ -304,3 +304,23 @@ def test_store_from_schema_1_gets_new_item_columns(tmp_path):
         assert (w.origin, w.source_at, w.note) == (
             "acme/tools", "2026-10-29T09:00:00Z", "Watchtower cannot check tap acme/tools."
         )
+
+
+def test_old_coverage_table_gets_source_at(tmp_path):
+    import sqlite3
+
+    db = sqlite3.connect(tmp_path / "watchtower.sqlite3")
+    db.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        INSERT INTO meta VALUES ('schema_version', '1');
+        CREATE TABLE coverage (source TEXT PRIMARY KEY, label TEXT NOT NULL, state TEXT NOT NULL,
+            last_success_at TEXT, error TEXT, detail TEXT, refresh_id INTEGER NOT NULL);
+        INSERT INTO coverage VALUES ('osv', 'OSV', 'not_run', NULL, NULL, NULL, 1);
+    """)
+    db.close()
+    with Store(tmp_path, clock=clock()) as s:
+        assert s.coverage() == [C("osv", "OSV", "not_run")]
+        r = s.begin_refresh()
+        s.finish_refresh(r.id, "complete", coverage=[C("osv", "OSV", "stale", source_at="2026-10-20T10:00:00Z")])
+    with Store(tmp_path) as s:
+        assert s.coverage()[0].source_at == "2026-10-20T10:00:00Z"
