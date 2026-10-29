@@ -34,6 +34,25 @@ func render(_ view: some View, size: CGSize, dark: Bool, to url: URL) throws {
     window.close()
 }
 
+@MainActor
+func renderAlert(title: String, text: String, buttons: [String], dark: Bool, to url: URL) throws {
+    let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
+    let alert = NSAlert()
+    alert.messageText = title
+    alert.informativeText = text
+    buttons.forEach { alert.addButton(withTitle: $0) }
+    // The snapshot tool has no app icon. The app shows its own icon here.
+    alert.icon = NSImage(systemSymbolName: "shield.lefthalf.filled", accessibilityDescription: nil)
+    alert.window.appearance = appearance
+    alert.layout()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+    let view = alert.window.contentView?.superview ?? alert.window.contentView!
+    guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw CocoaError(.fileWriteUnknown) }
+    appearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: rep) }
+    guard let png = rep.representation(using: .png, properties: [:]) else { throw CocoaError(.fileWriteUnknown) }
+    try png.write(to: url)
+}
+
 MainActor.assumeIsolated {
     let args = CommandLine.arguments
     guard args.count == 2 else {
@@ -65,5 +84,34 @@ MainActor.assumeIsolated {
             }
         }
     }
-    exit(written == SampleData.Scenario.allCases.count * 2 ? 0 : 1)
+    for scenario in SampleData.UpdateScenario.allCases {
+        for dark in [false, true] {
+            let updates = SampleData.updateModel(scenario)
+            let name = "\(scenario.rawValue)-\(dark ? "dark" : "light").png"
+            do {
+                switch scenario {
+                case .log:
+                    let model = SampleData.model(.complete)
+                    model.selection = .updateLog
+                    try render(DashboardView(model: model).environment(updates), size: CGSize(width: 1180, height: 660),
+                               dark: dark, to: out.appendingPathComponent(name))
+                case .majorAlert:
+                    // SwiftUI shows this step as an NSAlert sheet. Render the same alert offscreen.
+                    guard case .confirmMajor(let plan) = updates.step else { continue }
+                    try renderAlert(title: "Update to a new major version?", text: plan.majorWarning,
+                                    buttons: ["Update to \(plan.targetVersion ?? "?")", "Cancel"], dark: dark,
+                                    to: out.appendingPathComponent(name))
+                default:
+                    try render(UpdateDialog(model: updates), size: CGSize(width: 580, height: 400), dark: dark,
+                               to: out.appendingPathComponent(name))
+                }
+                print(name)
+                written += 1
+            } catch {
+                FileHandle.standardError.write(Data("\(name): \(error)\n".utf8))
+            }
+        }
+    }
+    let expected = (SampleData.Scenario.allCases.count + SampleData.UpdateScenario.allCases.count) * 2
+    exit(written == expected ? 0 : 1)
 }

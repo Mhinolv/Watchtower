@@ -13,7 +13,7 @@ public enum Tone: Sendable, Equatable {
 // MARK: - Sidebar
 
 public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
-    case apps, homebrew, projects, findings, backlog
+    case apps, homebrew, projects, findings, backlog, updateLog
 
     public var id: String { rawValue }
 
@@ -24,6 +24,7 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .projects: "Projects"
         case .findings: "Findings"
         case .backlog: "Backlog"
+        case .updateLog: "Update Log"
         }
     }
 
@@ -34,12 +35,20 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .projects: "folder"
         case .findings: "exclamationmark.shield"
         case .backlog: "archivebox"
+        case .updateLog: "list.bullet.rectangle"
         }
     }
 
-    /// ⌘1 to ⌘5.
+    /// ⌘1 to ⌘5, and ⌘7 for Update Log (Design notes of #5 and #6).
     public var shortcutDigit: Character {
-        Character(String(Self.allCases.firstIndex(of: self)! + 1))
+        switch self {
+        case .apps: "1"
+        case .homebrew: "2"
+        case .projects: "3"
+        case .findings: "4"
+        case .backlog: "5"
+        case .updateLog: "7"
+        }
     }
 
     /// True for sections that list items. Projects and Backlog list projects.
@@ -390,7 +399,7 @@ public final class DashboardModel {
         case .apps: all.filter { $0.source == "apps" || $0.source == "macos" }
         case .homebrew: all.filter { $0.source == "homebrew" }
         case .findings: []  // Findings are not items. See `visibleFindings`.
-        case .projects, .backlog: []
+        case .projects, .backlog, .updateLog: []
         }
         return picked.sorted {
             ($0.state.rank, $0.name.lowercased(), $0.key) < ($1.state.rank, $1.name.lowercased(), $1.key)
@@ -417,6 +426,7 @@ public final class DashboardModel {
         case .findings: findingsInScope.filter(\.isOpen).count
         case .projects: activeProjects.count
         case .backlog: backlogProjects.count
+        case .updateLog: 0  // The update log count comes from UpdateModel.
         }
     }
 

@@ -4,6 +4,7 @@ import WatchtowerCore
 /// The main window: sidebar, list, detail.
 public struct DashboardView: View {
     @Bindable var model: DashboardModel
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     public init(model: DashboardModel) {
         self.model = model
@@ -13,9 +14,9 @@ public struct DashboardView: View {
         NavigationSplitView {
             List(SidebarSection.allCases, selection: $model.selection) { section in
                 Label(section.title, systemImage: section.symbol)
-                    .badge(model.count(section))
+                    .badge(count(section))
                     .tag(section)
-                    .accessibilityLabel("\(section.title), \(model.count(section))")
+                    .accessibilityLabel("\(section.title), \(count(section))")
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
         } content: {
@@ -32,6 +33,11 @@ public struct DashboardView: View {
             }
         }
         .onChange(of: model.selection) { model.selectedItemKey = nil }
+        .modifier(UpdateSheetHost())
+    }
+
+    func count(_ section: SidebarSection) -> Int {
+        section == .updateLog ? (updates?.attempts.count ?? 0) : model.count(section)
     }
 }
 
@@ -69,10 +75,17 @@ public struct RefreshButton: View {
 struct ListPane: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     var body: some View {
         Group {
-            if section == .findings {
+            if section == .updateLog {
+                if let updates {
+                    UpdateLogTable(model: updates)
+                } else {
+                    ContentUnavailableView("No updates yet", systemImage: section.symbol)
+                }
+            } else if section == .findings {
                 FindingTable(model: model)
             } else if section.listsItems {
                 ItemTable(model: model, section: section)
@@ -87,6 +100,7 @@ struct ListPane: View {
 struct ItemTable: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     var body: some View {
         let rows = model.visibleItems(in: section).map(ItemRow.init)
@@ -104,6 +118,13 @@ struct ItemTable: View {
                     .width(min: 80, ideal: 120)
                 TableColumn("Status") { row in StatusBadge(row.item.state) }
                     .width(min: 150, ideal: 150)
+            }
+            .contextMenu(forSelectionType: String.self) { keys in
+                if keys.count == 1, let key = keys.first,
+                   let item = model.state?.items.first(where: { $0.key == key }) {
+                    Button("Update…") { Task { await updates?.start(item) } }
+                        .disabled(updates == nil || UpdatePolicy.blockReason(item) != nil)
+                }
             }
         }
     }
@@ -174,9 +195,15 @@ enum Lockfiles {
 struct DetailPane: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     var body: some View {
-        if section == .findings {
+        if section == .updateLog, let attempt = updates?.selectedAttempt {
+            UpdateLogDetail(attempt: attempt)
+        } else if section == .updateLog {
+            ContentUnavailableView("No selection", systemImage: "sidebar.right",
+                                   description: Text("Select an update to see its command and output."))
+        } else if section == .findings {
             if let finding = model.selectedFinding {
                 FindingDetailView(model: model, finding: finding)
             } else {
@@ -199,6 +226,7 @@ struct ItemDetail: View {
     let model: DashboardModel
     let item: ItemRecord
     @State private var showsDetail = false
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     var body: some View {
         ScrollView {
@@ -209,10 +237,11 @@ struct ItemDetail: View {
                         StatusBadge(item.state)
                     }
                     Spacer()
-                    Button("Update") {}
+                    let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
+                    Button("Update…") { Task { await updates?.start(item) } }
                         .buttonStyle(.borderedProminent)
-                        .disabled(true)
-                        .help("Updates arrive with the update dialog (#6).")
+                        .disabled(blocked != nil)
+                        .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Installed", item.installedVersion ?? "—")

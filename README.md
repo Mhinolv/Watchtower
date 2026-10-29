@@ -36,6 +36,9 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower version` | `{"schema_version", "engine"}` |
 | `watchtower state` | `{"schema_version", "refresh", "coverage", "items", "findings"}` |
 | `watchtower refresh` | Runs every source and saves the result. Prints the state. Progress lines go to stderr. SIGTERM saves a `cancelled` refresh and exits 130 |
+| `watchtower update-plan <item>` | `{"schema_version", "plan"}`: the exact command, other packages that change, script needs, refusal |
+| `watchtower update-run <item> --plan-id <id> [--confirm-major] [--confirm-scripts]` | `{"schema_version", "attempt", "plan"}`. Output lines go to stderr |
+| `watchtower update-log` | `{"schema_version", "attempts"}`, newest first |
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
 | `watchtower macos` | `{"schema_version", "coverage", "items"}` for the macOS version and build |
 | `watchtower apps` | `{"schema_version", "coverage", "items"}` for apps in `/Applications` and `~/Applications` |
@@ -67,6 +70,18 @@ The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/re
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
 It scans `package-lock.json` and `uv.lock` only. A database older than 7 days makes the OSV coverage `stale`.
+
+## Updates
+
+The Update button plans one Homebrew formula or cask update. Nothing runs before the owner confirms.
+- The plan shows the exact command, for example `/opt/homebrew/bin/brew upgrade --formula git`, and every other package that changes.
+- Planning runs `brew info --json=v2` and `brew upgrade --dry-run` for that one package, with `HOMEBREW_NO_AUTO_UPDATE=1`.
+- A new major version needs a second confirmation. So does a build from source, a post-install step or a package installer.
+- Before the run, the engine plans again. If the plan changed, it does not run.
+- After the run, the engine reads the installed version again. Only a match with the plan counts as `Updated`.
+- Every attempt goes in the update log (`update_attempts` table in the store): command, versions, output, result.
+- `brew upgrade` downloads the new bottle or app from Homebrew's usual sources. Watchtower sends nothing itself.
+- There is no "update all" and no `brew update`.
 
 ## Findings
 

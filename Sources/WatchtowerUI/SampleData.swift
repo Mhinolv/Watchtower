@@ -251,3 +251,90 @@ struct SettingsView_Previews: PreviewProvider {
         SettingsView(model: SampleData.model(.settingsInactive))
     }
 }
+
+// MARK: - Update samples
+
+extension PreviewEngine: UpdateClient {
+    public func updatePlan(itemKey: String) async throws -> UpdatePlan { SampleData.plan() }
+
+    public func runUpdate(itemKey: String, planID: String, confirmMajor: Bool, confirmScripts: Bool,
+                          output: @escaping @Sendable (String) -> Void) async throws -> (UpdateAttempt, UpdatePlan) {
+        (SampleData.attempt(.verified), SampleData.plan())
+    }
+
+    public func updateLog() async throws -> [UpdateAttempt] { SampleData.attempts }
+}
+
+extension SampleData {
+    public static func plan(major: Bool = false, scripts: [String] = []) -> UpdatePlan {
+        UpdatePlan(id: "3f2a9c41d07e5b18", itemKey: "homebrew/formula:git", name: "git", kind: "formula",
+                   fullName: "git", installedVersion: "2.46.0", targetVersion: major ? "3.0.0" : "2.47.1",
+                   command: ["/opt/homebrew/bin/brew", "upgrade", "--formula", "git"],
+                   alsoChanges: [PackageChange(name: "pcre2", before: nil, after: "10.44", change: "install"),
+                                 PackageChange(name: "git-lfs", before: "3.5.1", after: "3.5.1_1", change: "upgrade")],
+                   majorChange: major, scripts: scripts)
+    }
+
+    public static func attempt(_ status: UpdateStatus, id: Int = 4, name: String = "git",
+                               manualSteps: [String] = []) -> UpdateAttempt {
+        let after: String? = switch status {
+        case .verified: "2.47.1"
+        case .notVerified, .failed: "2.46.0"
+        default: nil
+        }
+        return UpdateAttempt(id: id, itemKey: "homebrew/formula:\(name)", name: name, kind: "formula",
+                             command: ["/opt/homebrew/bin/brew", "upgrade", "--formula", name],
+                             beforeVersion: "2.46.0", targetVersion: "2.47.1", afterVersion: after, status: status,
+                             exitCode: status == .failed ? 1 : (status == .verified || status == .notVerified ? 0 : nil),
+                             output: "==> Upgrading 1 outdated package:\n\(name) 2.46.0 -> 2.47.1\n==> Pouring \(name)--2.47.1.arm64_sequoia.bottle.tar.gz",
+                             error: nil, manualSteps: manualSteps, startedAt: ago(Double(5 - id)), finishedAt: ago(Double(5 - id) - 0.01))
+    }
+
+    public static let attempts: [UpdateAttempt] = [
+        attempt(.verified, id: 4), attempt(.notVerified, id: 3), attempt(.failed, id: 2), attempt(.planChanged, id: 1),
+    ]
+
+    public enum UpdateScenario: String, CaseIterable, Sendable {
+        case plan = "update-plan"
+        case majorAlert = "update-major-alert"
+        case scripts = "update-scripts"
+        case running = "update-running"
+        case verified = "update-verified"
+        case notVerified = "update-not-verified"
+        case failed = "update-failed"
+        case planChanged = "update-plan-changed"
+        case manualSteps = "update-manual-steps"
+        case log = "update-log"
+    }
+
+    @MainActor
+    public static func updateModel(_ scenario: UpdateScenario) -> UpdateModel {
+        let engine = PreviewEngine()
+        let step: UpdateModel.Step = switch scenario {
+        case .plan, .log: .plan(plan())
+        case .majorAlert: .confirmMajor(plan(major: true))
+        case .scripts: .confirmScripts(plan(scripts: ["the formula runs a post-install step"]))
+        case .running: .running(plan())
+        case .verified: .result(attempt(.verified), plan())
+        case .notVerified: .result(attempt(.notVerified), plan())
+        case .failed: .result(attempt(.failed), plan())
+        case .planChanged: .result(attempt(.planChanged), plan())
+        case .manualSteps: .result(attempt(.verified, name: "fluff", manualSteps: ["Quit and reopen Fluff if it is open."]), plan())
+        }
+        let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
+                                output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",
+                                         "==> Pouring git--2.47.1.arm64_sequoia.bottle.tar.gz"],
+                                attempts: attempts)
+        if scenario == .log { model.selectedAttemptID = 3 }
+        return model
+    }
+}
+
+struct UpdateDialog_Previews: PreviewProvider {
+    static var previews: some View {
+        ForEach(SampleData.UpdateScenario.allCases, id: \.self) { scenario in
+            UpdateDialog(model: SampleData.updateModel(scenario))
+                .previewDisplayName(scenario.rawValue)
+        }
+    }
+}
