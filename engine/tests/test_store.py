@@ -431,3 +431,32 @@ def test_owner_error_redacts_lowercase_folder_names_with_spaces():
     assert owner_error("Cannot read ~/Projects/some folder: denied", roots) == (
         "Cannot read ~/Projects/some folder: denied"
     )
+
+
+def test_owner_error_redacts_spaced_lowercase_paths_in_quotes_and_before_a_full_stop():
+    # Round 2 of bug #25: the normal Python OSError shape and the full-stop form still leaked.
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("[Errno 13] Permission denied: '/Users/me/some folder'", roots) == (
+        "[Errno 13] Permission denied: '<path>'"
+    )
+    assert owner_error('Cannot read "/Users/me/some folder" now', roots) == 'Cannot read "<path>" now'
+    assert owner_error("Cannot read `/Users/me/some folder`.", roots) == "Cannot read `<path>`."
+    assert owner_error("Cannot read '/Users/me/some other folder': denied", roots) == (
+        "Cannot read '<path>': denied"
+    )
+    assert owner_error("Cannot read /Users/me/some folder.", roots) == "Cannot read <path>."
+    assert owner_error("Cannot read /Users/me/some folder!", roots) == "Cannot read <path>!"
+    assert owner_error("Cannot read /Users/me/some folder now.", roots) == "Cannot read <path> now."
+    assert owner_error("Cannot read /Users/me/some folder.", roots) != "Cannot read <path> folder."
+    for text in (
+        "[Errno 13] Permission denied: '/Users/me/some folder'",
+        "Cannot read /Users/me/some folder.",
+        'Cannot read "/Users/me/my secret stuff".',
+        "Cannot read /Users/me/some folder now.",
+    ):
+        out = owner_error(text, roots)
+        assert not any(w in out for w in ("folder", "secret", "stuff", "/Users")), out
+    # Text that is not a path stays.
+    assert owner_error("Cannot open /etc/hosts now.", roots) == "Cannot open <path> now."
+    assert owner_error("Cannot open '/etc/hosts' now.", roots) == "Cannot open '<path>' now."
+    assert owner_error("Cannot read ~/Projects/some folder'.", roots) == "Cannot read ~/Projects/some folder'."

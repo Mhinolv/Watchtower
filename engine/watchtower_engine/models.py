@@ -58,6 +58,11 @@ _END_PUNCTUATION = ".:,;!?)]}'\"`"
 _HARD_STOP = ":,;)]}"
 # After a lowercase word, these end a sentence: the path ended before that word.
 _SENTENCE_END = ".!?'\"`"
+# A lowercase word like these before a sentence end is not part of a path: `/etc/hosts now.`
+_PLAIN_WORDS = frozenset(
+    {"now", "again", "then", "here", "there", "too", "instead", "anyway", "later", "today",
+     "soon", "once", "twice", "please", "yet"}
+)
 
 
 def _under_roots(path: str, roots: tuple[str, ...]) -> bool:
@@ -84,20 +89,24 @@ def _open_name(path: str) -> bool:
     return bool(name) and not name[:1].isupper() and "." not in name[1:]
 
 
-def _lowercase_words(words: list[str]) -> int:
+def _lowercase_words(words: list[str], quote: str | None = None) -> int:
     """How many of `words` (at most _MAX_SPACE_WORDS, the rest of the line or more) to redact.
 
-    Take them up to a hard stop (`folder:`) or the end of the line. If no end is in sight
-    after _MAX_SPACE_WORDS words, take all of them: redact more, not less.
-    Take none at a sentence end (`now.`) or at another path, URL or "and/or".
+    A path in quotes ends at the word with the closing quote. Any other path ends at a
+    hard stop (`folder:`) or a sentence end (`folder.`), or at the end of the line.
+    A sentence end belongs to the path, unless its word is a plain word of the sentence
+    (`now.`). If no end is in sight after _MAX_SPACE_WORDS words, take all of them:
+    redact more, not less. Take none at another path, URL or "and/or".
     """
     for i, word in enumerate(words, 1):
         if not word or "/" in word or _starts_new_path(word):
             return 0
+        if quote and quote in word:
+            return i
         if word[-1] in _HARD_STOP:
             return i
         if word[-1] in _SENTENCE_END:
-            return 0
+            return i - 1 if word.rstrip(_SENTENCE_END).lower() in _PLAIN_WORDS else i
     return len(words)
 
 
@@ -127,7 +136,8 @@ def _extend_path(line: str, start: int, end: int, lowercase: bool = False) -> in
                     break
         last_resort = False
         if take == 0 and lowercase and _open_name(line[start:end]):
-            take, last_resort = _lowercase_words(words), True
+            quote = line[start - 1] if start and line[start - 1] in "'\"`" else None
+            take, last_resort = _lowercase_words(words, quote), True
         if take == 0:
             break
         end += 1 + len(" ".join(words[:take]))
