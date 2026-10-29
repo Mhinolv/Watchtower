@@ -93,7 +93,8 @@ public struct FindingDetailView: View {
         return versions.count == 1 ? "\(finding.package)@\(versions.first!)" : finding.package
     }
 
-    /// No Mark Resolved button: only a complete scan resolves a finding.
+    /// No Mark Resolved button: only a complete scan resolves a finding. The `Update…` button is
+    /// not here: no update adapter exists for lockfiles yet (#10, #11).
     @ViewBuilder private var actions: some View {
         HStack {
             switch finding.status {
@@ -117,8 +118,6 @@ public struct FindingDetailView: View {
 
     // Sections
 
-    /// The actions sit under the title. The `Update…` button is not here: no update adapter
-    /// exists for lockfiles yet (#10, #11).
     @ViewBuilder private var affected: some View {
         section("Affected (\(finding.paths.count))") {
             if finding.paths.isEmpty {
@@ -217,12 +216,17 @@ struct FindingTable: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Show", selection: $model.findingFilter) {
-                ForEach(FindingFilter.allCases) { Text($0.title).tag($0) }
+            HStack {
+                Picker("Show", selection: $model.findingFilter) {
+                    ForEach(FindingFilter.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("Show findings")
+                .frame(maxWidth: 260)
+                Spacer()
+                Text("Sorted by severity, then last seen").font(.caption).foregroundStyle(.secondary)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .accessibilityLabel("Show findings")
             .padding(10)
             let rows = model.visibleFindings
             if rows.isEmpty {
@@ -234,20 +238,31 @@ struct FindingTable: View {
                             .accessibilityLabel("\(f.id), \(f.package), \(SeverityStyle(f.severity).text) severity, "
                                                 + FindingStatusText(f, full: false).text)
                     }
-                    .width(min: 68, ideal: 76)
-                    TableColumn("Package") { f in Text(f.package) }
-                        .width(min: 60, ideal: 80)
+                    .width(min: 62, ideal: 70)
+                    TableColumn("Package") { f in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(f.package)
+                            Text(packageDetail(f)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .width(min: 80, ideal: 100)
                     TableColumn("Severity") { f in SeverityBadge(severity: f.severity) }
-                        .width(min: 84, ideal: 92)
-                    TableColumn("Projects") { f in Text("\(f.projectNames.count)") }
-                        .width(min: 50, ideal: 56)
+                        .width(min: 78, ideal: 86)
+                    TableColumn("Projects") { f in Text(f.projectNames.isEmpty ? "—" : "\(f.projectNames.count)") }
+                        .width(min: 46, ideal: 52)
                     TableColumn("Status") { f in FindingStatusBadge(finding: f, full: false) }
-                        .width(min: 150, ideal: 160)
+                        .width(min: 136, ideal: 146)
                     TableColumn("Last seen") { f in Text(time.day(f.lastSeen)) }
                         .width(min: 62, ideal: 70)
                 }
             }
         }
+    }
+
+    /// `4.17.20 · npm`. The version is left out if the paths have different versions.
+    private func packageDetail(_ f: FindingRecord) -> String {
+        let versions = Set(f.paths.map(\.version))
+        return [versions.count == 1 ? versions.first : nil, f.ecosystem].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder private var emptyState: some View {
