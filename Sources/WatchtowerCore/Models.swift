@@ -74,6 +74,8 @@ public struct ItemRecord: Codable, Hashable, Sendable {
     public var sourceAt: Date?
     /// One sentence for the owner about the state, for example why an item is pinned. Not an error.
     public var note: String?
+    /// Facts for the detail pane, as text. The keys depend on the source, for example `bundleId` for apps. Keys are camelCase because the decoder converts snake_case keys.
+    public var attributes: [String: String]?
 
     public var key: String { "\(source)/\(id)" }
 }

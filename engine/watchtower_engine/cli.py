@@ -25,6 +25,8 @@ def main(argv=None) -> int:
     sub.add_parser("version", help="print the engine version as JSON")
     sub.add_parser("state", help="print the last refresh, coverage and items as JSON")
     sub.add_parser("homebrew", help="check Homebrew formulae and casks, print coverage and items as JSON")
+    sub.add_parser("macos", help="print the macOS version and build as JSON")
+    sub.add_parser("apps", help="print installed apps and their cask links as JSON")
     sub.add_parser("projects", help="print the projects, root errors and skipped links as JSON")
     sub.add_parser("osv", help="scan the lockfiles of active projects offline with OSV-Scanner, print JSON")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
@@ -45,6 +47,17 @@ def main(argv=None) -> int:
             from .store import default_data_dir
 
             _emit(sys.stdout, homebrew.collect(args.data_dir or default_data_dir()).to_dict())
+            return 0
+        if args.cmd == "macos":
+            from .inventory import macos
+
+            _emit(sys.stdout, macos.collect().to_dict())
+            return 0
+        if args.cmd == "apps":
+            from .inventory import apps
+            from .store import default_data_dir
+
+            _emit(sys.stdout, apps.collect_live(args.data_dir or default_data_dir()).to_dict())
             return 0
         if args.cmd == "osv":
             from .scanners import osv

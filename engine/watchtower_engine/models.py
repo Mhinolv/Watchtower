@@ -232,9 +232,16 @@ class ItemRecord:
     source_at: str | None = None
     # One sentence for the owner about the state, for example why an item is pinned. Not an error.
     note: str | None = None
+    # Facts for the detail pane, as text. Each source fixes its keys, for example `bundleId`.
+    # Keys are camelCase because the Swift decoder converts snake_case keys, also in dictionaries.
+    attributes: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         _check(self.state, ITEM_STATES, "state")
+        if self.attributes is not None and not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in self.attributes.items()
+        ):
+            raise ValueError("attributes must map text to text")
 
     def to_dict(self) -> dict:
         return asdict(self)

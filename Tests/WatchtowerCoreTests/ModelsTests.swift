@@ -134,3 +134,18 @@ private func utc(_ text: String) -> Date {
     #expect(state.coverage.first?.lastSuccessAt == nil)
     #expect(state.items.first?.installedVersion == nil)
 }
+
+@Test func decodesItemAttributes() throws {
+    let state = try EngineJSON.decode(EngineState.self, from: fixture("state-partial"))
+    let slack = try #require(state.items.first { $0.key == "apps/com.tinyspeck.slackmacgap" })
+    #expect(slack.attributes?["bundleId"] == "com.tinyspeck.slackmacgap")
+    #expect(slack.attributes?["electron"] == "30.1.2")
+    #expect(slack.attributes?["node"] == "20")
+
+    let legacy = try #require(state.items.first { $0.key == "apps/com.example.legacy" })
+    #expect(legacy.origin == "Manual")
+    #expect(legacy.attributes?["path"] == "/Applications/Legacy Tool.app")
+
+    let git = try #require(state.items.first { $0.key == "homebrew/formula:git" })
+    #expect(git.attributes == nil)
+}
