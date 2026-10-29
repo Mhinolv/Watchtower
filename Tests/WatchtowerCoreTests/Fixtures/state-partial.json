@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "refresh": {
+    "id": 2,
+    "status": "partial",
+    "started_at": "2026-10-29T08:30:00Z",
+    "finished_at": "2026-10-29T08:31:45Z",
+    "last_complete_at": "2026-10-28T09:02:10Z",
+    "error": "Some sources did not finish.",
+    "detail": "apps: scan stopped early"
+  },
+  "coverage": [
+    {
+      "source": "apps",
+      "label": "Applications",
+      "state": "failed",
+      "last_success_at": "2026-10-28T09:02:10Z",
+      "error": "App folder scan stopped early.",
+      "detail": "PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'"
+    },
+    {
+      "source": "homebrew",
+      "label": "Homebrew",
+      "state": "complete",
+      "last_success_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "source": "macos",
+      "label": "macOS",
+      "state": "stale",
+      "last_success_at": "2026-10-28T09:02:10Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "source": "osv",
+      "label": "OSV",
+      "state": "not_run",
+      "last_success_at": null,
+      "error": null,
+      "detail": null
+    },
+    {
+      "source": "projects",
+      "label": "Projects",
+      "state": "partial",
+      "last_success_at": null,
+      "error": "2 projects could not be read.",
+      "detail": null
+    }
+  ],
+  "items": [
+    {
+      "id": "com.example.legacy",
+      "source": "apps",
+      "name": "Legacy Tool",
+      "state": "manual",
+      "kind": "app",
+      "installed_version": "1.2",
+      "latest_version": null,
+      "project": null,
+      "seen_at": "2026-10-28T09:02:10Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "id": "com.tinyspeck.slackmacgap",
+      "source": "apps",
+      "name": "Slack",
+      "state": "up_to_date",
+      "kind": "app",
+      "installed_version": "4.41.97",
+      "latest_version": "4.41.97",
+      "project": null,
+      "seen_at": "2026-10-28T09:02:10Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "id": "cask:zed",
+      "source": "homebrew",
+      "name": "Zed",
+      "state": "error",
+      "kind": "cask",
+      "installed_version": "0.158.2",
+      "latest_version": null,
+      "project": null,
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": "Homebrew API did not respond.",
+      "detail": "urlopen error timed out"
+    },
+    {
+      "id": "formula:git",
+      "source": "homebrew",
+      "name": "git",
+      "state": "update_available",
+      "kind": "formula",
+      "installed_version": "2.46.0",
+      "latest_version": "2.47.1",
+      "project": null,
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "id": "formula:node",
+      "source": "homebrew",
+      "name": "node",
+      "state": "pinned",
+      "kind": "formula",
+      "installed_version": "22.9.0",
+      "latest_version": "23.1.0",
+      "project": null,
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "id": "formula:openssl@3",
+      "source": "homebrew",
+      "name": "openssl@3",
+      "state": "vulnerable",
+      "kind": "formula",
+      "installed_version": "3.3.1",
+      "latest_version": "3.4.0",
+      "project": null,
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null
+    },
+    {
+      "id": "npm:left-pad",
+      "source": "projects",
+      "name": "left-pad",
+      "state": "unknown",
+      "kind": "npm",
+      "installed_version": "1.3.0",
+      "latest_version": null,
+      "project": "watchtower",
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null
+    }
+  ]
+}
