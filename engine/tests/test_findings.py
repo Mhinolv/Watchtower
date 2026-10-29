@@ -338,7 +338,7 @@ def test_state_output_has_findings_and_survives_a_new_store_object(tmp_path):
                            "version": "4.17.20", "dependency_path": ["app", "lodash"]}]
     assert set(f) == {"id", "ecosystem", "package", "title", "severity", "advisory_ids", "fixed_in", "status",
                       "deferred_until", "first_seen", "last_seen", "resolved_at", "resolved_scan_at", "source",
-                      "source_at", "paths", "next_steps"}
+                      "source_at", "paths", "next_steps", "kev", "malware", "withdrawn_at"}
 
 
 def test_old_store_without_findings_tables_opens(tmp_path):

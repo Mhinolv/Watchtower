@@ -200,3 +200,32 @@ private func utc(_ text: String) -> Date {
     """#
     #expect(throws: DecodingError.self) { try EngineJSON.decode(EngineState.self, from: Data(json.utf8)) }
 }
+
+@Test func decodesKevMalwareAndWithdrawnMarksAndFeedCoverageNotes() throws {
+    let state = try EngineJSON.decode(EngineState.self, from: fixture("state-partial"))
+    let lodash = try #require(state.findings.first { $0.id == "SEC-0001" })
+    #expect(lodash.kev == KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12"))
+    #expect(lodash.malware == nil && lodash.withdrawnAt == nil)
+    let withdrawn = try #require(state.findings.first { $0.id == "SEC-0002" })
+    #expect(withdrawn.withdrawnAt == utc("2026-10-28T08:00:00Z") && withdrawn.kev == nil)
+    let malware = try #require(state.findings.first { $0.id == "SEC-0003" })
+    #expect(malware.malware == MalwareMark(advisoryId: "GHSA-mal1-ware-0001"))
+
+    let kev = try #require(state.coverage.first { $0.source == "kev" })
+    #expect((kev.label, kev.state, kev.note) == ("CISA KEV", .complete, "official mirror"))
+    let github = try #require(state.coverage.first { $0.source == "github" })
+    #expect((github.state, github.note, github.sourceAt) == (.failed, "rate limit", utc("2026-10-28T08:30:20Z")))
+    #expect(try #require(state.coverage.first { $0.source == "homebrew" }).note == nil)
+}
+
+@Test func findingWithoutFeedMarksDecodesWithNone() throws {
+    let json = #"""
+    {"schema_version": 1, "refresh": null, "coverage": [], "items": [], "findings": [
+     {"id": "SEC-0001", "ecosystem": "npm", "package": "x", "title": "t", "severity": "low",
+      "advisory_ids": [], "fixed_in": null, "status": "open", "deferred_until": null,
+      "first_seen": "2026-10-28T09:02:10Z", "last_seen": "2026-10-28T09:02:10Z", "resolved_at": null,
+      "resolved_scan_at": null, "source": "OSV", "source_at": null, "paths": [], "next_steps": []}]}
+    """#
+    let finding = try #require(EngineJSON.decode(EngineState.self, from: Data(json.utf8)).findings.first)
+    #expect(finding.kev == nil && finding.malware == nil && finding.withdrawnAt == nil)
+}

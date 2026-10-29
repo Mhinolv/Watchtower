@@ -58,6 +58,9 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed |
 | GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
 | GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
+| GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
+| GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
+| GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -88,3 +91,7 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.
 A finding lists every local lockfile that has the package. Only a complete scan resolves a finding: OSV coverage `complete` with no error, and every lockfile of the finding scanned.
 A partial, stale or failed scan never removes a path or resolves a finding. The findings are saved in the same SQLite file as the rest of the state.
+
+Two feeds add marks to the findings. CISA KEV marks `Known exploited`. GitHub marks `Malware` and `Withdrawn`.
+A mark comes from the advisory ids of the finding only. The engine never infers exposure from a product name.
+If a feed fails, the old marks stay and the Source section of the finding shows the failure and the age of the data. The engine keeps the last answers in `cache/kev/` and `cache/github/` in the data folder.

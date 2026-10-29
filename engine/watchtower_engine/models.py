@@ -215,6 +215,9 @@ class CoverageRecord:
     detail: str | None = None
     # When the source's own data was fetched, for example the OSV database. None if not known.
     source_at: str | None = None
+    # A short phrase for the Source row of a finding, not an error: `official mirror` or the
+    # reason that a feed failed or stopped early, for example `rate limit`.
+    note: str | None = None
 
     def __post_init__(self) -> None:
         _check(self.state, COVERAGE_STATES, "state")
