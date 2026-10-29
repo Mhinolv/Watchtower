@@ -54,6 +54,10 @@ _PATH_RE = re.compile(
 # redaction reads on over at most this many words after a space.
 _MAX_SPACE_WORDS = 3
 _END_PUNCTUATION = ".:,;!?)]}'\"`"
+# After a lowercase word, these end the path and the text after them stays.
+_HARD_STOP = ":,;)]}"
+# After a lowercase word, these end a sentence: the path ended before that word.
+_SENTENCE_END = ".!?'\"`"
 
 
 def _under_roots(path: str, roots: tuple[str, ...]) -> bool:
@@ -70,12 +74,40 @@ def _starts_new_path(word: str) -> bool:
     return word.startswith(("/", "~/")) or "://" in word
 
 
-def _extend_path(line: str, end: int) -> int:
+def _open_name(path: str) -> bool:
+    """True if the last name in `path` can go on after a space with lowercase words.
+
+    `some` in `/Users/me/some folder` can. A capitalized name (`Foo`) or a file name
+    with an extension (`system.log`) is taken as complete.
+    """
+    name = path.rstrip("/").rsplit("/", 1)[-1]
+    return bool(name) and not name[:1].isupper() and "." not in name[1:]
+
+
+def _lowercase_words(words: list[str]) -> int:
+    """How many of `words` (at most _MAX_SPACE_WORDS, the rest of the line or more) to redact.
+
+    Take them up to a hard stop (`folder:`) or the end of the line. If no end is in sight
+    after _MAX_SPACE_WORDS words, take all of them: redact more, not less.
+    Take none at a sentence end (`now.`) or at another path, URL or "and/or".
+    """
+    for i, word in enumerate(words, 1):
+        if not word or "/" in word or _starts_new_path(word):
+            return 0
+        if word[-1] in _HARD_STOP:
+            return i
+        if word[-1] in _SENTENCE_END:
+            return 0
+    return len(words)
+
+
+def _extend_path(line: str, start: int, end: int, lowercase: bool = False) -> int:
     """Move `end` over the words that may still belong to a path with spaces.
 
     Take the words up to the last one that has a "/" (the next folder or file).
     Stop at a word that starts another path or URL. That one is checked on its own.
     If none has, take the capitalized words ("Application Support").
+    If `lowercase` and the last name is open, take lowercase words ("some folder").
     If the end is still not clear, redact more, not less.
     """
     while line[end:end + 1] == " ":
@@ -93,6 +125,9 @@ def _extend_path(line: str, end: int) -> int:
                 take += 1
                 if word[-1] in _END_PUNCTUATION:
                     break
+        last_resort = False
+        if take == 0 and lowercase and _open_name(line[start:end]):
+            take, last_resort = _lowercase_words(words), True
         if take == 0:
             break
         end += 1 + len(" ".join(words[:take]))
@@ -101,6 +136,8 @@ def _extend_path(line: str, end: int) -> int:
             stop -= 1
         if stop != end:
             return stop
+        if last_resort:
+            break  # Never read on past the words that the lowercase step took.
     return end
 
 
@@ -110,7 +147,8 @@ def _redact_paths(line: str, roots: tuple[str, ...]) -> str:
     for m in _PATH_RE.finditer(line):
         if m.start() < pos:
             continue  # Already inside an earlier path.
-        end = _extend_path(line, m.end())
+        # A file:// URL writes a space as %20, so only a plain path reads on over lowercase words.
+        end = _extend_path(line, m.start(), m.end(), lowercase=bool(m.group("path")))
         text = line[m.start():end]
         if m.group("url"):
             # file://host/path, with %20 for a space. The host is not part of the path.

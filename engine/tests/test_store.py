@@ -274,7 +274,9 @@ def test_owner_error_redacts_paths_outside_scan_roots():
     assert owner_error("Cannot open ~/.ssh/config.", roots) == "Cannot open <path>."
     assert owner_error("Bad /Applications/Zed.app bundle.", roots) == "Bad /Applications/Zed.app bundle."
     assert owner_error("Bad ~/Projects/web/package.json file.", roots) == "Bad ~/Projects/web/package.json file."
-    assert owner_error("Sneaky /Applications/../etc/passwd x", roots) == "Sneaky <path> x"
+    # #25: a lowercase word after an open name can be part of the path, so "x" goes too.
+    assert owner_error("Sneaky /Applications/../etc/passwd x", roots) == "Sneaky <path>"
+    assert owner_error("Sneaky /Applications/../etc/passwd. x", roots) == "Sneaky <path>. x"
     assert owner_error("See https://api.github.com/x and/or retry.", roots) == (
         "See https://api.github.com/x and/or retry."
     )
@@ -399,3 +401,33 @@ def test_owner_error_redacts_a_second_path_after_a_path_inside_the_roots():
     assert owner_error("Copy ~/Projects/a ~/.ssh/id_rsa", roots) == "Copy ~/Projects/a <path>"
     assert owner_error("Copy ~/Projects/a file:///etc/shadow", roots) == "Copy ~/Projects/a <path>"
     assert owner_error("Copy /etc/hosts to /etc/shadow", roots) == "Copy <path> to <path>"
+
+
+def test_owner_error_redacts_lowercase_folder_names_with_spaces():
+    # Bug #25: `/Users/me/some folder` gave `<path> folder`.
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Cannot read /Users/me/some folder", roots) == "Cannot read <path>"
+    assert owner_error("Cannot read /Users/me/some folder: permission denied", roots) == (
+        "Cannot read <path>: permission denied"
+    )
+    assert owner_error("/Users/me/some folder not found", roots) == "<path>"
+    assert owner_error("Cannot read /Users/me/my file.txt", roots) == "Cannot read <path>"
+    assert owner_error("Cannot read /Users/me/some folder, retry later", roots) == "Cannot read <path>, retry later"
+    assert owner_error("Bad (/Users/me/some folder) x", roots) == "Bad (<path>) x"
+    assert owner_error("Cannot read ~/.config/my tool: denied", roots) == "Cannot read <path>: denied"
+    # No boundary in sight: redact up to 3 words, never a partial path.
+    assert owner_error("Cannot read /Users/me/some folder because it is locked", roots) == (
+        "Cannot read <path> is locked"
+    )
+    for text in (
+        "Cannot read /Users/me/some folder",
+        "Cannot read /Users/me/some folder: permission denied",
+        "Cannot read /Users/me/a b c d",
+    ):
+        out = owner_error(text, roots)
+        assert "folder" not in out and "/Users" not in out, out
+    # Inside a scan root, nothing changes.
+    assert owner_error("Cannot read ~/Projects/app", roots) == "Cannot read ~/Projects/app"
+    assert owner_error("Cannot read ~/Projects/some folder: denied", roots) == (
+        "Cannot read ~/Projects/some folder: denied"
+    )
