@@ -622,3 +622,94 @@ private func osvModel(_ coverage: CoverageState, _ findings: [FindingRecord]) ->
                            version: "1")
     #expect(path.lockfileURL.path == NSHomeDirectory() + "/Projects/web/app/package-lock.json")
 }
+
+
+// MARK: - Feed marks (#9)
+
+private let kevMark = KevMark(cve: "CVE-1", dateAdded: "2026-10-22", dueDate: "2026-11-12")
+
+@MainActor
+@Test func findingsSortMalwareThenKnownExploitedThenSeverity() {
+    var low = finding("SEC-0001", package: "low", severity: .low)
+    var kevLow = finding("SEC-0002", package: "kevlow", severity: .low)
+    kevLow.kev = kevMark
+    let crit = finding("SEC-0003", package: "crit", severity: .critical)
+    var malwareLow = finding("SEC-0004", package: "mal", severity: .low)
+    malwareLow.malware = MalwareMark(advisoryId: "GHSA-mal1-ware-0001")
+    var kevCrit = finding("SEC-0005", package: "kevcrit", severity: .critical, lastSeen: hours(1))
+    kevCrit.kev = kevMark
+    low.withdrawnAt = hours(5)  // A withdrawn mark does not change the order.
+    let model = findingsModel([low, kevLow, crit, malwareLow, kevCrit])
+    #expect(model.visibleFindings.map(\.package) == ["mal", "kevcrit", "kevlow", "crit", "low"])
+}
+
+@Test func feedBadgesHaveTheDesignTextSymbolToneAndHelp() {
+    let utc = TimeText(timeZone: TimeZone(identifier: "UTC")!)
+    var f = finding("SEC-0001")
+    #expect(FeedBadge.badges(for: f, time: utc).isEmpty)
+    f.kev = kevMark
+    f.malware = MalwareMark(advisoryId: "GHSA-mal1-ware-0001")
+    f.withdrawnAt = Date(timeIntervalSince1970: 1_793_275_200)  // 2026-10-29
+    let badges = FeedBadge.badges(for: f, time: utc)
+    #expect(badges.map(\.text) == ["Malware", "Known exploited", "Withdrawn"])
+    #expect(badges.map(\.symbol) == ["exclamationmark.octagon.fill", "flame.fill", "minus.circle"])
+    #expect(badges.map(\.tone) == [.red, .red, .gray])
+    #expect(badges.map(\.help) == [
+        "GitHub lists this package as malware.",
+        "Listed in CISA KEV on Oct 22. Due date Nov 12.",
+        "The source withdrew this advisory on Oct 29.",
+    ])
+    f.kev = KevMark(cve: "CVE-1")
+    #expect(FeedBadge.badges(for: f, time: utc)[1].help == "Listed in CISA KEV.")
+}
+
+@Test func feedBadgeTextNeverClaimsExposureFromAProductName() {
+    var f = finding("SEC-0001")
+    f.kev = kevMark
+    f.malware = MalwareMark(advisoryId: "x")
+    f.withdrawnAt = now
+    for badge in FeedBadge.badges(for: f) {
+        let text = (badge.text + " " + badge.help).lowercased()
+        #expect(!text.contains("exposed") && !text.contains("affected"), "\(badge.text)")
+    }
+}
+
+@Test func kevDatesReadAsMonthAndDay() {
+    let utc = TimeText(timeZone: TimeZone(identifier: "UTC")!)
+    #expect(utc.day("2026-10-22") == "Oct 22")
+    #expect(utc.day("2026-01-05") == "Jan 5")
+    #expect(utc.day("not a date") == "not a date")
+}
+
+@Test func sourceRowsFollowTheDesignTextForEachFeedState() {
+    let utc = TimeText(timeZone: TimeZone(identifier: "UTC")!)
+    func row(_ source: String, _ label: String, _ state: CoverageState, at: Date? = nil, note: String? = nil) -> FindingSourceRow {
+        FindingSourceRow.make(CoverageRecord(source: source, label: label, state: state, lastSuccessAt: nil,
+                                             sourceAt: at, note: note), time: utc)
+    }
+    let at = Date(timeIntervalSince1970: 1_793_275_200)  // 2026-10-29 12:00 UTC
+    #expect(row("kev", "CISA KEV", .complete, at: at).text == "CISA KEV: retrieved Oct 29, 12:00")
+    #expect(row("kev", "CISA KEV", .complete, at: at, note: "official mirror").text
+        == "CISA KEV: retrieved from the official mirror")
+    #expect(!row("kev", "CISA KEV", .complete, at: at).isProblem)
+    let failed = row("github", "GitHub Advisories", .failed, at: at.addingTimeInterval(-86400), note: "rate limit")
+    #expect(failed.text == "GitHub Advisories: failed (rate limit). Data from Oct 28.")
+    #expect(failed.isProblem)
+    #expect(row("github", "GitHub Advisories", .failed).text == "GitHub Advisories: failed (error). No data yet.")
+    #expect(row("github", "GitHub Advisories", .partial, at: at, note: "pagination stopped").text
+        == "GitHub Advisories: incomplete. Some advisories can be missing.")
+    #expect(row("osv", "OSV", .stale, at: at).text == "OSV: stale. Data from Oct 29.")
+    #expect(row("kev", "CISA KEV", .notRun).isProblem)
+}
+
+@MainActor
+@Test func findingSourceRowsListOnlyTheFeedsThatRanInOrder() {
+    var s = state(.complete, finished: hours(1), lastComplete: hours(1), findings: [finding("SEC-0001")])
+    s.coverage = [
+        CoverageRecord(source: "github", label: "GitHub Advisories", state: .complete, sourceAt: hours(3)),
+        CoverageRecord(source: "homebrew", label: "Homebrew", state: .complete),
+        CoverageRecord(source: "osv", label: "OSV", state: .complete, sourceAt: hours(2)),
+    ]
+    let model = DashboardModel(engine: FakeEngine(mode: .hang), state: s, projects: [web], clock: { now })
+    #expect(model.findingSourceRows.map(\.id) == ["osv", "github"])  // No KEV row: KEV did not run.
+}

@@ -1,0 +1,11 @@
+[
+  {
+    "ghsa_id": "GHSA-35jh-r3h4-6jhm",
+    "cve_id": "CVE-2021-23337",
+    "type": "reviewed",
+    "severity": "high",
+    "withdrawn_at": "2026-10-28T08:00:00Z",
+    "published_at": "2021-02-15T00:00:00Z",
+    "html_url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm"
+  }
+]

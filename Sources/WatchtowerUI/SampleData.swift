@@ -66,13 +66,15 @@ public enum SampleData {
                       paths: [path("api", "tools/package-lock.json", "4.17.19", via: ["build-tools", "lodash"]),
                               path("web", "package-lock.json", "4.17.20")],
                       nextSteps: ["Update lodash to 4.17.21 or later in the lockfile.",
-                                  "Restart the dev server after the update."]),
+                                  "Restart the dev server after the update."],
+                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12")),
         FindingRecord(id: "SEC-0002", package: "minimist", title: "Prototype Pollution in minimist",
                       severity: .critical, advisoryIds: ["CVE-2021-44906", "GHSA-xvch-5gv4-984h", "OSV-2021-1"],
                       fixedIn: "1.2.6", firstSeen: days(3), lastSeen: ago(2), sourceAt: ago(6),
                       paths: [path("web", "package-lock.json", "1.2.5", via: ["mkdirp", "minimist"])],
                       nextSteps: ["Update minimist to 1.2.6 or later in the lockfile.",
-                                  "Restart the dev server after the update."]),
+                                  "Restart the dev server after the update."],
+                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001")),
         FindingRecord(id: "SEC-0003", package: "lodash", title: "ReDoS in lodash", severity: .medium,
                       advisoryIds: ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], status: .deferred,
                       deferredUntil: now.addingTimeInterval(7 * 86400), firstSeen: days(9), lastSeen: ago(2),
@@ -83,10 +85,18 @@ public enum SampleData {
                       advisoryIds: ["CVE-2024-22195", "GHSA-h5c8-rqwp-cp95", "PYSEC-2024-1"], fixedIn: "3.1.3",
                       status: .resolved, firstSeen: days(12), lastSeen: days(1), resolvedAt: ago(30),
                       resolvedScanAt: ago(30), sourceAt: ago(30), paths: []),
+        FindingRecord(id: "SEC-0005", package: "yaml-tools", title: "Regular expression slowdown in the parser",
+                      severity: .low, advisoryIds: ["CVE-2026-20202", "GHSA-wthd-rawn-0005"], fixedIn: "2.1.1",
+                      firstSeen: days(5), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [path("web", "package-lock.json", "2.1.0")],
+                      nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
+                                  "Restart the dev server after the update."],
+                      withdrawnAt: days(1)),
     ]
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
-        [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV")].map { source, label in
+        [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV"),
+         ("kev", "CISA KEV"), ("github", "GitHub Advisories")].map { source, label in
             failing.contains(source)
                 ? CoverageRecord(source: source, label: label, state: .failed, lastSuccessAt: ago(30),
                                  error: "\(label) check did not finish.")
@@ -119,6 +129,9 @@ public enum SampleData {
         case findingResolved = "finding-resolved"
         case findingPartial = "finding-partial"
         case findingsEmpty = "findings-empty"
+        case findingMalware = "finding-malware"
+        case findingWithdrawn = "finding-withdrawn"
+        case findingFeedFailed = "finding-feed-failed"
         case failed
         case chipSelected = "chip-selected"
         case menubarFindings = "menubar-findings"
@@ -171,7 +184,8 @@ public enum SampleData {
             model.selection = .backlog
             model.selectedItemKey = projects[2].path
             return model
-        case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty:
+        case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
+             .findingMalware, .findingWithdrawn, .findingFeedFailed:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -204,13 +218,31 @@ extension SampleData {
     static func findingsModel(_ scenario: Scenario, engine: PreviewEngine,
                               clock: @escaping @Sendable () -> Date) -> DashboardModel {
         let partial = scenario == .findingPartial
-        let sample = state(status: partial ? .partial : .complete, finished: ago(2),
+        var sample = state(status: partial ? .partial : .complete, finished: ago(2),
                            lastComplete: partial ? ago(26) : ago(2), failing: partial ? ["osv"] : [],
                            findings: scenario == .findingsEmpty ? [] : findings)
+        if scenario == .findingFeedFailed {
+            // GitHub hit its rate limit. The cached answers from yesterday are still in use. KEV came
+            // from the official mirror.
+            sample.refresh?.status = .partial
+            sample.coverage = sample.coverage.map { c in
+                var c = c
+                if c.source == "github" {
+                    c.state = .failed
+                    c.error = "GitHub Advisories did not load."
+                    c.sourceAt = days(1)
+                    c.note = "rate limit"
+                }
+                if c.source == "kev" { c.note = "official mirror" }
+                return c
+            }
+        }
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .findings
         switch scenario {
-        case .findingOpen, .findingPartial: model.selectedItemKey = "SEC-0001"
+        case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
+        case .findingMalware: model.selectedItemKey = "SEC-0002"
+        case .findingWithdrawn: model.selectedItemKey = "SEC-0005"
         case .findingDeferred:
             model.findingFilter = .deferred
             model.selectedItemKey = "SEC-0003"

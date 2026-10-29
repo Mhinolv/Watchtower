@@ -41,10 +41,27 @@ class ScanSourceResult(SourceResult):
     """A source result that also carries the OSV scan. The store turns the scan into findings."""
 
     osv: object = None
+    kev: object = None
+    github: object = None
+
+
+def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
+    """The advisory ids of each finding: from this refresh's scan and from the unresolved findings.
+
+    Only these ids go to GitHub. No package name, version or path goes with them.
+    """
+    groups: list[set[str]] = []
+    for scan in scans:
+        for m in scan.matches:
+            groups += [set(g["ids"]) for g in m.advisories] or [set(m.advisory_ids) | set(m.aliases)]
+    with Store(data_dir) as store:
+        groups += [set(f.advisory_ids) for f in store.findings() if f.status != "resolved"]
+    return groups
 
 
 def default_sources(data_dir: Path) -> list[Source]:
     """Homebrew, Applications, macOS and OSV. `brew info` and the catalogs run once."""
+    from .feeds import github, kev
     from .inventory import apps, homebrew, macos
     from .scanners import osv
     from .scope import list_projects
@@ -63,9 +80,20 @@ def default_sources(data_dir: Path) -> list[Source]:
             fetches[url] = http_fetch(url, headers)
         return fetches[url]
 
+    scans: list = []  # The OSV result of this refresh. The GitHub source reads its advisory ids.
+
     def osv_source() -> SourceResult:
         result = osv.collect(data_dir, list_projects(data_dir).projects)
+        scans.append(result)
         return ScanSourceResult(result.coverage, [], result)
+
+    def kev_source() -> SourceResult:
+        data = kev.load(data_dir)
+        return ScanSourceResult(data.coverage(), [], kev=data)
+
+    def github_source() -> SourceResult:
+        data = github.load(data_dir, advisory_id_groups(data_dir, scans))
+        return ScanSourceResult(data.coverage(), [], github=data)
 
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
@@ -73,6 +101,8 @@ def default_sources(data_dir: Path) -> list[Source]:
         Source(apps.SOURCE, apps.LABEL, lambda: apps.collect_live(data_dir, run=run_once, fetch=fetch_once)),
         Source(macos.SOURCE, macos.LABEL, macos.collect),
         Source(osv.SOURCE, osv.LABEL, osv_source),
+        Source(kev.SOURCE, kev.LABEL, kev_source),
+        Source(github.SOURCE, github.LABEL, github_source),
     ]
 
 
@@ -82,7 +112,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
     refresh = store.begin_refresh()
     coverage: list[CoverageRecord] = []
     items: list[ItemRecord] = []
-    scan = None
+    scan = kev = github = None
     try:
         for done, src in enumerate(sources):
             progress(done, len(sources), src.label)
@@ -97,6 +127,8 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
             coverage.append(result.coverage)
             items.extend(result.items)
             scan = getattr(result, "osv", None) or scan
+            kev = getattr(result, "kev", None) or kev
+            github = getattr(result, "github", None) or github
         if guard:
             guard.armed = False  # From here on, a stop must not cut the save short.
         progress(len(sources), len(sources), "")
@@ -112,7 +144,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
         status, error = "complete", None
     detail = "\n".join(f"{c.source}: {c.error}" for c in failed if c.error) or None
     store.finish_refresh(refresh.id, status, coverage=coverage, items=items, error=error, detail=detail,
-                         scan=scan)
+                         scan=scan, kev=kev, github=github)
     return store.state()
 
 
