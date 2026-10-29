@@ -16,6 +16,56 @@ struct SeverityBadge: View {
     }
 }
 
+/// Malware, Known exploited or Withdrawn. Red badges are filled, the gray one is not. The help text
+/// has the dates. The copy never says "exposed" or "affected" from a product name alone.
+struct FeedBadgeView: View {
+    let badge: FeedBadge
+    var compact = false
+
+    var body: some View {
+        let filled = badge.tone == .red
+        Label(badge.text, systemImage: badge.symbol)
+            .labelStyle(.titleAndIcon)
+            .font(compact ? .caption.bold() : .callout.bold())
+            .foregroundStyle(filled ? Color.white : badge.tone.color)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(filled ? badge.tone.color : badge.tone.color.opacity(0.15)))
+            .help(badge.help)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(badge.text). \(badge.help)")
+    }
+}
+
+/// Lays out its children in rows and starts a new row when the width ends.
+struct WrapLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(proposal.width ?? .infinity, subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (subview, point) in zip(subviews, arrange(bounds.width, subviews).points) {
+            subview.place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(_ width: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], size: CGSize) {
+        var points: [CGPoint] = []
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
+            points.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+            maxX = max(maxX, x - spacing)
+        }
+        return (points, CGSize(width: maxX, height: y + rowHeight))
+    }
+}
+
 /// Finding status: symbol, text and color.
 struct FindingStatusBadge: View {
     let finding: FindingRecord
@@ -80,8 +130,9 @@ public struct FindingDetailView: View {
                 Text(packageAtVersion).foregroundStyle(.secondary)
             }
             Text(finding.title).font(.title2).bold().textSelection(.enabled)
-            HStack(spacing: 14) {
+            WrapLayout(spacing: 10) {
                 SeverityBadge(severity: finding.severity)
+                ForEach(FeedBadge.badges(for: finding), id: \.text) { FeedBadgeView(badge: $0) }
                 FindingStatusBadge(finding: finding)
             }
         }
@@ -189,15 +240,22 @@ public struct FindingDetailView: View {
         }
     }
 
-    /// The source line: green check if the last scan was complete, else an orange warning.
+    /// One row for each feed. A problem is orange with a warning symbol.
     private var source: some View {
         section("Source") {
-            let at = finding.sourceAt.map { "retrieved \(time.absolute($0))" } ?? "no retrieval time"
-            let complete = model.state?.coverage.first { $0.source == finding.source.lowercased() }?.state == .complete
-            Label("\(finding.source): \(at)", systemImage: complete ? "checkmark.circle" : "exclamationmark.triangle")
-                .foregroundStyle(complete ? Color.primary : .orange)
-                .symbolRenderingMode(.hierarchical)
-                .labelStyle(.titleAndIcon)
+            let rows = model.findingSourceRows
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(rows) { row in
+                    Label(row.text, systemImage: row.isProblem ? "exclamationmark.triangle" : "checkmark.circle")
+                        .foregroundStyle(row.isProblem ? Color.orange : Color.primary)
+                        .symbolRenderingMode(.hierarchical)
+                        .labelStyle(.titleAndIcon)
+                        .accessibilityLabel(row.text)
+                }
+                if rows.isEmpty {
+                    Text(finding.sourceAt.map { "\(finding.source): retrieved \(time.absolute($0))" } ?? finding.source)
+                }
+            }
         }
     }
 
@@ -225,7 +283,7 @@ struct FindingTable: View {
                 .accessibilityLabel("Show findings")
                 .frame(maxWidth: 260)
                 Spacer()
-                Text("Sorted by severity, then last seen").font(.caption).foregroundStyle(.secondary)
+                Text("Sorted by malware, known exploited, then severity").font(.caption).foregroundStyle(.secondary)
             }
             .padding(10)
             let rows = model.visibleFindings
@@ -236,7 +294,8 @@ struct FindingTable: View {
                     TableColumn("ID") { f in
                         Text(f.id).font(.body.monospaced())
                             .accessibilityLabel("\(f.id), \(f.package), \(SeverityStyle(f.severity).text) severity, "
-                                                + FindingStatusText(f, full: false).text)
+                                                + (FeedBadge.badges(for: f).map(\.text) + [FindingStatusText(f, full: false).text])
+                                                    .joined(separator: ", "))
                     }
                     .width(min: 62, ideal: 70)
                     TableColumn("Package") { f in
@@ -245,13 +304,23 @@ struct FindingTable: View {
                             Text(packageDetail(f)).font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    .width(min: 80, ideal: 100)
-                    TableColumn("Severity") { f in SeverityBadge(severity: f.severity) }
-                        .width(min: 78, ideal: 86)
+                    .width(min: 66, ideal: 84)
+                    TableColumn("Severity") { f in
+                        VStack(alignment: .leading, spacing: 3) {
+                            SeverityBadge(severity: f.severity)
+                            let badges = FeedBadge.badges(for: f)
+                            if !badges.isEmpty {
+                                WrapLayout(spacing: 4) {
+                                    ForEach(badges, id: \.text) { FeedBadgeView(badge: $0, compact: true) }
+                                }
+                            }
+                        }
+                    }
+                    .width(min: 96, ideal: 118)
                     TableColumn("Projects") { f in Text(f.projectNames.isEmpty ? "—" : "\(f.projectNames.count)") }
-                        .width(min: 46, ideal: 52)
+                        .width(min: 44, ideal: 48)
                     TableColumn("Status") { f in FindingStatusBadge(finding: f, full: false) }
-                        .width(min: 136, ideal: 146)
+                        .width(min: 124, ideal: 132)
                     TableColumn("Last seen") { f in Text(time.day(f.lastSeen)) }
                         .width(min: 62, ideal: 70)
                 }

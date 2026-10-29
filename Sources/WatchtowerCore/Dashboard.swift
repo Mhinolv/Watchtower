@@ -99,6 +99,96 @@ public struct SeverityStyle: Equatable, Sendable {
     }
 }
 
+extension FindingRecord {
+    /// Malware first, then known exploited, then worst severity, then newest, then id.
+    public static func listOrder(_ a: FindingRecord, _ b: FindingRecord) -> Bool {
+        let left: [Int] = [a.malware == nil ? 1 : 0, a.kev == nil ? 1 : 0, a.severity.rank]
+        let right: [Int] = [b.malware == nil ? 1 : 0, b.kev == nil ? 1 : 0, b.severity.rank]
+        if left != right { return left.lexicographicallyPrecedes(right) }
+        if a.lastSeen != b.lastSeen { return a.lastSeen > b.lastSeen }
+        return a.id < b.id
+    }
+}
+
+/// The badges that come from the feeds, with their help text (#9).
+public enum FeedBadge: Equatable, Sendable {
+    case knownExploited(String), malware, withdrawn(String)
+
+    public var text: String {
+        switch self {
+        case .knownExploited: "Known exploited"
+        case .malware: "Malware"
+        case .withdrawn: "Withdrawn"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .knownExploited: "flame.fill"
+        case .malware: "exclamationmark.octagon.fill"
+        case .withdrawn: "minus.circle"
+        }
+    }
+
+    public var tone: Tone {
+        if case .withdrawn = self { return .gray }
+        return .red
+    }
+
+    public var help: String {
+        switch self {
+        case .knownExploited(let text): text
+        case .malware: "GitHub lists this package as malware."
+        case .withdrawn(let text): text
+        }
+    }
+
+    /// The badges of a finding, in the order that they show: Malware, Known exploited, Withdrawn.
+    public static func badges(for finding: FindingRecord, time: TimeText = TimeText()) -> [FeedBadge] {
+        var out: [FeedBadge] = []
+        if finding.malware != nil { out.append(.malware) }
+        if let kev = finding.kev {
+            let added = kev.dateAdded.map { "Listed in CISA KEV on \(time.day($0))." } ?? "Listed in CISA KEV."
+            let due = kev.dueDate.map { " Due date \(time.day($0))." } ?? ""
+            out.append(.knownExploited(added + due))
+        }
+        if let withdrawn = finding.withdrawnAt {
+            out.append(.withdrawn("The source withdrew this advisory on \(time.day(withdrawn))."))
+        }
+        return out
+    }
+}
+
+/// One row of the `Source` section of a finding: one feed.
+public struct FindingSourceRow: Equatable, Sendable, Identifiable {
+    public var id: String
+    public var text: String
+    /// True if the feed has a problem: shown in orange with a warning symbol.
+    public var isProblem: Bool
+
+    /// The text for each state of a feed, from the Design notes of #9.
+    public static func make(_ c: CoverageRecord, time: TimeText = TimeText()) -> FindingSourceRow {
+        let at = c.sourceAt ?? c.lastSuccessAt
+        let data = at.map { "Data from \(time.day($0))." } ?? "No data yet."
+        switch c.state {
+        case .complete:
+            let text = c.note == "official mirror" ? "\(c.label): retrieved from the official mirror"
+                : at.map { "\(c.label): retrieved \(time.absolute($0))" } ?? "\(c.label): retrieved"
+            return FindingSourceRow(id: c.source, text: text, isProblem: false)
+        case .partial:
+            return FindingSourceRow(id: c.source, text: "\(c.label): incomplete. Some advisories can be missing.",
+                                    isProblem: true)
+        case .stale:
+            return FindingSourceRow(id: c.source, text: "\(c.label): stale. \(data)", isProblem: true)
+        case .failed:
+            return FindingSourceRow(id: c.source, text: "\(c.label): failed (\(c.note ?? "error")). \(data)",
+                                    isProblem: true)
+        case .notRun:
+            return FindingSourceRow(id: c.source, text: "\(c.label): not run.", isProblem: true)
+        }
+    }
+}
+
 /// The status of a finding as text: `Open`, `Deferred until Nov 5`, `Backlog`, `Resolved: …`.
 public struct FindingStatusText: Equatable, Sendable {
     public var text: String
@@ -172,6 +262,20 @@ public struct TimeText: Sendable {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+
+    /// `2026-10-22` (the date of a KEV entry) as `Oct 22`. Other text comes back as it is.
+    public func day(_ text: String) -> String {
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = TimeZone(identifier: "UTC")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: text) else { return text }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "MMM d"
         return formatter.string(from: date)
     }
@@ -441,7 +545,8 @@ public final class DashboardModel {
         }
     }
 
-    /// The findings that pass the filter control and the search box. Worst severity first, then newest.
+    /// The findings that pass the filter control and the search box. Malware first, then known
+    /// exploited, then worst severity, then newest.
     public var visibleFindings: [FindingRecord] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         return findingsInScope
@@ -452,8 +557,7 @@ public final class DashboardModel {
                     || f.title.localizedCaseInsensitiveContains(query)
                     || f.advisoryIds.contains { $0.localizedCaseInsensitiveContains(query) }
             }
-            .sorted { ($0.severity.rank, -$0.lastSeen.timeIntervalSince1970, $0.id)
-                < ($1.severity.rank, -$1.lastSeen.timeIntervalSince1970, $1.id) }
+            .sorted(by: FindingRecord.listOrder)
     }
 
     public var selectedFinding: FindingRecord? {
@@ -471,6 +575,13 @@ public final class DashboardModel {
     public func showsPartialBanner(for finding: FindingRecord) -> Bool {
         guard finding.isOpen else { return false }
         return state?.coverage.first { $0.source == finding.source.lowercased() }?.state != .complete
+    }
+
+    /// One row for each feed that ran: OSV, CISA KEV and GitHub Advisories.
+    public var findingSourceRows: [FindingSourceRow] {
+        ["osv", "kev", "github"].compactMap { source in
+            state?.coverage.first { $0.source == source }.map { FindingSourceRow.make($0) }
+        }
     }
 
     public func deferFinding(_ finding: FindingRecord, days: Int) async {

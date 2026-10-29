@@ -17,7 +17,18 @@
       "last_success_at": "2026-10-28T09:02:10Z",
       "error": "App folder scan stopped early.",
       "detail": "PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'",
-      "source_at": null
+      "source_at": null,
+      "note": null
+    },
+    {
+      "source": "github",
+      "label": "GitHub Advisories",
+      "state": "failed",
+      "last_success_at": null,
+      "error": "GitHub Advisories did not load.",
+      "detail": "GET https://api.github.com/advisories?ghsa_id=GHSA-35jh-r3h4-6jhm&type=reviewed: rate limit",
+      "source_at": "2026-10-28T08:30:20Z",
+      "note": "rate limit"
     },
     {
       "source": "homebrew",
@@ -26,7 +37,18 @@
       "last_success_at": "2026-10-29T08:31:45Z",
       "error": null,
       "detail": null,
-      "source_at": "2026-10-29T08:30:40Z"
+      "source_at": "2026-10-29T08:30:40Z",
+      "note": null
+    },
+    {
+      "source": "kev",
+      "label": "CISA KEV",
+      "state": "complete",
+      "last_success_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null,
+      "source_at": "2026-10-29T08:30:20Z",
+      "note": "official mirror"
     },
     {
       "source": "macos",
@@ -35,7 +57,8 @@
       "last_success_at": "2026-10-28T09:02:10Z",
       "error": null,
       "detail": null,
-      "source_at": null
+      "source_at": null,
+      "note": null
     },
     {
       "source": "osv",
@@ -44,7 +67,8 @@
       "last_success_at": "2026-10-28T09:02:10Z",
       "error": null,
       "detail": null,
-      "source_at": null
+      "source_at": null,
+      "note": null
     },
     {
       "source": "projects",
@@ -53,7 +77,8 @@
       "last_success_at": null,
       "error": "2 projects could not be read.",
       "detail": null,
-      "source_at": null
+      "source_at": null,
+      "note": null
     }
   ],
   "items": [
@@ -226,7 +251,12 @@
       "source": "OSV",
       "source_at": "2026-10-28T06:00:00Z",
       "paths": [],
-      "next_steps": []
+      "next_steps": [],
+      "kev": null,
+      "malware": {
+        "advisory_id": "GHSA-mal1-ware-0001"
+      },
+      "withdrawn_at": null
     },
     {
       "id": "SEC-0001",
@@ -269,7 +299,15 @@
       "next_steps": [
         "Update lodash to 4.17.21 or later in the lockfile.",
         "Restart the dev server after the update."
-      ]
+      ],
+      "kev": {
+        "cve": "CVE-2021-23337",
+        "date_added": "2026-10-22",
+        "due_date": "2026-11-12",
+        "ransomware": false
+      },
+      "malware": null,
+      "withdrawn_at": null
     },
     {
       "id": "SEC-0002",
@@ -301,7 +339,10 @@
       ],
       "next_steps": [
         "Check the advisory for a workaround. No fixed version is known."
-      ]
+      ],
+      "kev": null,
+      "malware": null,
+      "withdrawn_at": "2026-10-28T08:00:00Z"
     }
   ]
 }

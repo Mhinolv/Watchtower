@@ -61,11 +61,14 @@ public struct CoverageRecord: Codable, Hashable, Sendable, Identifiable {
     public var detail: String?
     /// When the source's own data was fetched, for example the OSV database.
     public var sourceAt: Date?
+    /// A short phrase for the Source row of a finding: `official mirror`, or why a feed failed
+    /// or stopped early, for example `rate limit`. Not an error.
+    public var note: String?
 
     public var id: String { source }
 
     public init(source: String, label: String, state: CoverageState, lastSuccessAt: Date? = nil,
-                error: String? = nil, detail: String? = nil, sourceAt: Date? = nil) {
+                error: String? = nil, detail: String? = nil, sourceAt: Date? = nil, note: String? = nil) {
         self.source = source
         self.label = label
         self.state = state
@@ -73,6 +76,7 @@ public struct CoverageRecord: Codable, Hashable, Sendable, Identifiable {
         self.error = error
         self.detail = detail
         self.sourceAt = sourceAt
+        self.note = note
     }
 }
 
@@ -172,6 +176,31 @@ public struct FindingPath: Codable, Hashable, Sendable, Identifiable {
     }
 }
 
+/// CISA lists the advisory in the Known Exploited Vulnerabilities catalog.
+public struct KevMark: Codable, Hashable, Sendable {
+    public var cve: String
+    /// Dates as the catalog writes them: `2026-10-22`.
+    public var dateAdded: String?
+    public var dueDate: String?
+    public var ransomware: Bool
+
+    public init(cve: String, dateAdded: String? = nil, dueDate: String? = nil, ransomware: Bool = false) {
+        self.cve = cve
+        self.dateAdded = dateAdded
+        self.dueDate = dueDate
+        self.ransomware = ransomware
+    }
+}
+
+/// GitHub lists the package as malware.
+public struct MalwareMark: Codable, Hashable, Sendable {
+    public var advisoryId: String
+
+    public init(advisoryId: String) {
+        self.advisoryId = advisoryId
+    }
+}
+
 /// A stable finding: one advisory, with all its aliases, for one package.
 public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
     /// `SEC-0001`. No later scan changes or reuses it.
@@ -193,6 +222,11 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
     public var sourceAt: Date?
     public var paths: [FindingPath]
     public var nextSteps: [String]
+    /// Listed in CISA KEV. nil if not listed, or if the engine is older than the enrichment.
+    public var kev: KevMark?
+    public var malware: MalwareMark?
+    /// When the source withdrew the advisory.
+    public var withdrawnAt: Date?
 
     public var isOpen: Bool { status == .open }
 
@@ -200,7 +234,8 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
                 advisoryIds: [String], fixedIn: String? = nil, status: FindingStatus = .open,
                 deferredUntil: Date? = nil, firstSeen: Date, lastSeen: Date, resolvedAt: Date? = nil,
                 resolvedScanAt: Date? = nil, source: String = "OSV", sourceAt: Date? = nil,
-                paths: [FindingPath] = [], nextSteps: [String] = []) {
+                paths: [FindingPath] = [], nextSteps: [String] = [], kev: KevMark? = nil,
+                malware: MalwareMark? = nil, withdrawnAt: Date? = nil) {
         self.id = id
         self.ecosystem = ecosystem
         self.package = package
@@ -218,6 +253,9 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
         self.sourceAt = sourceAt
         self.paths = paths
         self.nextSteps = nextSteps
+        self.kev = kev
+        self.malware = malware
+        self.withdrawnAt = withdrawnAt
     }
 
     /// Distinct projects that have this finding.

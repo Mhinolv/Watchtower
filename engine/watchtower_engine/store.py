@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS items (
 """
 
 # Columns added after schema 1 shipped. Old stores get them with ALTER TABLE.
-_ADDED_COLUMNS = {"items": ("origin", "source_at", "note", "attributes"), "coverage": ("source_at",)}
+_ADDED_COLUMNS = {"items": ("origin", "source_at", "note", "attributes"), "coverage": ("source_at", "note")}
 
 
 class Store:
@@ -174,11 +174,13 @@ class Store:
         error: str | None = None,
         detail: str | None = None,
         scan=None,
+        kev=None,
+        github=None,
     ) -> RefreshRecord:
         """Save the result of a refresh in one transaction.
 
         `scan` is the OSV result of this refresh, if any. It updates the findings in the same
-        transaction (see findings.py).
+        transaction (see findings.py). `kev` and `github` are the feed data that marks them.
 
         - `last_complete_at` changes only when `status` is `complete`.
         - A source with `complete` coverage gets `last_success_at` = now and its items are replaced.
@@ -205,6 +207,8 @@ class Store:
             self._write_items(now, coverage, items)
             if scan is not None:
                 findings_module.apply_scan(self.db, now, scan)
+            if kev is not None or github is not None:
+                findings_module.apply_enrichment(self.db, kev, github)
             self.db.execute("COMMIT")
         except BaseException as exc:
             self.db.execute("ROLLBACK")
@@ -229,12 +233,13 @@ class Store:
             last_success = now if c.state == "complete" else (row["last_success_at"] if row else None)
             self.db.execute(
                 "INSERT INTO coverage (source, label, state, last_success_at, error, detail, refresh_id, "
-                "source_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "source_at, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT (source) DO UPDATE SET label = excluded.label, state = excluded.state, "
                 "last_success_at = excluded.last_success_at, error = excluded.error, "
-                "detail = excluded.detail, refresh_id = excluded.refresh_id, source_at = excluded.source_at",
+                "detail = excluded.detail, refresh_id = excluded.refresh_id, source_at = excluded.source_at, "
+                "note = excluded.note",
                 (c.source, c.label, c.state, last_success, owner_error(c.error), c.detail, refresh_id,
-                 c.source_at),
+                 c.source_at, c.note),
             )
         if not mark_stale:
             return
@@ -288,7 +293,7 @@ class Store:
 
     def coverage(self) -> list[CoverageRecord]:
         rows = self.db.execute(
-            "SELECT source, label, state, last_success_at, error, detail, source_at FROM coverage "
+            "SELECT source, label, state, last_success_at, error, detail, source_at, note FROM coverage "
             "ORDER BY source"
         ).fetchall()
         return [CoverageRecord(**dict(r)) for r in rows]

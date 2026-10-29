@@ -71,6 +71,10 @@ def build_partial_state(data_dir) -> Store:
               detail="PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'"),
             C("projects", "Projects", "partial", error="2 projects could not be read."),
             C("osv", "OSV", "not_run"),
+            C("kev", "CISA KEV", "complete", source_at="2026-10-29T08:30:20Z", note="official mirror"),
+            C("github", "GitHub Advisories", "failed", error="GitHub Advisories did not load.",
+              detail="GET https://api.github.com/advisories?ghsa_id=GHSA-35jh-r3h4-6jhm&type=reviewed: rate limit",
+              source_at="2026-10-28T08:30:20Z", note="rate limit"),
         ],
         items=[
             I("formula:git", "homebrew", "git", "update_available", kind="formula",
@@ -95,6 +99,11 @@ def build_partial_state(data_dir) -> Store:
     store.db.execute("UPDATE findings SET status = 'resolved', resolved_at = '2026-10-28T09:02:10Z', "
                      "resolved_scan_at = '2026-10-28T09:02:10Z' WHERE seq = 3")
     store.db.execute("DELETE FROM finding_paths WHERE seq = 3")
+    # Enrichment marks (#9), set directly like the statuses above.
+    store.db.execute("UPDATE findings SET kev = ? WHERE seq = 1", (json.dumps(
+        {"cve": "CVE-2021-23337", "date_added": "2026-10-22", "due_date": "2026-11-12", "ransomware": False}),))
+    store.db.execute("UPDATE findings SET withdrawn_at = '2026-10-28T08:00:00Z' WHERE seq = 2")
+    store.db.execute("UPDATE findings SET malware = ? WHERE seq = 3", (json.dumps({"advisory_id": "GHSA-mal1-ware-0001"}),))
     return store
 
 

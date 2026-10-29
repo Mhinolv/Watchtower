@@ -124,6 +124,12 @@ class Finding:
     source_at: str | None
     paths: list[FindingPath]
     next_steps: list[str]
+    # Listed in CISA KEV: {cve, date_added, due_date, ransomware}. None if not listed.
+    kev: dict | None = None
+    # GitHub lists the package as malware: {advisory_id}. None if not.
+    malware: dict | None = None
+    # When the source withdrew the advisory. None if it did not.
+    withdrawn_at: str | None = None
 
     def to_dict(self) -> dict:
         data = dict(self.__dict__)
@@ -131,8 +137,16 @@ class Finding:
         return data
 
 
+# Columns added after the first release of the table (#9). Old stores get them with ALTER TABLE.
+ADDED_COLUMNS = ("kev", "malware", "withdrawn_at")
+
+
 def migrate(db: sqlite3.Connection) -> None:
     db.executescript(SCHEMA)
+    have = {r["name"] for r in db.execute("PRAGMA table_info(findings)")}
+    for column in ADDED_COLUMNS:
+        if column not in have:
+            db.execute(f"ALTER TABLE findings ADD COLUMN {column} TEXT")
 
 
 # Scan -> findings
@@ -272,6 +286,35 @@ def _resolve(db: sqlite3.Connection, now: str, scan, seen: set[tuple[int, str, s
                 "resolved_scan_at = ? WHERE seq = ? AND status != 'resolved'", (now, now, seq))
 
 
+# Enrichment (#9)
+
+
+def apply_enrichment(db: sqlite3.Connection, kev=None, github=None) -> None:
+    """Set the KEV, malware and withdrawn marks of the findings. Call it inside the refresh transaction.
+
+    A feed that has no data leaves the old marks as they are. A mark is cleared only if the feed
+    answered for every advisory id of the finding.
+    """
+    for row in db.execute("SELECT seq, advisory_ids, kev, malware, withdrawn_at FROM findings").fetchall():
+        ids = json.loads(row["advisory_ids"])
+        kev_value, malware_value, withdrawn = row["kev"], row["malware"], row["withdrawn_at"]
+        if kev is not None and kev.loaded:
+            hit = next((kev.entries[i.upper()] for i in ids if i.upper() in kev.entries), None)
+            kev_value = json.dumps(hit, sort_keys=True) if hit else None
+        if github is not None:
+            verdict = github.assess(ids)
+            if verdict.malware_id:
+                malware_value = json.dumps({"advisory_id": verdict.malware_id})
+            elif verdict.malware_known:
+                malware_value = None
+            if verdict.withdrawn_at:
+                withdrawn = verdict.withdrawn_at
+            elif verdict.withdrawn_known:
+                withdrawn = None
+        db.execute("UPDATE findings SET kev = ?, malware = ?, withdrawn_at = ? WHERE seq = ?",
+                   (kev_value, malware_value, withdrawn, row["seq"]))
+
+
 # Owner actions
 
 
@@ -352,8 +395,13 @@ def list_findings(db: sqlite3.Connection, now: str) -> list[Finding]:
             deferred_until=until, first_seen=row["first_seen"], last_seen=row["last_seen"],
             resolved_at=row["resolved_at"], resolved_scan_at=row["resolved_scan_at"], source=SOURCE_LABEL,
             source_at=row["source_at"], paths=paths, next_steps=_next_steps(row["package"], fixed_in, status),
+            kev=json.loads(row["kev"]) if row["kev"] else None,
+            malware=json.loads(row["malware"]) if row["malware"] else None,
+            withdrawn_at=row["withdrawn_at"],
         ))
     out.sort(key=lambda f: f.id)
     out.sort(key=lambda f: f.last_seen, reverse=True)
     out.sort(key=lambda f: SEVERITIES.index(f.severity) if f.severity in SEVERITIES else len(SEVERITIES))
+    out.sort(key=lambda f: f.kev is None)  # Malware first, then known exploited, then severity.
+    out.sort(key=lambda f: f.malware is None)
     return out
