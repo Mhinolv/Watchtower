@@ -16,6 +16,7 @@ from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
 from .updates import homebrew as brew_updates
+from .updates import npm as npm_updates
 
 ERROR_NOT_UPDATABLE = "Watchtower can update Homebrew formulae and casks only."
 ERROR_NO_BREW = "Homebrew is not installed."
@@ -44,7 +45,10 @@ def _item(store: Store, item_key: str):
 
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
-                **platform) -> brew_updates.Plan:
+                npm: str | None = None, get=None, **platform) -> brew_updates.Plan:
+    if item_key.startswith("npm|"):
+        options = {"get": get} if get else {}
+        return npm_updates.make_plan(item_key, npm, run, **options)
     item = _item(store, item_key)
     if item is None or item.source != "homebrew" or item.kind not in ("formula", "cask"):
         raise UpdateError(ERROR_NOT_UPDATABLE)
@@ -67,10 +71,11 @@ def _mark_item_updated(store: Store, plan: brew_updates.Plan, after: str) -> Non
 def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = False,
                confirm_scripts: bool = False, on_line: Callable[[str], None] = lambda line: None,
                brew: str | None = None, run: Callable = subprocess.run,
-               runner: brew_updates.RunStreaming = brew_updates.run_streaming, **platform) -> tuple[Attempt, dict]:
+               runner: brew_updates.RunStreaming = brew_updates.run_streaming, npm: str | None = None,
+               get=None, **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, **platform)
+    plan = plan_update(store, item_key, brew, run, npm, get, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -89,6 +94,9 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
     def line(text: str) -> None:
         output.append(text)
         on_line(text)
+
+    if plan.kind == "npm":
+        return _run_npm(log, attempt_id, plan, confirm_scripts, line, runner, output), plan.to_dict()
 
     try:
         code = brew_updates.upgrade(plan, line, runner)
@@ -119,6 +127,27 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
             error = ERROR_NOT_VERIFIED.format(version=after or "unknown")
         log.finish(attempt_id, "not_verified", after, code, text, error)
     return log.get(attempt_id), plan.to_dict()
+
+
+def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line, runner, output) -> Attempt:
+    """npm: install with --ignore-scripts, then the confirmed scripts. Verify lockfile and node_modules."""
+    try:
+        code, script_error = npm_updates.execute(plan, line, confirm_scripts, runner)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id)
+    ok, after, checks, error = npm_updates.verify(plan)
+    text = "\n".join(output)
+    if code != 0:
+        log.finish(attempt_id, "failed", after, code, text, script_error or ERROR_FAILED.format(code=code), checks)
+    elif ok:
+        log.finish(attempt_id, "verified", after, code, text, None, checks)
+    else:
+        log.finish(attempt_id, "not_verified", after, code, text, error, checks)
+    return log.get(attempt_id)
 
 
 class InterruptOnSigterm:

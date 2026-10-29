@@ -370,6 +370,47 @@ extension SampleData {
         case planChanged = "update-plan-changed"
         case manualSteps = "update-manual-steps"
         case log = "update-log"
+        case npmPlan = "npm-plan"
+        case npmScripts = "npm-scripts"
+        case npmVerified = "npm-verified"
+        case npmLockfileOnly = "npm-lockfile-only"
+        case npmNotSupported = "npm-not-supported"
+    }
+
+    public static func npmPlan(scripts: Bool = false, refusal: String? = nil) -> UpdatePlan {
+        let npm = "/opt/homebrew/bin/npm"
+        var rows = [PlanRow(label: "Project", value: "~/Projects/storefront"),
+                    PlanRow(label: "package.json", value: "\"acme-router\": \"^4.17.1\" → \"^4.19.2\""),
+                    PlanRow(label: "package-lock.json", value: "acme-router 4.17.1 → 4.19.2")]
+        if scripts {
+            rows.append(PlanRow(label: "Scripts command",
+                                value: "\(npm) rebuild esbuild --ignore-scripts=false --prefix ~/Projects/storefront"))
+        }
+        return UpdatePlan(
+            id: "9c1e0b7a55d2f310", itemKey: "npm|~/Projects/storefront|acme-router|4.19.0", name: "acme-router",
+            kind: "npm", fullName: "acme-router", installedVersion: "4.17.1", targetVersion: "4.19.2",
+            command: [npm, "install", "acme-router@^4.19.2", "--save-prod", "--ignore-scripts", "--no-audit",
+                      "--no-fund", "--prefix", "/Users/me/Projects/storefront"],
+            alsoChanges: [PackageChange(name: "path-to-regexp", before: "0.1.7", after: "0.1.10", change: "upgrade"),
+                          PackageChange(name: "cookie", before: "0.5.0", after: "0.6.0", change: "upgrade"),
+                          PackageChange(name: "send", before: "0.18.0", after: "0.19.0", change: "upgrade")],
+            scripts: scripts ? ["esbuild needs its postinstall script"] : [],
+            manualSteps: ["Run the project tests: npm test", "Restart anything that runs this project."],
+            refusal: refusal, rows: rows, changesTitle: "Other packages",
+            scriptsOffText: "Disabled (--ignore-scripts)",
+            scriptDetails: scripts ? [ScriptDetail(package: "esbuild", version: "0.21.5", script: "postinstall")] : [])
+    }
+
+    public static func npmAttempt(installed: String) -> UpdateAttempt {
+        let ok = installed == "4.19.2"
+        return UpdateAttempt(
+            id: 9, itemKey: "npm|~/Projects/storefront|acme-router|4.19.0", name: "acme-router", kind: "npm",
+            command: npmPlan().command, beforeVersion: "4.17.1", targetVersion: "4.19.2", afterVersion: "4.19.2",
+            status: ok ? .verified : .notVerified, exitCode: 0, output: "added 1 package, changed 3 packages",
+            error: ok ? nil : "Not verified: the installed package is still \(installed).",
+            startedAt: ago(0.1), finishedAt: ago(0.09),
+            checks: [UpdateCheck(label: "Lockfile", value: "acme-router 4.19.2", ok: true),
+                     UpdateCheck(label: "Installed (node_modules)", value: "acme-router \(installed)", ok: ok)])
     }
 
     @MainActor
@@ -385,6 +426,16 @@ extension SampleData {
         case .failed: .result(attempt(.failed), plan())
         case .planChanged: .result(attempt(.planChanged), plan())
         case .manualSteps: .result(attempt(.verified, name: "fluff", manualSteps: ["Quit and reopen Fluff if it is open."]), plan())
+        case .npmPlan: .plan(npmPlan())
+        case .npmScripts: .confirmScripts(npmPlan(scripts: true))
+        case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
+        case .npmLockfileOnly: .result(npmAttempt(installed: "4.17.1"), npmPlan())
+        case .npmNotSupported:
+            .plan(UpdatePlan(id: "0", itemKey: "npm|~/Projects/monorepo|acme-router|-", name: "acme-router",
+                             kind: "npm", fullName: "acme-router", installedVersion: nil, targetVersion: nil,
+                             command: ["/opt/homebrew/bin/npm", "install", "acme-router"],
+                             refusal: "Watchtower cannot update workspace projects yet.",
+                             rows: [PlanRow(label: "Project", value: "~/Projects/monorepo")]))
         }
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",

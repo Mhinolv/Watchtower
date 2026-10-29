@@ -20,6 +20,43 @@ public struct PackageChange: Codable, Hashable, Sendable {
     }
 }
 
+/// One extra plan row from a project adapter, for example `package.json`.
+public struct PlanRow: Codable, Hashable, Sendable {
+    public var label: String
+    public var value: String
+
+    public init(label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+}
+
+/// One install script that needs the separate confirmation.
+public struct ScriptDetail: Codable, Hashable, Sendable {
+    public var package: String
+    public var version: String?
+    public var script: String
+
+    public init(package: String, version: String?, script: String) {
+        self.package = package
+        self.version = version
+        self.script = script
+    }
+}
+
+/// One verification line of a result, for example the lockfile or node_modules.
+public struct UpdateCheck: Codable, Hashable, Sendable {
+    public var label: String
+    public var value: String
+    public var ok: Bool
+
+    public init(label: String, value: String, ok: Bool) {
+        self.label = label
+        self.value = value
+        self.ok = ok
+    }
+}
+
 public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var itemKey: String
@@ -38,11 +75,17 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     /// Set when Watchtower must not run this plan. One sentence for the owner.
     public var refusal: String?
     public var detail: String?
+    // Project adapters (npm, uv). Optional: Homebrew plans and older engines leave them out.
+    public var rows: [PlanRow]?
+    public var changesTitle: String?
+    public var scriptsOffText: String?
+    public var scriptDetails: [ScriptDetail]?
 
     public init(id: String, itemKey: String, name: String, kind: String, fullName: String,
                 installedVersion: String?, targetVersion: String?, command: [String], alsoChanges: [PackageChange] = [],
                 majorChange: Bool = false, scripts: [String] = [], manualSteps: [String] = [],
-                refusal: String? = nil, detail: String? = nil) {
+                refusal: String? = nil, detail: String? = nil, rows: [PlanRow]? = nil, changesTitle: String? = nil,
+                scriptsOffText: String? = nil, scriptDetails: [ScriptDetail]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -58,6 +101,10 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         self.manualSteps = manualSteps
         self.refusal = refusal
         self.detail = detail
+        self.rows = rows
+        self.changesTitle = changesTitle
+        self.scriptsOffText = scriptsOffText
+        self.scriptDetails = scriptDetails
     }
 
     /// `2.4.1 → 2.5.0`.
@@ -71,9 +118,18 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         return "\(old).x → \(targetVersion ?? "?") can break your setup."
     }
 
-    /// `<name> needs install scripts: <reason>.`
+    /// `<name> needs install scripts: <reason>.` A project adapter names the package and script:
+    /// `esbuild needs its postinstall script.`
     public var scriptsText: String {
-        "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
+        if scriptDetails?.isEmpty == false {
+            return scripts.joined(separator: ". ") + "."
+        }
+        return "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
+    }
+
+    /// `3 packages change`.
+    public var changesSummary: String {
+        alsoChanges.count == 1 ? "1 package changes" : "\(alsoChanges.count) packages change"
     }
 }
 
@@ -114,11 +170,14 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
     public var planId: String?
     public var startedAt: Date
     public var finishedAt: Date?
+    /// Separate verification lines (npm: lockfile and node_modules). Empty or nil for Homebrew.
+    public var checks: [UpdateCheck]?
 
     public init(id: Int, itemKey: String, name: String, kind: String?, command: [String], beforeVersion: String?,
                 targetVersion: String?, afterVersion: String?, status: UpdateStatus, exitCode: Int?, output: String,
                 error: String?, manualSteps: [String] = [], confirmedMajor: Bool = false,
-                confirmedScripts: Bool = false, planId: String? = nil, startedAt: Date, finishedAt: Date? = nil) {
+                confirmedScripts: Bool = false, planId: String? = nil, startedAt: Date, finishedAt: Date? = nil,
+                checks: [UpdateCheck]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -137,6 +196,7 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
         self.planId = planId
         self.startedAt = startedAt
         self.finishedAt = finishedAt
+        self.checks = checks
     }
 
     public var commandText: String { command.joined(separator: " ") }
@@ -152,7 +212,7 @@ public struct UpdateResultStyle: Equatable, Sendable {
         switch symbol {
         case "checkmark.seal": "Watchtower read the version again after the command."
         case "xmark.octagon": "Watchtower did not confirm any change."
-        case "exclamationmark.triangle" where text.hasPrefix("The command finished"):
+        case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified"):
             "Watchtower does not count this update as done."
         default: nil
         }
@@ -163,6 +223,9 @@ public struct UpdateResultStyle: Equatable, Sendable {
         case .verified:
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
+        case .notVerified where attempt.checks?.isEmpty == false && attempt.error != nil:
+            // A project adapter names the check that failed: "Not verified: the installed package is still 4.17.1."
+            (symbol, tone, text) = ("exclamationmark.triangle", .orange, attempt.error!)
         case .notVerified:
             let text = if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
@@ -183,6 +246,26 @@ public struct UpdateResultStyle: Equatable, Sendable {
         case .running:
             (symbol, tone, text) = ("hourglass", .secondary, "Running…")
         }
+    }
+}
+
+public enum UpdateKeys {
+    /// The engine key for one npm package in the project folder that holds `lockfile`.
+    /// `projectPath` is the display path (`~/Projects/web`), `lockfile` is relative (`app/package-lock.json`).
+    public static func npm(projectPath: String, lockfile: String, package: String, fixedIn: String?) -> String {
+        let folder = (lockfile as NSString).deletingLastPathComponent
+        let dir = folder.isEmpty ? projectPath : projectPath + "/" + folder
+        return "npm|\(dir)|\(package)|\(fixedIn ?? "-")"
+    }
+
+    /// Nil if a finding path can open an npm plan, else why not. The plan itself checks the rest.
+    public static func npmBlockReason(_ finding: FindingRecord, _ path: FindingPath) -> String? {
+        guard finding.ecosystem == "npm" else { return "Watchtower cannot update this ecosystem yet." }
+        guard (path.lockfile as NSString).lastPathComponent == "package-lock.json" else {
+            return "Watchtower updates projects with package-lock.json only."
+        }
+        guard finding.status != .resolved else { return "This finding is resolved." }
+        return nil
     }
 }
 
@@ -290,6 +373,11 @@ public final class UpdateModel {
     /// Open the sheet for one item and load its plan. Nothing runs yet.
     public func start(_ item: ItemRecord) async {
         await loadPlan(itemKey: item.key, name: item.name)
+    }
+
+    /// Open the sheet for an engine key, for example an npm package in one project.
+    public func start(itemKey: String, name: String) async {
+        await loadPlan(itemKey: itemKey, name: name)
     }
 
     func loadPlan(itemKey: String, name: String) async {

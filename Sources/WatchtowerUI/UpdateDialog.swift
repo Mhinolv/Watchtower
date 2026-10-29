@@ -61,8 +61,43 @@ struct PlanStep: View {
     let model: UpdateModel
     let plan: UpdatePlan
     @FocusState private var cancelFocused: Bool
+    @State var showsChanges = false
 
     var body: some View {
+        if let refusal = plan.refusal, plan.targetVersion == nil {
+            notSupported(refusal)
+        } else {
+            fullPlan
+        }
+    }
+
+    /// The engine refused before it had a target: title, reason, Cancel. Update stays off.
+    func notSupported(_ refusal: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "hand.raised").font(.system(size: 22)).foregroundStyle(Tone.orange.color)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(refusal).font(.system(size: 14, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(plan.rows ?? [], id: \.label) { row in
+                        Text("\(row.label): \(row.value)").foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            HStack {
+                Spacer()
+                Button("Cancel") { model.close() }
+                    .keyboardShortcut(.cancelAction)
+                    .focused($cancelFocused)
+                Button("Update") {}.disabled(true).help(refusal)
+            }
+        }
+        .onAppear { cancelFocused = true }
+    }
+
+    var fullPlan: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
@@ -73,30 +108,32 @@ struct PlanStep: View {
                     Text("Command").foregroundStyle(.secondary)
                     CommandBox(text: plan.commandText)
                 }
+                ForEach(plan.rows ?? [], id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Text(row.value).font(.callout.monospaced()).textSelection(.enabled)
+                    }
+                }
                 GridRow {
-                    Text("Also changes").foregroundStyle(.secondary)
+                    Text(plan.changesTitle ?? "Also changes").foregroundStyle(.secondary)
                     if plan.alsoChanges.isEmpty {
                         Text("No other packages change.")
-                    } else {
+                    } else if plan.changesTitle != nil {
+                        // Project adapters: a count, the list opens on request.
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(plan.alsoChanges, id: \.name) { change in
-                                HStack {
-                                    Text(change.name)
-                                    Spacer()
-                                    Text(change.change == "install"
-                                         ? "new \(change.after ?? "")"
-                                         : "\(change.before ?? "?") → \(change.after ?? "?")")
-                                        .font(.callout.monospaced())
-                                        .foregroundStyle(.secondary)
-                                }
+                            Text(plan.changesSummary)
+                            DisclosureGroup(showsChanges ? "Hide list" : "Show list", isExpanded: $showsChanges) {
+                                ChangeList(changes: plan.alsoChanges)
                             }
                         }
+                    } else {
+                        ChangeList(changes: plan.alsoChanges)
                     }
                 }
                 GridRow {
                     Text("Scripts").foregroundStyle(.secondary)
                     if plan.scripts.isEmpty {
-                        SmallBadge(text: "Disabled", tone: .gray)
+                        SmallBadge(text: plan.scriptsOffText ?? "Disabled", tone: .gray)
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
                             SmallBadge(text: "Needed", tone: .orange)
@@ -118,7 +155,10 @@ struct PlanStep: View {
                     .disabled(plan.refusal != nil)
             }
         }
-        .onAppear { cancelFocused = true }
+        .onAppear {
+            cancelFocused = true
+            showsChanges = plan.alsoChanges.count <= 5  // A short list is open at once.
+        }
     }
 }
 
@@ -128,8 +168,11 @@ struct CommandBox: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
+            // The owner must see the whole command: wrap, never cut it.
             Text(text)
                 .font(.callout.monospaced())
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button {
@@ -166,17 +209,68 @@ struct SmallBadge: View {
 struct ScriptsStep: View {
     let model: UpdateModel
     let plan: UpdatePlan
+    @FocusState private var notNowFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Install scripts", systemImage: "terminal").font(.title3).bold()
-            Text(plan.scriptsText)
-            Text("Watchtower runs them only after this second confirmation.")
-                .font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+                Text(plan.versionLine).foregroundStyle(.secondary)
+            }
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 26))
+                    .foregroundStyle(Tone.orange.color)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(plan.scriptsText).font(.system(size: 15, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Scripts run only after you click Run Scripts.").foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            if let details = plan.scriptDetails, !details.isEmpty {
+                Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
+                    ForEach(details, id: \.self) { d in
+                        GridRow {
+                            Text("Package").foregroundStyle(.secondary)
+                            Text("\(d.package) \(d.version ?? "")").font(.callout.monospaced())
+                        }
+                        GridRow {
+                            Text("Script").foregroundStyle(.secondary)
+                            Text(d.script).font(.callout.monospaced())
+                        }
+                    }
+                }
+            }
             HStack {
                 Spacer()
-                Button("Not Now") { model.backToPlan() }.keyboardShortcut(.cancelAction)
+                Button("Not Now") { model.backToPlan() }
+                    .keyboardShortcut(.cancelAction)
+                    .focused($notNowFocused)
                 Button("Run Scripts") { Task { await model.confirmScripts() } }
+            }
+        }
+        .onAppear { notNowFocused = true }
+    }
+}
+
+/// `name before → after` lines, versions right-aligned.
+struct ChangeList: View {
+    let changes: [PackageChange]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(changes, id: \.name) { change in
+                HStack {
+                    Text(change.name)
+                    Spacer()
+                    Text(change.change == "install" ? "new \(change.after ?? "")"
+                         : change.change == "remove" ? "\(change.before ?? "?") → removed"
+                         : "\(change.before ?? "?") → \(change.after ?? "?")")
+                        .font(.callout.monospaced())
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -235,7 +329,20 @@ struct ResultStep: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
-            if attempt.status == .verified || attempt.status == .notVerified {
+            if let checks = attempt.checks, !checks.isEmpty {
+                // Project adapters: one line for each check, each with its own symbol.
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(checks, id: \.label) { check in
+                        HStack(spacing: 6) {
+                            Image(systemName: check.ok ? "checkmark.seal" : "exclamationmark.triangle")
+                                .foregroundStyle(check.ok ? Tone.green.color : Tone.orange.color)
+                            Text("\(check.label): \(check.value)")
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(check.label): \(check.value), \(check.ok ? "verified" : "not verified")")
+                    }
+                }
+            } else if attempt.status == .verified || attempt.status == .notVerified {
                 Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
                     GridRow {
                         Text("Before").foregroundStyle(.secondary)
@@ -358,6 +465,25 @@ struct UpdateLogDetail: View {
 }
 
 // MARK: - Wiring
+
+/// `Update…` for one npm package in one project. Off, with the reason as help, when not supported.
+struct NpmUpdateButton: View {
+    let finding: FindingRecord
+    let path: FindingPath
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
+
+    var body: some View {
+        let reason = updates == nil ? "Updates are not available here." : UpdateKeys.npmBlockReason(finding, path)
+        Button("Update…") {
+            let key = UpdateKeys.npm(projectPath: path.projectPath, lockfile: path.lockfile,
+                                     package: finding.package, fixedIn: finding.fixedIn)
+            Task { await updates?.start(itemKey: key, name: finding.package) }
+        }
+        .controlSize(.small)
+        .disabled(reason != nil)
+        .help(reason ?? "Show the update plan for \(finding.package) in \(path.projectPath). Nothing runs before you confirm.")
+    }
+}
 
 /// Shows the update sheet when the app gives an UpdateModel in the environment.
 struct UpdateSheetHost: ViewModifier {

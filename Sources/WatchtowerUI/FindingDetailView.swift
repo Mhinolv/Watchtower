@@ -144,8 +144,8 @@ public struct FindingDetailView: View {
         return versions.count == 1 ? "\(finding.package)@\(versions.first!)" : finding.package
     }
 
-    /// No Mark Resolved button: only a complete scan resolves a finding. The `Update…` button is
-    /// not here: no update adapter exists for lockfiles yet (#10, #11).
+    /// No Mark Resolved button: only a complete scan resolves a finding. `Update…` is on each
+    /// affected path below, because an update changes one project (#10).
     @ViewBuilder private var actions: some View {
         HStack {
             switch finding.status {
@@ -189,6 +189,9 @@ public struct FindingDetailView: View {
                             }
                             .textSelection(.enabled)
                             Spacer()
+                            if finding.ecosystem == "npm" {
+                                NpmUpdateButton(finding: finding, path: path)
+                            }
                             Button("Reveal in Finder", systemImage: "folder") {
                                 NSWorkspace.shared.activateFileViewerSelecting([path.lockfileURL])
                             }

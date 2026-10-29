@@ -9,7 +9,8 @@ import WatchtowerUI
 func render(_ view: some View, size: CGSize, dark: Bool, chrome: Bool = true, to url: URL) throws {
     let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
     var size = size
-    if size.height == 0 {
+    let fitHeight = size.height == 0
+    if fitHeight {
         // Fit the height to the content, for example the menu bar popover.
         let probe = NSHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light))
         size.height = probe.sizeThatFits(in: CGSize(width: size.width, height: 4000)).height
@@ -27,6 +28,22 @@ func render(_ view: some View, size: CGSize, dark: Bool, chrome: Bool = true, to
     for _ in 0..<5 {
         RunLoop.main.run(until: Date().addingTimeInterval(0.15))
         window.contentView?.layoutSubtreeIfNeeded()
+    }
+    if fitHeight {
+        // State set in onAppear (for example an open list) can change the height. Measure again.
+        let host = NSHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light))
+        host.view.frame = CGRect(origin: .zero, size: size)
+        for _ in 0..<3 { RunLoop.main.run(until: Date().addingTimeInterval(0.1)); host.view.layoutSubtreeIfNeeded() }
+        let height = max(size.height, host.sizeThatFits(in: CGSize(width: size.width, height: 4000)).height)
+        if height > size.height {
+            size.height = height
+            window.contentViewController = NSHostingController(rootView: view.frame(width: size.width, height: height))
+            window.setContentSize(size)
+            for _ in 0..<5 {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+                window.contentView?.layoutSubtreeIfNeeded()
+            }
+        }
     }
     let frameView = chrome ? (window.contentView?.superview ?? window.contentView!) : window.contentView!
     let bounds = frameView.bounds

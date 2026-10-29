@@ -432,6 +432,10 @@ struct ProjectDetail: View {
                             Text("\(finding.package) \(finding.paths.first { $0.projectPath == project.displayPath }?.version ?? "")")
                             Spacer()
                             SeverityBadge(severity: finding.severity)
+                            if finding.ecosystem == "npm",
+                               let path = finding.paths.first(where: { $0.projectPath == project.displayPath }) {
+                                NpmUpdateButton(finding: finding, path: path)
+                            }
                         }
                     }
                 }

@@ -67,11 +67,19 @@ class Plan:
     manual_steps: list[str] = field(default_factory=list)
     refusal: str | None = None
     detail: str | None = None
+    # Shared by the project adapters (npm #10, uv #11). Homebrew leaves the defaults.
+    rows: list[dict] = field(default_factory=list)  # Extra plan rows: {"label", "value"}.
+    changes_title: str = "Also changes"
+    scripts_off_text: str = "Disabled"
+    script_details: list[dict] = field(default_factory=list)  # {"package", "version", "script"}.
+    # Not shown. Part of the id, so an edit to the project after the plan changes the plan.
+    fingerprint: str | None = None
 
     @property
     def id(self) -> str:
         """Changes when anything that the owner confirms changes."""
         keys = {k: v for k, v in self.to_dict(with_id=False).items() if k not in ("detail",)}
+        keys["fingerprint"] = self.fingerprint
         return hashlib.sha256(json.dumps(keys, sort_keys=True).encode()).hexdigest()[:16]
 
     @property
@@ -85,7 +93,9 @@ class Plan:
             "command": list(self.command), "command_text": self.command_text,
             "also_changes": [c.to_dict() for c in self.also_changes], "major_change": self.major_change,
             "scripts": list(self.scripts), "manual_steps": list(self.manual_steps),
-            "refusal": self.refusal, "detail": self.detail,
+            "refusal": self.refusal, "detail": self.detail, "rows": [dict(r) for r in self.rows],
+            "changes_title": self.changes_title, "scripts_off_text": self.scripts_off_text,
+            "script_details": [dict(d) for d in self.script_details],
         }
         if with_id:
             out["id"] = self.id
