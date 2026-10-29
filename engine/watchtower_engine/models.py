@@ -165,6 +165,8 @@ class CoverageRecord:
     last_success_at: str | None = None
     error: str | None = None
     detail: str | None = None
+    # When the source's own data was fetched, for example the OSV database. None if not known.
+    source_at: str | None = None
 
     def __post_init__(self) -> None:
         _check(self.state, COVERAGE_STATES, "state")

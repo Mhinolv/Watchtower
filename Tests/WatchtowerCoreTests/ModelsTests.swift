@@ -34,6 +34,10 @@ private func utc(_ text: String) -> Date {
     #expect(apps.error == "App folder scan stopped early.")
     #expect(apps.detail?.contains("PermissionError") == true)
     #expect(apps.id == "apps")
+    #expect(apps.sourceAt == nil)
+
+    let homebrew = try #require(state.coverage.first { $0.source == "homebrew" })
+    #expect(homebrew.sourceAt == utc("2026-10-29T08:30:40Z"))
 
     let git = try #require(state.items.first { $0.key == "homebrew/formula:git" })
     #expect(git.name == "git")

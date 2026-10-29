@@ -48,6 +48,8 @@ public struct CoverageRecord: Codable, Hashable, Sendable, Identifiable {
     public var lastSuccessAt: Date?
     public var error: String?
     public var detail: String?
+    /// When the source's own data was fetched, for example the OSV database.
+    public var sourceAt: Date?
 
     public var id: String { source }
 }

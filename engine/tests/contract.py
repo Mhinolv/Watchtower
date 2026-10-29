@@ -63,7 +63,7 @@ def build_partial_state(data_dir) -> Store:
         error="Some sources did not finish.",
         detail="apps: scan stopped early",
         coverage=[
-            C("homebrew", "Homebrew", "complete"),
+            C("homebrew", "Homebrew", "complete", source_at="2026-10-29T08:30:40Z"),
             C("apps", "Applications", "failed", error="App folder scan stopped early.",
               detail="PermissionError: [Errno 1] Operation not permitted: '/Library/Secret/App.app'"),
             C("projects", "Projects", "partial", error="2 projects could not be read."),
