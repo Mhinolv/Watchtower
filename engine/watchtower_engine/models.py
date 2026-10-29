@@ -10,6 +10,7 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from urllib.parse import unquote
 
 SCHEMA_VERSION = 1
 
@@ -41,9 +42,18 @@ def _check(value: str, allowed: tuple[str, ...], field: str) -> None:
         raise ValueError(f"{field} must be one of {', '.join(allowed)}, not {value!r}")
 
 
-# An absolute or home-relative path that starts a token, without a final "." or ":".
-# Excludes "and/or" and URLs.
-_PATH_RE = re.compile(r"(?<![\w.:/~])~?/[^\s'\"`,;()\[\]]*[^\s'\"`,;()\[\].:]")
+# A file:// URL, or an absolute or home-relative path that starts a token.
+# A path has no final "." or ":". It excludes "and/or" and https:// URLs.
+_PATH_RE = re.compile(
+    r"(?<![\w.:/~])(?P<url>file://[^\s'\"`,;()\[\]<>]*[^\s'\"`,;()\[\]<>.:])"
+    r"|(?<![\w.:/~])(?P<path>~?/[^\s'\"`,;()\[\]]*[^\s'\"`,;()\[\].:])",
+    re.IGNORECASE,
+)
+
+# A path can hold spaces ("Application Support"). Where it ends is not clear, so the
+# redaction reads on over at most this many words after a space.
+_MAX_SPACE_WORDS = 3
+_END_PUNCTUATION = ".:,;!?)]}'\"`"
 
 
 def _under_roots(path: str, roots: tuple[str, ...]) -> bool:
@@ -55,16 +65,67 @@ def _under_roots(path: str, roots: tuple[str, ...]) -> bool:
     return False
 
 
+def _extend_path(line: str, end: int) -> int:
+    """Move `end` over the words that may still belong to a path with spaces.
+
+    Take the words up to the last one that has a "/" (the next folder or file).
+    If none has, take the capitalized words ("Application Support").
+    If the end is still not clear, redact more, not less.
+    """
+    while line[end:end + 1] == " ":
+        words = line[end + 1:].split(" ")[:_MAX_SPACE_WORDS]
+        take = 0
+        for i, word in enumerate(words, 1):
+            if "/" in word and "://" not in word and word.lower() != "and/or":
+                take = i
+        if take == 0:
+            for word in words:
+                if not (word[:1].isupper() or word[:1].isdigit()) or "://" in word:
+                    break
+                take += 1
+                if word[-1] in _END_PUNCTUATION:
+                    break
+        if take == 0:
+            break
+        end += 1 + len(" ".join(words[:take]))
+        stop = end
+        while line[stop - 1] in _END_PUNCTUATION:
+            stop -= 1
+        if stop != end:
+            return stop
+    return end
+
+
+def _redact_paths(line: str, roots: tuple[str, ...]) -> str:
+    out: list[str] = []
+    pos = 0
+    for m in _PATH_RE.finditer(line):
+        if m.start() < pos:
+            continue  # Already inside an earlier path.
+        end = _extend_path(line, m.end())
+        text = line[m.start():end]
+        if m.group("url"):
+            # file://host/path, with %20 for a space. The host is not part of the path.
+            rest = unquote(text[len("file://"):])
+            path = rest[rest.index("/"):] if "/" in rest else ""
+        else:
+            path = text
+        out.append(line[pos:m.start()])
+        out.append(text if path and _under_roots(path, roots) else "<path>")
+        pos = end
+    out.append(line[pos:])
+    return "".join(out)
+
+
 def owner_error(text: str | None, roots: tuple[str, ...] = DEFAULT_SCAN_ROOTS) -> str | None:
     """Make `text` safe for the `error` field.
 
-    One line, ERROR_MAX_CHARS or fewer, and no paths from outside the scan roots.
-    Put the full text in `detail` instead.
+    One line, ERROR_MAX_CHARS or fewer, and no paths or file:// URLs from outside the
+    scan roots. Put the full text in `detail` instead.
     """
     if text is None:
         return None
-    line = " ".join(text.split())
-    line = _PATH_RE.sub(lambda m: m.group(0) if _under_roots(m.group(0), roots) else "<path>", line)
+    line = _redact_paths(" ".join(text.split()), roots)
     if len(line) > ERROR_MAX_CHARS:
         line = line[: ERROR_MAX_CHARS - 3].rstrip() + "..."
     return line or None
