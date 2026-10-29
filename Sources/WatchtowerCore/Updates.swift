@@ -26,11 +26,14 @@ public struct PlanRow: Codable, Hashable, Sendable {
     public var value: String
     /// A list that opens under the value, for example the other packages that change.
     public var items: [String]?
+    /// For a result row: true if this part of the update is verified, false if it is not. nil: no mark.
+    public var ok: Bool?
 
-    public init(label: String, value: String, items: [String]? = nil) {
+    public init(label: String, value: String, items: [String]? = nil, ok: Bool? = nil) {
         self.label = label
         self.value = value
         self.items = items
+        self.ok = ok
     }
 }
 
@@ -172,6 +175,16 @@ public struct UpdateResultStyle: Equatable, Sendable {
     public var symbol: String
     public var tone: Tone
     public var text: String
+    /// The second line under the result, from the approved update-dialog mockup.
+    public var detail: String? {
+        switch symbol {
+        case "checkmark.seal": "Watchtower read the version again after the command."
+        case "xmark.octagon": "Watchtower did not confirm any change."
+        case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified:"):
+            "Watchtower does not count this update as done."
+        default: nil
+        }
+    }
 
     public init(_ attempt: UpdateAttempt) {
         switch attempt.status {

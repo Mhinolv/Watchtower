@@ -6,10 +6,17 @@ import WatchtowerCore
 import WatchtowerUI
 
 @MainActor
-func render(_ view: some View, size: CGSize, dark: Bool, to url: URL) throws {
+func render(_ view: some View, size: CGSize, dark: Bool, chrome: Bool = true, to url: URL) throws {
     let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
+    var size = size
+    if size.height == 0 {
+        // Fit the height to the content, for example the menu bar popover.
+        let probe = NSHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light))
+        size.height = probe.sizeThatFits(in: CGSize(width: size.width, height: 4000)).height
+    }
     let window = NSWindow(contentRect: CGRect(origin: .zero, size: size),
-                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                          styleMask: chrome ? [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+                                            : [.borderless],
                           backing: .buffered, defer: false)
     window.appearance = appearance
     window.title = "Watchtower"
@@ -21,7 +28,7 @@ func render(_ view: some View, size: CGSize, dark: Bool, to url: URL) throws {
         RunLoop.main.run(until: Date().addingTimeInterval(0.15))
         window.contentView?.layoutSubtreeIfNeeded()
     }
-    let frameView = window.contentView?.superview ?? window.contentView!
+    let frameView = chrome ? (window.contentView?.superview ?? window.contentView!) : window.contentView!
     let bounds = frameView.bounds
     guard let rep = frameView.bitmapImageRepForCachingDisplay(in: bounds) else {
         throw CocoaError(.fileWriteUnknown)
@@ -70,15 +77,21 @@ MainActor.assumeIsolated {
             let model = SampleData.model(scenario)
             let name = "\(scenario.rawValue)-\(dark ? "dark" : "light").png"
             do {
-                if scenario == .settingsInactive {
+                if scenario.isMenuBar {
+                    // The system gives the real popover its material. Here a window color stands in.
+                    try render(MenuBarPopover(model: model, openWindow: {})
+                                   .background(Color(nsColor: .windowBackgroundColor)),
+                               size: CGSize(width: DesignTokens.popoverWidth, height: 0), dark: dark, chrome: false,
+                               to: out.appendingPathComponent(name))
+                } else if scenario == .settingsInactive {
                     try render(SettingsView(model: model), size: CGSize(width: 560, height: 380), dark: dark,
                                to: out.appendingPathComponent(name))
                 } else if scenario == .findingUv {
                     // The Update… buttons need an update model in the environment.
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
-                               size: CGSize(width: 1180, height: 660), dark: dark, to: out.appendingPathComponent(name))
+                               size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))
                 } else {
-                    try render(DashboardView(model: model), size: CGSize(width: 1180, height: 660), dark: dark,
+                    try render(DashboardView(model: model), size: CGSize(width: 1280, height: 720), dark: dark,
                                to: out.appendingPathComponent(name))
                 }
                 print(name)
@@ -97,7 +110,7 @@ MainActor.assumeIsolated {
                 case .log:
                     let model = SampleData.model(.complete)
                     model.selection = .updateLog
-                    try render(DashboardView(model: model).environment(updates), size: CGSize(width: 1180, height: 660),
+                    try render(DashboardView(model: model).environment(updates), size: CGSize(width: 1280, height: 720),
                                dark: dark, to: out.appendingPathComponent(name))
                 case .majorAlert:
                     // SwiftUI shows this step as an NSAlert sheet. Render the same alert offscreen.
@@ -106,9 +119,7 @@ MainActor.assumeIsolated {
                                     buttons: ["Update to \(plan.targetVersion ?? "?")", "Cancel"], dark: dark,
                                     to: out.appendingPathComponent(name))
                 default:
-                    // A uv plan has more rows than a Homebrew plan.
-                    let height: CGFloat = scenario.rawValue.hasPrefix("update-uv") ? 520 : 400
-                    try render(UpdateDialog(model: updates), size: CGSize(width: 580, height: height), dark: dark,
+                    try render(UpdateDialog(model: updates), size: CGSize(width: 580, height: 0), dark: dark,
                                to: out.appendingPathComponent(name))
                 }
                 print(name)

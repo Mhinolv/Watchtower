@@ -43,6 +43,8 @@ public enum SampleData {
             item("com.tinyspeck.slackmacgap", "apps", "Slack", .upToDate, kind: "app", installed: "4.41.97",
                  latest: "4.41.97", sourceAt: time),
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
+            item("md.obsidian", "apps", "Obsidian", .error, kind: "app", installed: "1.7.4", latest: nil,
+                 error: "Version could not be read.", detail: "Info.plist has no CFBundleShortVersionString"),
             item("macos", "macos", "macOS", .manual, kind: "os", installed: "15.1", latest: nil,
                  note: "Update macOS in System Settings."),
         ]
@@ -141,6 +143,15 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case failed
+        case chipSelected = "chip-selected"
+        case menubarFindings = "menubar-findings"
+        case menubarAllClear = "menubar-all-clear"
+        case menubarStale = "menubar-stale"
+        case menubarNever = "menubar-never"
+
+        /// Scenarios that render the menu bar popover, not the window.
+        public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
     }
 
     @MainActor
@@ -187,6 +198,28 @@ public enum SampleData {
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
              .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:
             return findingsModel(scenario, engine: engine, clock: clock)
+        case .failed:
+            let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
+                                                                    lastComplete: ago(18),
+                                                                    failing: ["homebrew", "apps", "macos", "osv"]),
+                                       projects: projects, clock: clock)
+            model.selection = .apps
+            return model
+        case .chipSelected:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects, clock: clock)
+            model.selection = .apps
+            model.itemFilter = .error
+            return model
+        case .menubarFindings, .menubarNever:
+            return model(scenario == .menubarNever ? .neverRefreshed : .complete)
+        case .menubarStale:
+            return model(.stale)
+        case .menubarAllClear:
+            var clear = state(status: .complete, finished: ago(0.2), lastComplete: ago(0.2), findings: [])
+            clear.items = clear.items.filter { ![.updateAvailable, .error, .vulnerable].contains($0.state) }
+            return DashboardModel(engine: engine, state: clear, projects: projects, clock: clock)
         }
     }
 }
@@ -346,7 +379,7 @@ extension SampleData {
             PlanRow(label: "pyproject.toml", value: "No change"),
             PlanRow(label: "uv.lock", value: "httpx 0.26.0 → 0.27.2"),
             PlanRow(label: "Groups and extras", value: "Groups: dev. Extras: none."),
-            PlanRow(label: "Other packages", value: "3 packages",
+            PlanRow(label: "Other packages", value: "3 packages change",
                     items: ["anyio 4.2.0 → 4.3.0", "sniffio 1.3.1 (new)", "h11 0.13.0 (removed)"]),
             PlanRow(label: "Build", value: "Disabled"),
         ]
@@ -370,8 +403,9 @@ extension SampleData {
                              error: verified ? nil : "Not verified: the environment still has 0.26.0.",
                              manualSteps: verified ? ["Restart the dev server after the update."] : [],
                              startedAt: ago(0.1), finishedAt: ago(0.09),
-                             resultRows: [PlanRow(label: "Lockfile", value: "httpx 0.27.2"),
-                                          PlanRow(label: "Installed (.venv)", value: "httpx \(installed)")])
+                             resultRows: [PlanRow(label: "Lockfile", value: "httpx 0.27.2", ok: true),
+                                          PlanRow(label: "Installed (.venv)", value: "httpx \(installed)",
+                                                  ok: verified)])
     }
 
     public enum UpdateScenario: String, CaseIterable, Sendable {

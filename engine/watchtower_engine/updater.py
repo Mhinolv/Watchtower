@@ -155,7 +155,7 @@ def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts
     if status == "failed":
         error = ERROR_FAILED.format(code=code)
     log.finish(attempt_id, status, outcome.installed, code, "\n".join(output), error,
-               outcome.result_rows(req.name))
+               outcome.result_rows(req.name, plan.target_version))
     return log.get(attempt_id), plan.to_dict()
 
 

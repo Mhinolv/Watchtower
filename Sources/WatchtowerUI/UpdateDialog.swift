@@ -33,8 +33,9 @@ public struct UpdateDialog: View {
                 FailedStep(model: model, error: error)
             }
         }
-        .padding(20)
+        .padding(24)
         .frame(width: 580)
+        .tint(.watchtowerAccent)
         .interactiveDismissDisabled(model.isRunning)
         .alert("Update to a new major version?", isPresented: majorBinding, presenting: majorPlan) { plan in
             Button("Cancel", role: .cancel) { model.backToPlan() }
@@ -64,27 +65,16 @@ struct PlanStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Update \(plan.name)").font(.title2).bold()
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
                 Text(plan.versionLine).foregroundStyle(.secondary)
             }
-            Grid(alignment: .topLeading, horizontalSpacing: 14, verticalSpacing: 10) {
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 12) {
                 GridRow {
                     Text("Command").foregroundStyle(.secondary)
-                    HStack(alignment: .top) {
-                        Text(plan.commandText)
-                            .font(.callout.monospaced())
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(plan.commandText, forType: .string)
-                        } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
-                        }
-                        .help("Copy the command")
-                    }
+                    CommandBox(text: plan.commandText)
                 }
                 if let rows = plan.rows, !rows.isEmpty {
+                    // A uv plan: its rows come from the engine (project, environment, files, groups, ...).
                     ForEach(rows, id: \.label) { row in
                         GridRow {
                             Text(row.label).foregroundStyle(.secondary)
@@ -97,18 +87,31 @@ struct PlanStep: View {
                         if plan.alsoChanges.isEmpty {
                             Text("No other packages change.")
                         } else {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 ForEach(plan.alsoChanges, id: \.name) { change in
-                                    Text(change.change == "install"
-                                         ? "\(change.name) \(change.after ?? "") (new)"
-                                         : "\(change.name) \(change.before ?? "?") → \(change.after ?? "?")")
+                                    HStack {
+                                        Text(change.name)
+                                        Spacer()
+                                        Text(change.change == "install"
+                                             ? "new \(change.after ?? "")"
+                                             : "\(change.before ?? "?") → \(change.after ?? "?")")
+                                            .font(.callout.monospaced())
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
                     }
                     GridRow {
                         Text("Scripts").foregroundStyle(.secondary)
-                        Text(plan.scripts.isEmpty ? "Disabled" : "Needed: \(plan.scripts.joined(separator: ", "))")
+                        if plan.scripts.isEmpty {
+                            SmallBadge(text: "Disabled", tone: .gray)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                SmallBadge(text: "Needed", tone: .orange)
+                                Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -129,59 +132,146 @@ struct PlanStep: View {
     }
 }
 
-/// The value of a plan row. A row with a list opens it under a disclosure, for example `3 packages`.
+/// The value of a plan row. `Disabled` is a gray badge. A row with a list shows `Show list` under the
+/// value, as in the approved mockup. Each item reads `<name> <versions>`: the versions go to the right.
 struct PlanRowValue: View {
     let row: PlanRow
     @State private var opened = false
 
     var body: some View {
         if let items = row.items, !items.isEmpty {
-            DisclosureGroup(row.value, isExpanded: $opened) {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(items, id: \.self) { Text($0).font(.callout.monospaced()) }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(row.value)
+                Button {
+                    opened.toggle()
+                } label: {
+                    Label(opened ? "Hide list" : "Show list", systemImage: opened ? "chevron.down" : "chevron.right")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+                .accessibilityLabel(opened ? "Hide list of \(row.label)" : "Show list of \(row.label)")
+                if opened {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(items, id: \.self) { item in
+                            let parts = item.split(separator: " ", maxSplits: 1).map(String.init)
+                            HStack {
+                                Text(parts.first ?? item)
+                                Spacer()
+                                Text(parts.count > 1 ? parts[1] : "")
+                                    .font(.callout.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
+        } else if row.value == "Disabled" {
+            SmallBadge(text: "Disabled", tone: .gray)
         } else {
             Text(row.value).textSelection(.enabled)
         }
     }
 }
 
+/// The exact command in a monospaced box, with a Copy button inside it.
+struct CommandBox: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(text)
+                .font(.callout.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .help("Copy the command")
+            .accessibilityLabel("Copy")
+        }
+        .padding(10)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.25)))
+    }
+}
+
+/// A small gray or colored word in a rounded box, for example the `Disabled` scripts badge.
+struct SmallBadge: View {
+    let text: String
+    let tone: Tone
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(tone.color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(tone.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4))
+    }
+}
+
 struct ScriptsStep: View {
     let model: UpdateModel
     let plan: UpdatePlan
+    @FocusState private var notNowFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Install scripts", systemImage: "terminal").font(.title3).bold()
-            Text(plan.scriptsText)
-            Text("Watchtower runs them only after this second confirmation.")
-                .font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 26))
+                    .foregroundStyle(Tone.orange.color)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(plan.scriptsText).font(.system(size: 15, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(plan.kind == "uv" ? "The build runs only after you click Run Scripts."
+                                           : "Scripts run only after you click Run Scripts.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
             HStack {
                 Spacer()
-                Button("Not Now") { model.backToPlan() }.keyboardShortcut(.cancelAction)
+                Button("Not Now") { model.backToPlan() }
+                    .keyboardShortcut(.cancelAction)
+                    .focused($notNowFocused)
                 Button("Run Scripts") { Task { await model.confirmScripts() } }
             }
         }
+        .onAppear { notNowFocused = true }
     }
 }
 
 struct RunningStep: View {
     let plan: UpdatePlan
     let output: [String]
-    @State private var showsOutput = false
+    @State private var showsOutput = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Update \(plan.name)").font(.title2).bold()
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Running…")
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+                Text(plan.versionLine).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Running…").fontWeight(.semibold)
+                ProgressView().progressViewStyle(.linear)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityLabel("Running")
             DisclosureGroup("Show output", isExpanded: $showsOutput) {
                 OutputText(text: output.joined(separator: "\n"))
+            }
+            HStack {
+                Spacer()
+                // Escape and Done do nothing while the update runs.
+                Button("Done") {}.disabled(true)
             }
         }
     }
@@ -196,14 +286,41 @@ struct ResultStep: View {
     var body: some View {
         let style = UpdateResultStyle(attempt)
         VStack(alignment: .leading, spacing: 14) {
-            Text("Update \(attempt.name)").font(.title2).bold()
-            Label(style.text, systemImage: style.symbol)
-                .foregroundStyle(style.tone.color)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: style.symbol)
+                    .font(.system(size: 26))
+                    .foregroundStyle(style.tone.color)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(style.text).font(.system(size: 15, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail = style.detail {
+                        Text(detail).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
             if let rows = attempt.resultRows, !rows.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                // A uv update: the lockfile and the installed package have separate lines.
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(rows, id: \.label) { row in
-                        Text("\(row.label): \(row.value)").textSelection(.enabled)
+                        let good = row.ok ?? true
+                        Label("\(row.label): \(row.value)", systemImage: good ? "checkmark.circle" : "exclamationmark.triangle")
+                            .foregroundStyle(good ? Color.primary : Tone.orange.color)
+                            .symbolRenderingMode(.hierarchical)
+                            .textSelection(.enabled)
+                    }
+                }
+            } else if attempt.status == .verified || attempt.status == .notVerified {
+                Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
+                    GridRow {
+                        Text("Before").foregroundStyle(.secondary)
+                        Text(attempt.beforeVersion ?? "—").monospacedDigit()
+                    }
+                    GridRow {
+                        Text("After").foregroundStyle(.secondary)
+                        Text(attempt.afterVersion ?? "—").monospacedDigit()
                     }
                 }
             }
@@ -213,7 +330,7 @@ struct ResultStep: View {
                     ForEach(attempt.manualSteps, id: \.self) { Text("• \($0)") }
                 }
             }
-            if !attempt.output.isEmpty {
+            if !attempt.output.isEmpty, attempt.status != .verified, attempt.status != .notVerified {
                 DisclosureGroup("Show output", isExpanded: $showsOutput) {
                     OutputText(text: attempt.output)
                 }
@@ -224,7 +341,9 @@ struct ResultStep: View {
                 }
                 Spacer()
                 Button("View Log") { model.viewLog() }
-                Button("Done") { model.close() }.keyboardShortcut(.defaultAction)
+                Button("Done") { model.close() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
             }
         }
         .onAppear {

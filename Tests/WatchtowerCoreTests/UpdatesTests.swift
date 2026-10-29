@@ -345,13 +345,13 @@ private let uvPath = FindingPath(project: "tool", projectPath: "~/Real/tool", lo
      "scripts": ["httpx needs a source build: no wheel for this platform."], "manual_steps": [],
      "refusal": null, "detail": null,
      "rows": [{"label": "Project", "value": "~/Real/tool"},
-              {"label": "Other packages", "value": "1 packages", "items": ["anyio 4.2.0 → 4.3.0"]}],
+              {"label": "Other packages", "value": "1 package changes", "items": ["anyio 4.2.0 → 4.3.0"]}],
      "scripts_message": "httpx needs a source build: no wheel for this platform.",
      "scripts_command": ["/uv", "sync"], "fingerprint": "abc", "id": "1"}}
     """#
     let plan = try EngineJSON.decode(UpdatePlanResponse.self, from: Data(planJSON.utf8)).plan
     #expect(plan.rows == [PlanRow(label: "Project", value: "~/Real/tool"),
-                          PlanRow(label: "Other packages", value: "1 packages", items: ["anyio 4.2.0 → 4.3.0"])])
+                          PlanRow(label: "Other packages", value: "1 package changes", items: ["anyio 4.2.0 → 4.3.0"])])
     #expect(plan.scriptsText == "httpx needs a source build: no wheel for this platform.")
 
     let logJSON = #"""
@@ -361,11 +361,13 @@ private let uvPath = FindingPath(project: "tool", projectPath: "~/Real/tool", lo
      "error": "Not verified: the environment still has 0.26.0.", "manual_steps": [],
      "confirmed_major": false, "confirmed_scripts": false, "plan_id": "1",
      "started_at": "2026-10-29T10:00:00Z", "finished_at": "2026-10-29T10:01:00Z",
-     "result_rows": [{"label": "Lockfile", "value": "httpx 0.27.2"},
-                     {"label": "Installed (.venv)", "value": "httpx 0.26.0"}]}]}
+     "result_rows": [{"label": "Lockfile", "value": "httpx 0.27.2", "ok": true},
+                     {"label": "Installed (.venv)", "value": "httpx 0.26.0", "ok": false}]}]}
     """#
     let attempt = try EngineJSON.decode(UpdateLogResponse.self, from: Data(logJSON.utf8)).attempts[0]
     #expect(attempt.resultRows?.map(\.label) == ["Lockfile", "Installed (.venv)"])
+    #expect(attempt.resultRows?.map(\.ok) == [true, false])
+    #expect(UpdateResultStyle(attempt).detail == "Watchtower does not count this update as done.")
     #expect(UpdateResultStyle(attempt).text == "Not verified: the environment still has 0.26.0.")
 }
 

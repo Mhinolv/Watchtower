@@ -150,12 +150,19 @@ def test_plan_shows_the_exact_command_and_every_row_of_the_design(tmp_path, stor
     assert r["pyproject.toml"]["value"] == "No change"
     assert r["uv.lock"]["value"] == "httpx 0.26.0 → 0.27.2"
     assert r["Groups and extras"]["value"] == "Groups: none. Extras: none."
-    assert r["Other packages"]["value"] == "3 packages"
+    assert r["Other packages"]["value"] == "3 packages change"
     assert r["Other packages"]["items"] == ["anyio 4.2.0 → 4.3.0", "sniffio 1.3.1 (new)", "h11 0.13.0 (removed)"]
     assert r["Build"]["value"] == "Disabled"
     assert p.scripts == [] and p.scripts_command is None and p.also_changes == []
     assert p.manual_steps == ["Restart the dev server after the update."]
     assert p.to_dict()["rows"][0] == {"label": "Project", "value": "~/Real/tool"}
+
+
+def test_one_other_package_reads_as_singular(tmp_path, store):
+    make_project(tmp_path)
+    p = plan(store, uv=FakeUv("Update httpx v0.26.0 -> v0.27.2\nUpdate anyio v4.2.0 -> v4.3.0\n"))
+    assert rows(p)["Other packages"]["value"] == "1 package changes"
+    assert rows(p)["Other packages"]["items"] == ["anyio 4.2.0 → 4.3.0"]
 
 
 def test_no_other_package_change_has_its_own_text(tmp_path, store):
@@ -430,8 +437,8 @@ def test_verified_needs_the_lockfile_and_the_environment(tmp_path, store):
     attempt, checked = run(store, runner, p.id)
     assert attempt.status == "verified" and attempt.error is None
     assert (attempt.before_version, attempt.target_version, attempt.after_version) == ("0.26.0", "0.27.2", "0.27.2")
-    assert attempt.result_rows == [{"label": "Lockfile", "value": "httpx 0.27.2"},
-                                   {"label": "Installed (.venv)", "value": "httpx 0.27.2"}]
+    assert attempt.result_rows == [{"label": "Lockfile", "value": "httpx 0.27.2", "ok": True},
+                                   {"label": "Installed (.venv)", "value": "httpx 0.27.2", "ok": True}]
     assert attempt.command == runner.calls[0][0] and attempt.exit_code == 0
     assert "Resolved 12 packages" in attempt.output
     assert checked["rows"][0]["label"] == "Project"
@@ -446,8 +453,8 @@ def test_lock_change_without_the_installed_target_stays_unverified(tmp_path, sto
     assert attempt.status == "not_verified"
     assert attempt.error == "Not verified: the environment still has 0.26.0."
     assert attempt.after_version == "0.26.0"
-    assert attempt.result_rows == [{"label": "Lockfile", "value": "httpx 0.27.2"},
-                                   {"label": "Installed (.venv)", "value": "httpx 0.26.0"}]
+    assert attempt.result_rows == [{"label": "Lockfile", "value": "httpx 0.27.2", "ok": True},
+                                   {"label": "Installed (.venv)", "value": "httpx 0.26.0", "ok": False}]
 
 
 def test_exit_zero_with_nothing_changed_is_not_verified(tmp_path, store):

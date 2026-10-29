@@ -11,8 +11,11 @@ let package = Package(
     ],
     targets: [
         .target(name: "WatchtowerCore"),
-        .target(name: "WatchtowerUI", dependencies: ["WatchtowerCore"]),
-        .executableTarget(name: "WatchtowerApp", dependencies: ["WatchtowerCore", "WatchtowerUI"]),
+        // Resources: menu bar template icons and the app icon PNG, copied from design/logo/.
+        .target(name: "WatchtowerUI", dependencies: ["WatchtowerCore"], resources: [.process("Resources")]),
+        // scripts/bundle.sh puts Info.plist and the compiled Assets.xcassets (AccentColor) in Watchtower.app.
+        .executableTarget(name: "WatchtowerApp", dependencies: ["WatchtowerCore", "WatchtowerUI"],
+                          exclude: ["Assets.xcassets", "Info.plist"]),
         // Offscreen PNG renders of the UI for review. Run with scripts/snapshot.sh.
         .executableTarget(name: "WatchtowerSnapshots", dependencies: ["WatchtowerCore", "WatchtowerUI"]),
         .testTarget(

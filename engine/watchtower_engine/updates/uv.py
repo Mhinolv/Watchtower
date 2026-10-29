@@ -323,10 +323,12 @@ def wheel_fits(filename: str, minor: int | None, machine: str | None = None, mac
 # Plan
 
 
-def _row(label: str, value: str, items: list[str] | None = None) -> dict:
+def _row(label: str, value: str, items: list[str] | None = None, ok: bool | None = None) -> dict:
     row = {"label": label, "value": value}
     if items is not None:
         row["items"] = items
+    if ok is not None:
+        row["ok"] = ok
     return row
 
 
@@ -479,7 +481,8 @@ def make_plan(
     others = [c for c in changes if normalize(c.name) != normalize(req.name)]
     plan.also_changes = []  # The plan step shows the `Other packages` row instead.
     plan.rows.append(_row("Other packages",
-                          "No other packages change." if not others else f"{len(others)} packages",
+                          "No other packages change." if not others else
+                          (f"{len(others)} package changes" if len(others) == 1 else f"{len(others)} packages change"),
                           [_change_text(c) for c in others] if others else None))
 
     # The build policy: wheels only, unless the target has no wheel for this Mac.
@@ -576,9 +579,10 @@ class Outcome:
     stray: list[str]
     env_replaced: bool
 
-    def result_rows(self, name: str) -> list[dict]:
-        return [_row("Lockfile", f"{name} {self.locked or 'unknown'}"),
-                _row("Installed (.venv)", f"{name} {self.installed or 'unknown'}")]
+    def result_rows(self, name: str, target: str | None = None) -> list[dict]:
+        """The lockfile and the installed package on separate lines. `ok` says if each one shows the target."""
+        return [_row("Lockfile", f"{name} {self.locked or 'unknown'}", ok=self.locked == target),
+                _row("Installed (.venv)", f"{name} {self.installed or 'unknown'}", ok=self.installed == target)]
 
 
 def read_outcome(root: Path, name: str, before: Snapshot) -> Outcome:
