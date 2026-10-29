@@ -73,34 +73,44 @@ struct PlanStep: View {
                     Text("Command").foregroundStyle(.secondary)
                     CommandBox(text: plan.commandText)
                 }
-                GridRow {
-                    Text("Also changes").foregroundStyle(.secondary)
-                    if plan.alsoChanges.isEmpty {
-                        Text("No other packages change.")
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(plan.alsoChanges, id: \.name) { change in
-                                HStack {
-                                    Text(change.name)
-                                    Spacer()
-                                    Text(change.change == "install"
-                                         ? "new \(change.after ?? "")"
-                                         : "\(change.before ?? "?") → \(change.after ?? "?")")
-                                        .font(.callout.monospaced())
-                                        .foregroundStyle(.secondary)
+                if let rows = plan.rows, !rows.isEmpty {
+                    // A uv plan: its rows come from the engine (project, environment, files, groups, ...).
+                    ForEach(rows, id: \.label) { row in
+                        GridRow {
+                            Text(row.label).foregroundStyle(.secondary)
+                            PlanRowValue(row: row)
+                        }
+                    }
+                } else {
+                    GridRow {
+                        Text("Also changes").foregroundStyle(.secondary)
+                        if plan.alsoChanges.isEmpty {
+                            Text("No other packages change.")
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(plan.alsoChanges, id: \.name) { change in
+                                    HStack {
+                                        Text(change.name)
+                                        Spacer()
+                                        Text(change.change == "install"
+                                             ? "new \(change.after ?? "")"
+                                             : "\(change.before ?? "?") → \(change.after ?? "?")")
+                                            .font(.callout.monospaced())
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                GridRow {
-                    Text("Scripts").foregroundStyle(.secondary)
-                    if plan.scripts.isEmpty {
-                        SmallBadge(text: "Disabled", tone: .gray)
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            SmallBadge(text: "Needed", tone: .orange)
-                            Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                    GridRow {
+                        Text("Scripts").foregroundStyle(.secondary)
+                        if plan.scripts.isEmpty {
+                            SmallBadge(text: "Disabled", tone: .gray)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                SmallBadge(text: "Needed", tone: .orange)
+                                Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -119,6 +129,48 @@ struct PlanStep: View {
             }
         }
         .onAppear { cancelFocused = true }
+    }
+}
+
+/// The value of a plan row. `Disabled` is a gray badge. A row with a list shows `Show list` under the
+/// value, as in the approved mockup. Each item reads `<name> <versions>`: the versions go to the right.
+struct PlanRowValue: View {
+    let row: PlanRow
+    @State private var opened = false
+
+    var body: some View {
+        if let items = row.items, !items.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(row.value)
+                Button {
+                    opened.toggle()
+                } label: {
+                    Label(opened ? "Hide list" : "Show list", systemImage: opened ? "chevron.down" : "chevron.right")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(opened ? "Hide list of \(row.label)" : "Show list of \(row.label)")
+                if opened {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(items, id: \.self) { item in
+                            let parts = item.split(separator: " ", maxSplits: 1).map(String.init)
+                            HStack {
+                                Text(parts.first ?? item)
+                                Spacer()
+                                Text(parts.count > 1 ? parts[1] : "")
+                                    .font(.callout.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        } else if row.value == "Disabled" {
+            SmallBadge(text: "Disabled", tone: .gray)
+        } else {
+            Text(row.value).textSelection(.enabled)
+        }
     }
 }
 
@@ -166,19 +218,33 @@ struct SmallBadge: View {
 struct ScriptsStep: View {
     let model: UpdateModel
     let plan: UpdatePlan
+    @FocusState private var notNowFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Install scripts", systemImage: "terminal").font(.title3).bold()
-            Text(plan.scriptsText)
-            Text("Watchtower runs them only after this second confirmation.")
-                .font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 26))
+                    .foregroundStyle(Tone.orange.color)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(plan.scriptsText).font(.system(size: 15, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(plan.kind == "uv" ? "The build runs only after you click Run Scripts."
+                                           : "Scripts run only after you click Run Scripts.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
             HStack {
                 Spacer()
-                Button("Not Now") { model.backToPlan() }.keyboardShortcut(.cancelAction)
+                Button("Not Now") { model.backToPlan() }
+                    .keyboardShortcut(.cancelAction)
+                    .focused($notNowFocused)
                 Button("Run Scripts") { Task { await model.confirmScripts() } }
             }
         }
+        .onAppear { notNowFocused = true }
     }
 }
 
@@ -235,7 +301,18 @@ struct ResultStep: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
-            if attempt.status == .verified || attempt.status == .notVerified {
+            if let rows = attempt.resultRows, !rows.isEmpty {
+                // A uv update: the lockfile and the installed package have separate lines.
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(rows, id: \.label) { row in
+                        let good = row.ok ?? true
+                        Label("\(row.label): \(row.value)", systemImage: good ? "checkmark.circle" : "exclamationmark.triangle")
+                            .foregroundStyle(good ? Color.primary : Tone.orange.color)
+                            .symbolRenderingMode(.hierarchical)
+                            .textSelection(.enabled)
+                    }
+                }
+            } else if attempt.status == .verified || attempt.status == .notVerified {
                 Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
                     GridRow {
                         Text("Before").foregroundStyle(.secondary)

@@ -36,6 +36,8 @@ private actor Gate {
 
 private actor Record {
     var runs: [(String, Bool, Bool)] = []
+    var planKeys: [String] = []
+    func addKey(_ key: String) { planKeys.append(key) }
     func add(_ id: String, _ major: Bool, _ scripts: Bool) { runs.append((id, major, scripts)) }
 }
 
@@ -54,6 +56,7 @@ private struct FakeUpdates: UpdateClient {
     }
 
     func updatePlan(itemKey: String) async throws -> UpdatePlan {
+        await record.addKey(itemKey)
         if let planError { throw planError }
         let i = await counter.next()
         return plans[min(i, plans.count - 1)]
@@ -300,4 +303,102 @@ private final class Lines: @unchecked Sendable {
     #expect(await runner.seen.args == ["-m", "watchtower_engine.cli", "update-run", "homebrew/formula:git",
                                        "--plan-id", "x", "--confirm-major", "--confirm-scripts"])
     #expect(lines.all == ["==> Upgrading git"])
+}
+
+
+// MARK: - uv (#11)
+
+private let httpx = FindingRecord(
+    id: "SEC-0006", ecosystem: "PyPI", package: "httpx", title: "t", severity: .high, advisoryIds: ["GHSA-1"],
+    fixedIn: "0.27.2", firstSeen: Date(timeIntervalSince1970: 0), lastSeen: Date(timeIntervalSince1970: 0))
+private let uvPath = FindingPath(project: "tool", projectPath: "~/Real/tool", lockfile: "uv.lock", version: "0.26.0")
+
+@Test func uvItemKeyComesFromTheFindingAndOnlyForUvLockfiles() {
+    #expect(UVUpdate.key(finding: httpx, path: uvPath) == "uv/httpx@0.27.2|~/Real/tool|uv.lock")
+    let nested = FindingPath(project: "tool", projectPath: "~/Real/tool", lockfile: "app/uv.lock", version: "1")
+    #expect(UVUpdate.key(finding: httpx, path: nested) == "uv/httpx@0.27.2|~/Real/tool|app/uv.lock")
+    let npm = FindingPath(project: "web", projectPath: "~/Projects/web", lockfile: "package-lock.json", version: "1")
+    #expect(UVUpdate.key(finding: httpx, path: npm) == nil)
+    var npmFinding = httpx
+    npmFinding.ecosystem = "npm"
+    #expect(UVUpdate.key(finding: npmFinding, path: uvPath) == nil)
+    var noFix = httpx
+    noFix.fixedIn = nil
+    #expect(UVUpdate.key(finding: noFix, path: uvPath) == nil)
+    var resolved = httpx
+    resolved.status = .resolved
+    #expect(UVUpdate.key(finding: resolved, path: uvPath) == nil)
+}
+
+@Test func updateIsOffWithTheReasonFromTheEngine() {
+    #expect(UVUpdate.blockReason(uvPath) == nil)
+    var blocked = uvPath
+    blocked.updateBlock = "No environment found. Watchtower does not create environments."
+    #expect(UVUpdate.blockReason(blocked) == "No environment found. Watchtower does not create environments.")
+}
+
+@Test func decodesUvPlanRowsAndResultRows() throws {
+    let planJSON = #"""
+    {"schema_version": 1, "plan": {"item_key": "uv/httpx@0.27.2|~/Real/tool|uv.lock", "name": "httpx", "kind": "uv",
+     "full_name": "httpx", "installed_version": "0.26.0", "target_version": "0.27.2",
+     "command": ["/uv", "sync"], "command_text": "/uv sync", "also_changes": [], "major_change": false,
+     "scripts": ["httpx needs a source build: no wheel for this platform."], "manual_steps": [],
+     "refusal": null, "detail": null,
+     "rows": [{"label": "Project", "value": "~/Real/tool"},
+              {"label": "Other packages", "value": "1 package changes", "items": ["anyio 4.2.0 → 4.3.0"]}],
+     "scripts_message": "httpx needs a source build: no wheel for this platform.",
+     "scripts_command": ["/uv", "sync"], "fingerprint": "abc", "id": "1"}}
+    """#
+    let plan = try EngineJSON.decode(UpdatePlanResponse.self, from: Data(planJSON.utf8)).plan
+    #expect(plan.rows == [PlanRow(label: "Project", value: "~/Real/tool"),
+                          PlanRow(label: "Other packages", value: "1 package changes", items: ["anyio 4.2.0 → 4.3.0"])])
+    #expect(plan.scriptsText == "httpx needs a source build: no wheel for this platform.")
+
+    let logJSON = #"""
+    {"schema_version": 1, "attempts": [{"id": 3, "item_key": "uv/httpx@0.27.2|~/Real/tool|uv.lock", "name": "httpx",
+     "kind": "uv", "command": ["/uv"], "before_version": "0.26.0", "target_version": "0.27.2",
+     "after_version": "0.26.0", "status": "not_verified", "exit_code": 0, "output": "",
+     "error": "Not verified: the environment still has 0.26.0.", "manual_steps": [],
+     "confirmed_major": false, "confirmed_scripts": false, "plan_id": "1",
+     "started_at": "2026-10-29T10:00:00Z", "finished_at": "2026-10-29T10:01:00Z",
+     "result_rows": [{"label": "Lockfile", "value": "httpx 0.27.2", "ok": true},
+                     {"label": "Installed (.venv)", "value": "httpx 0.26.0", "ok": false}]}]}
+    """#
+    let attempt = try EngineJSON.decode(UpdateLogResponse.self, from: Data(logJSON.utf8)).attempts[0]
+    #expect(attempt.resultRows?.map(\.label) == ["Lockfile", "Installed (.venv)"])
+    #expect(attempt.resultRows?.map(\.ok) == [true, false])
+    #expect(UpdateResultStyle(attempt).detail == "Watchtower does not count this update as done.")
+    #expect(UpdateResultStyle(attempt).text == "Not verified: the environment still has 0.26.0.")
+}
+
+@Test func findingPathDecodesTheUpdateBlock() throws {
+    let json = #"""
+    {"project": "tool", "project_path": "~/Real/tool", "lockfile": "uv.lock", "version": "0.26.0",
+     "dependency_path": null, "update_block": "Watchtower cannot update workspace projects yet."}
+    """#
+    let path = try EngineJSON.makeDecoder().decode(FindingPath.self, from: Data(json.utf8))
+    #expect(path.updateBlock == "Watchtower cannot update workspace projects yet.")
+    let old = try EngineJSON.makeDecoder().decode(FindingPath.self, from: Data(
+        #"{"project": "a", "project_path": "~/a", "lockfile": "uv.lock", "version": "1"}"#.utf8))
+    #expect(old.updateBlock == nil)
+}
+
+@Test func homebrewResultTextStaysTheSameWhenTheEngineGivesAnError() {
+    var a = attempt(.notVerified, after: "2.46.0")
+    a.error = "The command finished, but the installed version is still 2.46.0."
+    #expect(UpdateResultStyle(a).text == "The command finished, but the installed version is still 2.46.0.")
+    a.kind = "uv"
+    a.error = "uv replaced the environment. Watchtower did not plan that."
+    #expect(UpdateResultStyle(a).text == "uv replaced the environment. Watchtower did not plan that.")
+}
+
+@MainActor
+@Test func startingFromAFindingOpensTheUvPlanWithoutRunningAnything() async {
+    let client = FakeUpdates(plans: [plan()])
+    let model = UpdateModel(client: client)
+    await model.start(finding: httpx, path: uvPath)
+    if case .plan(let p) = model.step { #expect(p.id == "aaaa") } else { Issue.record("no plan step") }
+    #expect(await client.record.runs.isEmpty)
+    let asked = await client.record.planKeys
+    #expect(asked == ["uv/httpx@0.27.2|~/Real/tool|uv.lock"])
 }

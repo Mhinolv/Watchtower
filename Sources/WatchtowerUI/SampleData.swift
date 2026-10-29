@@ -92,6 +92,16 @@ public enum SampleData {
                       nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
                                   "Restart the dev server after the update."],
                       withdrawnAt: days(1)),
+        FindingRecord(id: "SEC-0006", ecosystem: "PyPI", package: "httpx", title: "Request smuggling in httpx",
+                      severity: .high, advisoryIds: ["CVE-2026-31337", "GHSA-uvuv-httpx-0006"], fixedIn: "0.27.2",
+                      firstSeen: days(2), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [FindingPath(project: "tool", projectPath: "~/Real/tool", lockfile: "uv.lock",
+                                          version: "0.26.0"),
+                              FindingPath(project: "old-tool", projectPath: "~/Real/old-tool", lockfile: "uv.lock",
+                                          version: "0.25.1",
+                                          updateBlock: "No environment found. Watchtower does not create environments.")],
+                      nextSteps: ["Update httpx to 0.27.2 or later in the lockfile.",
+                                  "Restart the dev server after the update."]),
     ]
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
@@ -132,6 +142,7 @@ public enum SampleData {
         case findingMalware = "finding-malware"
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
+        case findingUv = "finding-uv"
         case failed
         case chipSelected = "chip-selected"
         case menubarFindings = "menubar-findings"
@@ -185,7 +196,7 @@ public enum SampleData {
             model.selectedItemKey = projects[2].path
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
-             .findingMalware, .findingWithdrawn, .findingFeedFailed:
+             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -243,6 +254,7 @@ extension SampleData {
         case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
         case .findingMalware: model.selectedItemKey = "SEC-0002"
         case .findingWithdrawn: model.selectedItemKey = "SEC-0005"
+        case .findingUv: model.selectedItemKey = "SEC-0006"
         case .findingDeferred:
             model.findingFilter = .deferred
             model.selectedItemKey = "SEC-0003"
@@ -359,6 +371,43 @@ extension SampleData {
         attempt(.verified, id: 4), attempt(.notVerified, id: 3), attempt(.failed, id: 2), attempt(.planChanged, id: 1),
     ]
 
+    /// A uv plan with a group, three other packages and the Build row (#11).
+    public static func uvPlan(build: Bool = false, refusal: String? = nil) -> UpdatePlan {
+        let rows = [
+            PlanRow(label: "Project", value: "~/Real/tool"),
+            PlanRow(label: "Environment", value: refusal == nil ? ".venv (exists)" : ".venv (missing)"),
+            PlanRow(label: "pyproject.toml", value: "No change"),
+            PlanRow(label: "uv.lock", value: "httpx 0.26.0 → 0.27.2"),
+            PlanRow(label: "Groups and extras", value: "Groups: dev. Extras: none."),
+            PlanRow(label: "Other packages", value: "3 packages change",
+                    items: ["anyio 4.2.0 → 4.3.0", "sniffio 1.3.1 (new)", "h11 0.13.0 (removed)"]),
+            PlanRow(label: "Build", value: "Disabled"),
+        ]
+        return UpdatePlan(id: "9d4c0b7a1e2f3a55", itemKey: "uv/httpx@0.27.2|~/Real/tool|uv.lock", name: "httpx",
+                          kind: "uv", fullName: "httpx", installedVersion: "0.26.0", targetVersion: "0.27.2",
+                          command: ["/Users/me/.local/bin/uv", "--project", "~/Real/tool", "sync", "--upgrade-package",
+                                    "httpx==0.27.2", "--inexact", "--no-build", "--group", "dev"],
+                          scripts: build ? ["httpx needs a source build: no wheel for this platform."] : [],
+                          refusal: refusal, rows: rows,
+                          scriptsMessage: build ? "httpx needs a source build: no wheel for this platform." : nil)
+    }
+
+    public static func uvAttempt(verified: Bool) -> UpdateAttempt {
+        let installed = verified ? "0.27.2" : "0.26.0"
+        return UpdateAttempt(id: 6, itemKey: "uv/httpx@0.27.2|~/Real/tool|uv.lock", name: "httpx", kind: "uv",
+                             command: ["/Users/me/.local/bin/uv", "--project", "~/Real/tool", "sync",
+                                       "--upgrade-package", "httpx==0.27.2", "--inexact", "--no-build"],
+                             beforeVersion: "0.26.0", targetVersion: "0.27.2", afterVersion: installed,
+                             status: verified ? .verified : .notVerified, exitCode: 0,
+                             output: "Resolved 12 packages in 1ms\nUpdated httpx v0.26.0 -> v0.27.2",
+                             error: verified ? nil : "Not verified: the environment still has 0.26.0.",
+                             manualSteps: verified ? ["Restart the dev server after the update."] : [],
+                             startedAt: ago(0.1), finishedAt: ago(0.09),
+                             resultRows: [PlanRow(label: "Lockfile", value: "httpx 0.27.2", ok: true),
+                                          PlanRow(label: "Installed (.venv)", value: "httpx \(installed)",
+                                                  ok: verified)])
+    }
+
     public enum UpdateScenario: String, CaseIterable, Sendable {
         case plan = "update-plan"
         case majorAlert = "update-major-alert"
@@ -370,6 +419,11 @@ extension SampleData {
         case planChanged = "update-plan-changed"
         case manualSteps = "update-manual-steps"
         case log = "update-log"
+        case uvPlan = "update-uv-plan"
+        case uvBuild = "update-uv-build"
+        case uvVerified = "update-uv-verified"
+        case uvLockOnly = "update-uv-lock-only"
+        case uvNoEnv = "update-uv-no-env"
     }
 
     @MainActor
@@ -385,6 +439,11 @@ extension SampleData {
         case .failed: .result(attempt(.failed), plan())
         case .planChanged: .result(attempt(.planChanged), plan())
         case .manualSteps: .result(attempt(.verified, name: "fluff", manualSteps: ["Quit and reopen Fluff if it is open."]), plan())
+        case .uvPlan: .plan(uvPlan())
+        case .uvBuild: .confirmScripts(uvPlan(build: true))
+        case .uvVerified: .result(uvAttempt(verified: true), uvPlan())
+        case .uvLockOnly: .result(uvAttempt(verified: false), uvPlan())
+        case .uvNoEnv: .plan(uvPlan(refusal: "No environment found. Watchtower does not create environments."))
         }
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",
