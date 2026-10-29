@@ -64,9 +64,13 @@
       "seen_at": "2026-10-28T09:02:10Z",
       "error": null,
       "detail": null,
-      "origin": null,
+      "origin": "Manual",
       "source_at": null,
-      "note": null
+      "note": "Update this app from its vendor.",
+      "attributes": {
+        "bundleId": "com.example.legacy",
+        "path": "/Applications/Legacy Tool.app"
+      }
     },
     {
       "id": "com.tinyspeck.slackmacgap",
@@ -82,7 +86,16 @@
       "detail": null,
       "origin": null,
       "source_at": null,
-      "note": null
+      "note": null,
+      "attributes": {
+        "architecture": "arm64",
+        "build": "441097",
+        "bundleId": "com.tinyspeck.slackmacgap",
+        "chromium": "124",
+        "electron": "30.1.2",
+        "node": "20",
+        "path": "/Applications/Slack.app"
+      }
     },
     {
       "id": "cask:zed",
@@ -98,7 +111,8 @@
       "detail": "urlopen error timed out",
       "origin": null,
       "source_at": null,
-      "note": null
+      "note": null,
+      "attributes": null
     },
     {
       "id": "formula:acme/tools/widget",
@@ -114,7 +128,8 @@
       "detail": null,
       "origin": "acme/tools",
       "source_at": null,
-      "note": "Watchtower cannot check tap acme/tools."
+      "note": "Watchtower cannot check tap acme/tools.",
+      "attributes": null
     },
     {
       "id": "formula:git",
@@ -130,7 +145,8 @@
       "detail": null,
       "origin": null,
       "source_at": "2026-10-29T08:30:40Z",
-      "note": null
+      "note": null,
+      "attributes": null
     },
     {
       "id": "formula:node",
@@ -146,7 +162,8 @@
       "detail": null,
       "origin": null,
       "source_at": "2026-10-29T08:30:40Z",
-      "note": "Pinned with brew pin. Watchtower does not update pinned items."
+      "note": "Pinned with brew pin. Watchtower does not update pinned items.",
+      "attributes": null
     },
     {
       "id": "formula:openssl@3",
@@ -162,7 +179,8 @@
       "detail": null,
       "origin": null,
       "source_at": "2026-10-29T08:30:40Z",
-      "note": null
+      "note": null,
+      "attributes": null
     },
     {
       "id": "npm:left-pad",
@@ -178,7 +196,8 @@
       "detail": null,
       "origin": null,
       "source_at": null,
-      "note": null
+      "note": null,
+      "attributes": null
     }
   ]
 }

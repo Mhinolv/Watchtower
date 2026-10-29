@@ -47,9 +47,13 @@ def build_partial_state(data_dir) -> Store:
             I("formula:git", "homebrew", "git", "up_to_date", kind="formula",
               installed_version="2.46.0", latest_version="2.46.0"),
             I("com.tinyspeck.slackmacgap", "apps", "Slack", "up_to_date", kind="app",
-              installed_version="4.41.97", latest_version="4.41.97"),
+              installed_version="4.41.97", latest_version="4.41.97",
+              attributes={"path": "/Applications/Slack.app", "bundleId": "com.tinyspeck.slackmacgap",
+                          "build": "441097", "architecture": "arm64", "electron": "30.1.2",
+                          "chromium": "124", "node": "20"}),
             I("com.example.legacy", "apps", "Legacy Tool", "manual", kind="app",
-              installed_version="1.2"),
+              installed_version="1.2", origin="Manual", note="Update this app from its vendor.",
+              attributes={"path": "/Applications/Legacy Tool.app", "bundleId": "com.example.legacy"}),
         ],
     )
     r2 = store.begin_refresh()

@@ -28,6 +28,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower version` | `{"schema_version", "engine"}` |
 | `watchtower state` | `{"schema_version", "refresh", "coverage", "items"}` |
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
+| `watchtower macos` | `{"schema_version", "coverage", "items"}` for the macOS version and build |
+| `watchtower apps` | `{"schema_version", "coverage", "items"}` for apps in `/Applications` and `~/Applications` |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
 The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine tests and the Swift tests both check them.
@@ -42,3 +44,6 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
 The engine keeps a small catalog index in `cache/homebrew/` in the data folder. If a fetch fails, the engine uses that index and reports its original age.
+
+The macOS and app check makes no network call. It reads `/System/Library/CoreServices/SystemVersion.plist`, each app's `Info.plist`, the Electron framework `Info.plist` and the first 4 KB of each main executable.
+It never launches an app. For the cask links, `watchtower apps` also runs the `brew info` command above, once.
