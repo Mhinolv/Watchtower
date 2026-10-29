@@ -1,0 +1,13 @@
+.build/
+build/
+dist/
+*.app
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.team/
+# Local scan data never goes in git (public repo)
+data/
+*.inventory.json

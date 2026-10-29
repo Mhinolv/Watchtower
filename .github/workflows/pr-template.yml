@@ -1,0 +1,15 @@
+name: PR template
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body sections
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          for s in "## What changed" "## Issue" "## How it was tested" "## Risk and rollback"; do
+            printf '%s' "$BODY" | grep -qF "$s" || { echo "Missing section: $s"; exit 1; }
+          done

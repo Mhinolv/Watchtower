@@ -1,0 +1,23 @@
+[project]
+name = "watchtower-engine"
+version = "0.1.0"
+description = "Local inventory, vulnerability scan and update engine for Watchtower"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+watchtower = "watchtower_engine.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["watchtower_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
