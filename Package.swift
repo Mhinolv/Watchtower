@@ -11,6 +11,10 @@ let package = Package(
     targets: [
         .target(name: "WatchtowerCore"),
         .executableTarget(name: "WatchtowerApp", dependencies: ["WatchtowerCore"]),
-        .testTarget(name: "WatchtowerCoreTests", dependencies: ["WatchtowerCore"]),
+        .testTarget(
+            name: "WatchtowerCoreTests",
+            dependencies: ["WatchtowerCore"],
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )

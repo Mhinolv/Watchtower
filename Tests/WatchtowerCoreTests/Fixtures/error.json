@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "error": "A newer Watchtower wrote this data.",
+  "detail": "Store schema 99 is newer than engine schema 1."
+}
