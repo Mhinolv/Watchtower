@@ -278,3 +278,29 @@ def test_owner_error_redacts_paths_outside_scan_roots():
     assert owner_error("See https://api.github.com/x and/or retry.", roots) == (
         "See https://api.github.com/x and/or retry."
     )
+
+
+def test_store_from_schema_1_gets_new_item_columns(tmp_path):
+    import sqlite3
+
+    db = sqlite3.connect(tmp_path / "watchtower.sqlite3")
+    db.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        INSERT INTO meta VALUES ('schema_version', '1');
+        CREATE TABLE items (source TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL,
+            state TEXT NOT NULL, kind TEXT, installed_version TEXT, latest_version TEXT,
+            project TEXT, seen_at TEXT, error TEXT, detail TEXT, PRIMARY KEY (source, id));
+        INSERT INTO items (source, id, name, state) VALUES ('apps', 'app:a', 'A', 'up_to_date');
+    """)
+    db.close()
+    with Store(tmp_path, clock=clock()) as s:
+        assert s.items() == [I("app:a", "apps", "A", "up_to_date")]
+        r = s.begin_refresh()
+        s.finish_refresh(r.id, "complete", coverage=[C("homebrew", "Homebrew", "complete")],
+                         items=[I("formula:w", "homebrew", "w", "manual", origin="acme/tools",
+                                  source_at="2026-10-29T09:00:00Z", note="Watchtower cannot check tap acme/tools.")])
+    with Store(tmp_path) as s:
+        w = {i.id: i for i in s.items()}["formula:w"]
+        assert (w.origin, w.source_at, w.note) == (
+            "acme/tools", "2026-10-29T09:00:00Z", "Watchtower cannot check tap acme/tools."
+        )

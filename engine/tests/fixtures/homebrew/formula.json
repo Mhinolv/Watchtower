@@ -1,0 +1,8 @@
+[
+  {"name": "git", "full_name": "git", "tap": "homebrew/core", "oldnames": [], "versions": {"stable": "2.47.1"}, "revision": 0},
+  {"name": "openssl@3", "full_name": "openssl@3", "tap": "homebrew/core", "oldnames": [], "versions": {"stable": "3.4.0"}, "revision": 1},
+  {"name": "node", "full_name": "node", "tap": "homebrew/core", "oldnames": [], "versions": {"stable": "23.1.0"}, "revision": 0},
+  {"name": "newtool", "full_name": "newtool", "tap": "homebrew/core", "oldnames": ["oldtool"], "versions": {"stable": "1.1"}, "revision": 0},
+  {"name": "neovim", "full_name": "neovim", "tap": "homebrew/core", "oldnames": [], "versions": {"stable": "0.10.2"}, "revision": 0},
+  {"name": "local", "full_name": "local", "tap": "homebrew/core", "oldnames": [], "versions": {"stable": "9.0"}, "revision": 0}
+]

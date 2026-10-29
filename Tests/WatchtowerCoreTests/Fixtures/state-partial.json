@@ -63,7 +63,10 @@
       "project": null,
       "seen_at": "2026-10-28T09:02:10Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": null,
+      "note": null
     },
     {
       "id": "com.tinyspeck.slackmacgap",
@@ -76,7 +79,10 @@
       "project": null,
       "seen_at": "2026-10-28T09:02:10Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": null,
+      "note": null
     },
     {
       "id": "cask:zed",
@@ -89,7 +95,26 @@
       "project": null,
       "seen_at": "2026-10-29T08:31:45Z",
       "error": "Homebrew API did not respond.",
-      "detail": "urlopen error timed out"
+      "detail": "urlopen error timed out",
+      "origin": null,
+      "source_at": null,
+      "note": null
+    },
+    {
+      "id": "formula:acme/tools/widget",
+      "source": "homebrew",
+      "name": "widget",
+      "state": "manual",
+      "kind": "formula",
+      "installed_version": "1.0",
+      "latest_version": null,
+      "project": null,
+      "seen_at": "2026-10-29T08:31:45Z",
+      "error": null,
+      "detail": null,
+      "origin": "acme/tools",
+      "source_at": null,
+      "note": "Watchtower cannot check tap acme/tools."
     },
     {
       "id": "formula:git",
@@ -102,7 +127,10 @@
       "project": null,
       "seen_at": "2026-10-29T08:31:45Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": "2026-10-29T08:30:40Z",
+      "note": null
     },
     {
       "id": "formula:node",
@@ -115,7 +143,10 @@
       "project": null,
       "seen_at": "2026-10-29T08:31:45Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": "2026-10-29T08:30:40Z",
+      "note": "Pinned with brew pin. Watchtower does not update pinned items."
     },
     {
       "id": "formula:openssl@3",
@@ -128,7 +159,10 @@
       "project": null,
       "seen_at": "2026-10-29T08:31:45Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": "2026-10-29T08:30:40Z",
+      "note": null
     },
     {
       "id": "npm:left-pad",
@@ -141,7 +175,10 @@
       "project": "watchtower",
       "seen_at": "2026-10-29T08:31:45Z",
       "error": null,
-      "detail": null
+      "detail": null,
+      "origin": null,
+      "source_at": null,
+      "note": null
     }
   ]
 }

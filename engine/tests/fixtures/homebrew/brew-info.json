@@ -1,0 +1,46 @@
+{
+  "formulae": [
+    {"name": "git", "full_name": "git", "tap": "homebrew/core", "oldnames": [], "aliases": [],
+     "versions": {"stable": "2.46.0", "head": "HEAD", "bottle": true}, "revision": 0, "version_scheme": 0,
+     "installed": [
+       {"version": "2.45.0", "installed_on_request": true, "poured_from_bottle": true},
+       {"version": "2.46.0", "installed_on_request": true, "poured_from_bottle": true}
+     ],
+     "linked_keg": "2.46.0", "pinned": false, "outdated": false, "deprecated": false, "disabled": false},
+    {"name": "openssl@3", "full_name": "openssl@3", "tap": "homebrew/core",
+     "versions": {"stable": "3.4.0"}, "revision": 1,
+     "installed": [{"version": "3.4.0_1"}], "linked_keg": "3.4.0_1", "pinned": false},
+    {"name": "node", "full_name": "node", "tap": "homebrew/core",
+     "versions": {"stable": "22.9.0"}, "revision": 0,
+     "installed": [{"version": "22.9.0"}], "linked_keg": "22.9.0", "pinned": true},
+    {"name": "widget", "full_name": "acme/tools/widget", "tap": "acme/tools",
+     "versions": {"stable": "1.0"}, "revision": 0,
+     "installed": [{"version": "1.0"}], "linked_keg": "1.0", "pinned": false},
+    {"name": "oldtool", "full_name": "oldtool", "tap": "homebrew/core",
+     "versions": {"stable": "1.0"}, "revision": 0,
+     "installed": [{"version": "1.0"}], "linked_keg": null, "pinned": false},
+    {"name": "neovim", "full_name": "neovim", "tap": "homebrew/core",
+     "versions": {"stable": "0.10.2"}, "revision": 0,
+     "installed": [{"version": "HEAD-1a2b3c4"}], "linked_keg": "HEAD-1a2b3c4", "pinned": false},
+    {"name": "gone", "full_name": "gone", "tap": "homebrew/core",
+     "versions": {"stable": "0.1"}, "revision": 0,
+     "installed": [{"version": "0.1"}], "linked_keg": "0.1", "pinned": false},
+    {"name": "local", "full_name": "local", "tap": null,
+     "versions": {"stable": "2.0"}, "revision": 0,
+     "installed": [{"version": "2.0"}], "linked_keg": "2.0", "pinned": false}
+  ],
+  "casks": [
+    {"token": "zed", "full_token": "zed", "tap": "homebrew/cask", "name": ["Zed"],
+     "version": "0.158.2", "installed": "0.158.2", "auto_updates": true, "outdated": false},
+    {"token": "fluff", "full_token": "fluff", "tap": "homebrew/cask", "name": ["Fluff"],
+     "version": "1.2,100", "installed": "1.2,100", "auto_updates": false, "outdated": false},
+    {"token": "steady", "full_token": "steady", "tap": "homebrew/cask", "name": ["Steady"],
+     "version": "5.0", "installed": "5.0", "auto_updates": true, "outdated": false},
+    {"token": "nightly", "full_token": "nightly", "tap": "homebrew/cask", "name": ["Nightly"],
+     "version": "latest", "installed": "latest", "auto_updates": false, "outdated": false},
+    {"token": "gizmo", "full_token": "acme/casks/gizmo", "tap": "acme/casks", "name": ["Gizmo"],
+     "version": "3.0", "installed": "3.0", "auto_updates": false, "outdated": false},
+    {"token": "removed", "full_token": "removed", "tap": "homebrew/cask", "name": ["Removed"],
+     "version": "1.0", "installed": null, "auto_updates": false, "outdated": false}
+  ]
+}
