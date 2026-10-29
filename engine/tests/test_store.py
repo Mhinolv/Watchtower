@@ -280,6 +280,60 @@ def test_owner_error_redacts_paths_outside_scan_roots():
     )
 
 
+def test_owner_error_redacts_file_urls():
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Cannot open file:///etc/passwd", roots) == "Cannot open <path>"
+    assert owner_error("Cannot open file:///etc/passwd.", roots) == "Cannot open <path>."
+    assert owner_error("Bad (file://localhost/etc/hosts) x", roots) == "Bad (<path>) x"
+    assert owner_error("Bad FILE:///etc/hosts x", roots) == "Bad <path> x"
+    assert owner_error("Read file:///Users/me/Library/Application%20Support/Foo failed", roots) == (
+        "Read <path> failed"
+    )
+    assert owner_error("Read file:///Users/me/Library/Application Support/Foo", roots) == "Read <path>"
+    assert owner_error("Sneaky file:///Applications/../etc/passwd x", roots) == "Sneaky <path> x"
+    assert "/etc" not in owner_error("a file:///etc/passwd b file:///etc/hosts", roots)
+
+
+def test_owner_error_redacts_whole_paths_that_contain_spaces():
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Read failed: /Users/me/Library/Application Support/Foo", roots) == (
+        "Read failed: <path>"
+    )
+    assert owner_error("Read /Users/me/My Documents/Old Stuff/a.txt failed", roots) == (
+        "Read <path> failed"
+    )
+    assert owner_error('Read "/Users/me/Application Support/Foo" failed', roots) == 'Read "<path>" failed'
+    assert owner_error("Read ~/Library/Application Support/Foo.", roots) == "Read <path>."
+    # The end is not clear, so redact the next capitalized words too.
+    assert owner_error("Cannot create /Library/Application Support: no access", roots) == (
+        "Cannot create <path>: no access"
+    )
+    assert owner_error("Cannot create /Library/Application Support", roots) == "Cannot create <path>"
+    assert "Support" not in owner_error("Cannot read /Users/me/Library/Application Support/Foo", roots)
+
+
+def test_owner_error_keeps_text_that_is_not_a_path():
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Read ~/Projects/my app/package.json failed", roots) == (
+        "Read ~/Projects/my app/package.json failed"
+    )
+    assert owner_error("Bad /Applications/Zed Preview.app/Contents now", roots) == (
+        "Bad /Applications/Zed Preview.app/Contents now"
+    )
+    assert owner_error("Cannot open /etc/hosts now.", roots) == "Cannot open <path> now."
+    assert owner_error("Cannot open /etc/hosts. Try again", roots) == "Cannot open <path>. Try again"
+    assert owner_error("Read /etc/hosts and/or retry", roots) == "Read <path> and/or retry"
+    assert owner_error("Read /etc/hosts via https://api.github.com/x ok", roots) == (
+        "Read <path> via https://api.github.com/x ok"
+    )
+
+
+def test_owner_error_still_applies_the_80_character_limit_after_redaction():
+    out = owner_error("Cannot open file:///etc/passwd " + "word " * 40)
+    assert out.startswith("Cannot open <path> word")
+    assert len(out) == 80 and out.endswith("...")
+
+
 def test_store_from_schema_1_gets_new_item_columns(tmp_path):
     import sqlite3
 
@@ -324,3 +378,24 @@ def test_old_coverage_table_gets_source_at(tmp_path):
         s.finish_refresh(r.id, "complete", coverage=[C("osv", "OSV", "stale", source_at="2026-10-20T10:00:00Z")])
     with Store(tmp_path) as s:
         assert s.coverage()[0].source_at == "2026-10-20T10:00:00Z"
+
+
+def test_owner_error_redacts_a_second_path_after_a_path_inside_the_roots():
+    roots = ("~/Projects", "/Applications")
+    assert owner_error("Cannot copy ~/Projects/app to /etc/shadow", roots) == (
+        "Cannot copy ~/Projects/app to <path>"
+    )
+    assert owner_error("Cannot copy ~/Projects/app to /Users/me/.ssh/id_rsa", roots) == (
+        "Cannot copy ~/Projects/app to <path>"
+    )
+    assert owner_error("Copy /Applications/Zed.app /var/log/system.log failed", roots) == (
+        "Copy /Applications/Zed.app <path> failed"
+    )
+    assert owner_error("Copy ~/Projects/my app/x to /etc/shadow", roots) == (
+        "Copy ~/Projects/my app/x to <path>"
+    )
+    assert owner_error("Copy ~/Projects/app To /etc/shadow", roots) == "Copy ~/Projects/app To <path>"
+    assert owner_error("Copy ~/Projects/a b/c /etc/shadow", roots) == "Copy ~/Projects/a b/c <path>"
+    assert owner_error("Copy ~/Projects/a ~/.ssh/id_rsa", roots) == "Copy ~/Projects/a <path>"
+    assert owner_error("Copy ~/Projects/a file:///etc/shadow", roots) == "Copy ~/Projects/a <path>"
+    assert owner_error("Copy /etc/hosts to /etc/shadow", roots) == "Copy <path> to <path>"
