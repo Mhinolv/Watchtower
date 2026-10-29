@@ -43,6 +43,8 @@ public enum SampleData {
             item("com.tinyspeck.slackmacgap", "apps", "Slack", .upToDate, kind: "app", installed: "4.41.97",
                  latest: "4.41.97", sourceAt: time),
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
+            item("md.obsidian", "apps", "Obsidian", .error, kind: "app", installed: "1.7.4", latest: nil,
+                 error: "Version could not be read.", detail: "Info.plist has no CFBundleShortVersionString"),
             item("macos", "macos", "macOS", .manual, kind: "os", installed: "15.1", latest: nil,
                  note: "Update macOS in System Settings."),
         ]
@@ -117,6 +119,15 @@ public enum SampleData {
         case findingResolved = "finding-resolved"
         case findingPartial = "finding-partial"
         case findingsEmpty = "findings-empty"
+        case failed
+        case chipSelected = "chip-selected"
+        case menubarFindings = "menubar-findings"
+        case menubarAllClear = "menubar-all-clear"
+        case menubarStale = "menubar-stale"
+        case menubarNever = "menubar-never"
+
+        /// Scenarios that render the menu bar popover, not the window.
+        public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
     }
 
     @MainActor
@@ -162,6 +173,28 @@ public enum SampleData {
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty:
             return findingsModel(scenario, engine: engine, clock: clock)
+        case .failed:
+            let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
+                                                                    lastComplete: ago(18),
+                                                                    failing: ["homebrew", "apps", "macos", "osv"]),
+                                       projects: projects, clock: clock)
+            model.selection = .apps
+            return model
+        case .chipSelected:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects, clock: clock)
+            model.selection = .apps
+            model.itemFilter = .error
+            return model
+        case .menubarFindings, .menubarNever:
+            return model(scenario == .menubarNever ? .neverRefreshed : .complete)
+        case .menubarStale:
+            return model(.stale)
+        case .menubarAllClear:
+            var clear = state(status: .complete, finished: ago(0.2), lastComplete: ago(0.2), findings: [])
+            clear.items = clear.items.filter { ![.updateAvailable, .error, .vulnerable].contains($0.state) }
+            return DashboardModel(engine: engine, state: clear, projects: projects, clock: clock)
         }
     }
 }

@@ -12,32 +12,86 @@ public struct DashboardView: View {
 
     public var body: some View {
         NavigationSplitView {
-            List(SidebarSection.allCases, selection: $model.selection) { section in
-                Label(section.title, systemImage: section.symbol)
-                    .badge(count(section))
-                    .tag(section)
-                    .accessibilityLabel("\(section.title), \(count(section))")
+            List(selection: $model.selection) {
+                ForEach(SidebarGroup.allCases) { group in
+                    Section(group.title) {
+                        ForEach(group.sections) { section in
+                            SidebarRow(section: section, count: count(section))
+                                .tag(section)
+                        }
+                    }
+                }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190)
+            .safeAreaInset(edge: .bottom) { SettingsRow() }
+            .navigationSplitViewColumnWidth(min: 190, ideal: DesignTokens.sidebarWidth)
         } content: {
             ListPane(model: model, section: model.selection ?? .apps)
-                .navigationSplitViewColumnWidth(min: 600, ideal: 640)
+                .navigationSplitViewColumnWidth(min: 600, ideal: DesignTokens.listWidth)
         } detail: {
             DetailPane(model: model, section: model.selection ?? .apps)
+                .navigationSplitViewColumnWidth(min: 320, ideal: 400)
         }
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .navigation) {
+                Text((model.selection ?? .apps).title)
+                    .font(.system(size: 15, weight: .bold))
+                    .padding(.horizontal, 6)
+                    .accessibilityAddTraits(.isHeader)
                 RefreshButton(model: model)
                 RefreshLabelView(model: model)
             }
         }
-        .onChange(of: model.selection) { model.selectedItemKey = nil }
+        .toolbar(removing: .title)
+        .onChange(of: model.selection) {
+            model.selectedItemKey = nil
+            model.itemFilter = .all
+        }
         .modifier(UpdateSheetHost())
+        .tint(.watchtowerAccent)
     }
 
-    func count(_ section: SidebarSection) -> Int {
-        section == .updateLog ? (updates?.attempts.count ?? 0) : model.count(section)
+    func count(_ section: SidebarSection) -> Int? {
+        section == .updateLog ? nil : model.count(section)
+    }
+}
+
+/// One sidebar row: symbol, title, count in a gray capsule (red for open findings), shortcut.
+struct SidebarRow: View {
+    let section: SidebarSection
+    let count: Int?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(section.title, systemImage: section.symbol)
+            Spacer(minLength: 4)
+            if let count {
+                CountCapsule(count: count, alert: section == .findings && count > 0)
+            }
+            Text(verbatim: "⌘\(section.shortcutDigit)")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .frame(minHeight: 28)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(count.map { "\(section.title), \($0)" } ?? section.title)
+    }
+}
+
+/// `Settings…` with ⌘, at the bottom of the sidebar.
+struct SettingsRow: View {
+    var body: some View {
+        SettingsLink {
+            HStack {
+                Label("Settings…", systemImage: "gearshape")
+                Spacer()
+                Text("⌘,").font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 
@@ -54,16 +108,18 @@ public struct RefreshButton: View {
             Button {
                 model.stop()
             } label: {
-                Label("Stop", systemImage: "stop.fill")
+                ToolbarButtonLabel(title: "Stop", symbol: "stop.fill", shortcut: "⌘.")
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut(".", modifiers: .command)
             .help("Stop the refresh. The previous results stay.")
         } else {
             Button {
                 model.refresh()
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                ToolbarButtonLabel(title: "Refresh", symbol: "arrow.clockwise", shortcut: "⌘R")
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut("r", modifiers: .command)
             .help("Check every source again")
         }
@@ -104,20 +160,45 @@ struct ItemTable: View {
 
     var body: some View {
         let rows = model.visibleItems(in: section).map(ItemRow.init)
-        if rows.isEmpty {
-            emptyState
-        } else {
+        let chips = model.filterChips(in: section)
+        VStack(spacing: 0) {
+            if model.state?.refresh != nil, !model.items(in: section).isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(chips) { chip in
+                        FilterChipButton(chip: chip) { model.toggleFilter(chip.filter) }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                Divider()
+            }
+            if rows.isEmpty {
+                emptyState
+            } else {
+                table(rows)
+            }
+        }
+    }
+
+    func table(_ rows: [ItemRow]) -> some View {
             Table(rows, selection: $model.selectedItemKey) {
-                TableColumn("Name") { row in Text(row.item.name) }
-                    .width(min: 90, ideal: 130)
+                TableColumn("Name") { row in
+                    HStack(spacing: 8) {
+                        ItemIcon(name: row.item.name)
+                        Text(row.item.name).fontWeight(.medium)
+                    }
+                    .frame(height: DesignTokens.tableRowHeight - 8)
+                }
+                    .width(min: 110, ideal: 130)
                 TableColumn("Installed") { row in Text(row.item.installedVersion ?? "—") }
-                    .width(min: 60, ideal: 80)
+                    .width(min: 56, ideal: 70)
                 TableColumn("Latest") { row in Text(row.item.latestVersion ?? "—") }
-                    .width(min: 60, ideal: 80)
+                    .width(min: 56, ideal: 70)
                 TableColumn("Source") { row in Text(sourceText(row.item)) }
-                    .width(min: 80, ideal: 120)
+                    .width(min: 70, ideal: 90)
                 TableColumn("Status") { row in StatusBadge(row.item.state) }
-                    .width(min: 150, ideal: 150)
+                    .width(min: 140, ideal: 150)
             }
             .contextMenu(forSelectionType: String.self) { keys in
                 if keys.count == 1, let key = keys.first,
@@ -126,11 +207,12 @@ struct ItemTable: View {
                         .disabled(updates == nil || UpdatePolicy.blockReason(item) != nil)
                 }
             }
-        }
     }
 
     @ViewBuilder var emptyState: some View {
-        if !model.searchText.isEmpty {
+        if model.itemFilter != .all || (!model.searchText.isEmpty && !model.items(in: section).isEmpty) {
+            ContentUnavailableView("No items match this filter.", systemImage: "line.3.horizontal.decrease.circle")
+        } else if !model.searchText.isEmpty {
             ContentUnavailableView.search(text: model.searchText)
         } else if model.state?.refresh == nil {
             ContentUnavailableView("Never refreshed", systemImage: "arrow.clockwise",
@@ -142,7 +224,7 @@ struct ItemTable: View {
     }
 
     func sourceText(_ item: ItemRecord) -> String {
-        let kind = item.kind.map { $0.prefix(1).uppercased() + $0.dropFirst() }
+        let kind = item.kind.map { $0 == "os" ? "System" : $0.prefix(1).uppercased() + $0.dropFirst() }
         if let origin = item.origin { return [kind, origin].compactMap { $0 }.joined(separator: " · ") }
         if let project = item.project { return [kind, project].compactMap { $0 }.joined(separator: " · ") }
         return kind ?? item.source
@@ -231,10 +313,16 @@ struct ItemDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.name).font(.title2).bold()
-                        StatusBadge(item.state)
+                HStack(alignment: .top, spacing: 14) {
+                    ItemIcon(name: item.name, size: DesignTokens.detailIconSize)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.name).font(.system(size: DesignTokens.detailTitleSize, weight: .bold))
+                        Text(sourceLine).foregroundStyle(.secondary)
+                        if let path = item.attributes?["path"] {
+                            Text(DisplayPath.abbreviate(path)).font(.callout.monospaced()).foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        StatusBadge(item.state).padding(.top, 4)
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
@@ -278,6 +366,33 @@ struct ItemDetail: View {
         GridRow {
             Text(label).foregroundStyle(.secondary)
             Text(value).textSelection(.enabled)
+        }
+    }
+
+    /// `Homebrew formula · acme/tools`, `Application`, `macOS`.
+    var sourceLine: String {
+        let kind: String = switch (item.source, item.kind) {
+        case ("homebrew", "formula"): "Homebrew formula"
+        case ("homebrew", "cask"): "Homebrew cask"
+        case ("macos", _): "macOS"
+        case ("apps", _): "Application"
+        default: item.kind?.capitalized ?? item.source
+        }
+        return [kind, item.origin].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// Title, symbol and a quiet shortcut hint for a toolbar button.
+struct ToolbarButtonLabel: View {
+    let title: String
+    let symbol: String
+    let shortcut: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: symbol)
+            Text(title)
+            Text(shortcut).font(.system(size: 11)).foregroundStyle(.tertiary)
         }
     }
 }

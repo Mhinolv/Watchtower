@@ -290,6 +290,8 @@ public final class DashboardModel {
     public var selectedItemKey: String?
     public var searchText = ""
     public var findingFilter: FindingFilter = .open
+    /// The selected filter chip above the item list.
+    public var itemFilter: ItemFilter = .all
 
     @ObservationIgnored private let engine: any EngineClient
     @ObservationIgnored private let clock: @Sendable () -> Date
@@ -406,9 +408,10 @@ public final class DashboardModel {
         }
     }
 
+    /// Items after the filter chip and the search text.
     public func visibleItems(in section: SidebarSection) -> [ItemRecord] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        let list = items(in: section)
+        let list = items(in: section).filter(itemFilter.matches)
         guard !query.isEmpty else { return list }
         return list.filter { $0.name.localizedCaseInsensitiveContains(query) }
     }
