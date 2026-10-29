@@ -11,7 +11,7 @@ private func hours(_ h: Double) -> Date { now.addingTimeInterval(-h * 3600) }
 
 private func state(_ status: RefreshStatus, finished: Date?, lastComplete: Date?,
                    coverage: [CoverageState] = [.complete, .complete, .complete, .complete],
-                   items: [ItemRecord] = []) -> EngineState {
+                   items: [ItemRecord] = [], findings: [FindingRecord] = []) -> EngineState {
     EngineState(
         schemaVersion: 1,
         refresh: RefreshRecord(id: 1, status: status, startedAt: (finished ?? now).addingTimeInterval(-60),
@@ -19,7 +19,7 @@ private func state(_ status: RefreshStatus, finished: Date?, lastComplete: Date?
         coverage: coverage.enumerated().map { i, s in
             CoverageRecord(source: "s\(i)", label: "Source \(i)", state: s, lastSuccessAt: hours(1))
         },
-        items: items)
+        items: items, findings: findings)
 }
 
 private func label(_ s: EngineState?, running: Bool = false, progress: RefreshProgress? = nil) -> RefreshLabel {
@@ -32,8 +32,10 @@ private func onMainThread() -> Bool { Thread.isMainThread }
 private actor Calls {
     var refreshOnMain: [Bool] = []
     var setProject: [(String, Bool)] = []
+    var findingCalls: [String] = []
     func addRefresh(_ main: Bool) { refreshOnMain.append(main) }
     func addProject(_ path: String, _ active: Bool) { setProject.append((path, active)) }
+    func addFinding(_ call: String) { findingCalls.append(call) }
 }
 
 private struct FakeEngine: EngineClient {
@@ -41,7 +43,11 @@ private struct FakeEngine: EngineClient {
     var mode: Mode
     var saved: EngineState? = nil
     var failProjects = false
+    var failFindings = false
+    var findings: [FindingRecord] = []
     let calls = Calls()
+
+    func findingNamed(_ id: String) -> FindingRecord { findings.first { $0.id == id }! }
 
     func state() async throws -> EngineState {
         guard let saved else { throw EngineError.failed(message: "none", detail: nil) }
@@ -70,6 +76,32 @@ private struct FakeEngine: EngineClient {
         if failProjects { throw EngineError.reported(message: "The project choices file is not valid.", detail: nil) }
         return ProjectRecord(name: "web", path: path, root: "~/Projects", manifests: [],
                              state: active ? "active" : "inactive")
+    }
+}
+
+extension FakeEngine {
+    private func changed(_ id: String, _ call: String, _ change: (inout FindingRecord) -> Void) async throws
+        -> FindingRecord {
+        await calls.addFinding(call)
+        if failFindings { throw EngineError.reported(message: "There is no finding \(id).", detail: nil) }
+        var finding = findingNamed(id)
+        change(&finding)
+        return finding
+    }
+
+    func deferFinding(id: String, days: Int) async throws -> FindingRecord {
+        try await changed(id, "defer \(id) \(days)") {
+            $0.status = .deferred
+            $0.deferredUntil = now.addingTimeInterval(Double(days) * 86400)
+        }
+    }
+
+    func moveFindingToBacklog(id: String) async throws -> FindingRecord {
+        try await changed(id, "backlog \(id)") { $0.status = .backlog }
+    }
+
+    func reopenFinding(id: String) async throws -> FindingRecord {
+        try await changed(id, "reopen \(id)") { $0.status = .open }
     }
 }
 
@@ -174,15 +206,20 @@ private let old = ProjectRecord(name: "old", path: "/Users/me/Projects/old", roo
         ItemRecord(id: "formula:z", source: "homebrew", name: "z", state: .updateAvailable),
         ItemRecord(id: "app:s", source: "apps", name: "Slack", state: .upToDate),
         ItemRecord(id: "macos", source: "macos", name: "macOS", state: .manual),
-        ItemRecord(id: "npm:x", source: "osv", name: "x", state: .vulnerable, project: "web"),
-        ItemRecord(id: "npm:y", source: "osv", name: "y", state: .vulnerable, project: "old"),
+    ]
+    let findings = [
+        finding("SEC-0001", package: "x", path: web.path),
+        finding("SEC-0002", package: "y", path: old.path),
+        finding("SEC-0003", package: "z", status: .resolved, path: nil),
     ]
     let model = DashboardModel(engine: FakeEngine(mode: .hang),
-                               state: state(.complete, finished: hours(1), lastComplete: hours(1), items: items),
+                               state: state(.complete, finished: hours(1), lastComplete: hours(1), items: items,
+                                            findings: findings),
                                projects: [web, old], clock: { now })
     #expect(model.items(in: .homebrew).map(\.name) == ["z", "a", "b"])
     #expect(model.items(in: .apps).map(\.name) == ["macOS", "Slack"])
-    #expect(model.items(in: .findings).map(\.name) == ["x"])  // the inactive project is in Backlog
+    // A finding only in an inactive project is part of the Backlog. A resolved one has no path.
+    #expect(model.findingsInScope.map(\.id) == ["SEC-0001", "SEC-0003"])
     #expect(SidebarSection.allCases.map { model.count($0) } == [2, 3, 1, 1, 1])
     #expect(model.hasOpenFindings)
     model.searchText = "Z"
@@ -422,4 +459,165 @@ private final class Lines: @unchecked Sendable {
     let result = await task.result
     #expect(Date().timeIntervalSince(started) < 5)
     if case .success = result { Issue.record("a cancelled run must throw") }
+}
+
+
+// MARK: - Findings
+
+private func finding(_ id: String, package: String = "lodash", severity: Severity = .high,
+                     status: FindingStatus = .open, lastSeen: Date? = nil, path: String? = web.path,
+                     title: String = "A title", ids: [String] = ["GHSA-1"],
+                     deferredUntil: Date? = nil) -> FindingRecord {
+    FindingRecord(id: id, package: package, title: title, severity: severity, advisoryIds: ids, status: status,
+                  deferredUntil: deferredUntil, firstSeen: hours(240), lastSeen: lastSeen ?? hours(2),
+                  resolvedScanAt: status == .resolved ? hours(5) : nil,
+                  paths: path.map { [FindingPath(project: "web", projectPath: $0, lockfile: "package-lock.json",
+                                                 version: "4.17.20")] } ?? [])
+}
+
+@MainActor
+private func findingsModel(_ findings: [FindingRecord], engine: FakeEngine? = nil,
+                           coverage: [CoverageState] = [.complete]) -> DashboardModel {
+    var engine = engine ?? FakeEngine(mode: .hang)
+    engine.findings = findings
+    let model = DashboardModel(
+        engine: engine,
+        state: state(.complete, finished: hours(1), lastComplete: hours(1), coverage: coverage, findings: findings),
+        projects: [web, old], clock: { now })
+    return model
+}
+
+@MainActor
+@Test func findingsSortBySeverityThenNewestAndDefaultToOpen() {
+    let model = findingsModel([
+        finding("SEC-0001", package: "a", severity: .high, lastSeen: hours(30)),
+        finding("SEC-0002", package: "b", severity: .critical, lastSeen: hours(50)),
+        finding("SEC-0003", package: "c", severity: .high, lastSeen: hours(1)),
+        finding("SEC-0004", package: "d", severity: .low, lastSeen: hours(1)),
+        finding("SEC-0005", package: "e", severity: .critical, status: .resolved),
+        finding("SEC-0006", package: "f", status: .deferred, deferredUntil: now.addingTimeInterval(86400)),
+        finding("SEC-0007", package: "g", status: .backlog),
+    ])
+    #expect(model.findingFilter == .open)
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0002", "SEC-0003", "SEC-0001", "SEC-0004"])
+    model.findingFilter = .deferred
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0006", "SEC-0007"])  // Backlog findings sit here
+    model.findingFilter = .resolved
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0005"])
+    model.findingFilter = .all
+    #expect(model.visibleFindings.count == 7)
+    #expect(model.count(.findings) == 4)  // Open findings only
+}
+
+@MainActor
+@Test func findingSearchMatchesIdPackageTitleAndAliases() {
+    let model = findingsModel([
+        finding("SEC-0001", package: "lodash", title: "Command Injection", ids: ["CVE-2021-23337", "GHSA-35jh"]),
+        finding("SEC-0002", package: "minimist", title: "Prototype Pollution", ids: ["CVE-2021-44906"]),
+    ])
+    for (query, expected) in [("sec-0002", ["SEC-0002"]), ("LODASH", ["SEC-0001"]), ("pollution", ["SEC-0002"]),
+                              ("ghsa-35", ["SEC-0001"]), ("cve-2021", ["SEC-0001", "SEC-0002"]), ("none", [])] {
+        model.searchText = query
+        #expect(model.visibleFindings.map(\.id).sorted() == expected, "query \(query)")
+    }
+}
+
+@MainActor
+@Test func selectedFindingAndProjectFindings() {
+    let model = findingsModel([
+        finding("SEC-0001", path: web.path),
+        finding("SEC-0002", status: .resolved, path: nil),
+        finding("SEC-0003", status: .deferred, path: web.path),
+    ])
+    model.selectedItemKey = "SEC-0001"
+    #expect(model.selectedFinding?.id == "SEC-0001")
+    model.selectedItemKey = "nope"
+    #expect(model.selectedFinding == nil)
+    // Only open findings count for a project. The project path is a display path.
+    #expect(model.findings(in: web).map(\.id) == ["SEC-0001"])
+    #expect(model.findings(in: old).isEmpty)
+}
+
+@Test func findingStatusTextFollowsTheDesignTable() {
+    let utc = TimeText(timeZone: TimeZone(identifier: "UTC")!)
+    let until = Date(timeIntervalSince1970: 1_793_879_999)  // 2026-11-05 11:59:59 UTC
+    let open = FindingStatusText(finding("a"), time: utc)
+    #expect((open.text, open.tone) == ("Open", .red))
+    let deferred = FindingStatusText(finding("a", status: .deferred, deferredUntil: until), time: utc)
+    #expect((deferred.text, deferred.tone) == ("Deferred until Nov 5", .gray))
+    #expect(FindingStatusText(finding("a", status: .backlog), time: utc).text == "Backlog")
+    let resolved = FindingStatusText(finding("a", status: .resolved), time: utc)
+    #expect((resolved.text, resolved.tone) == ("Resolved: not found in complete scan of Oct 29", .green))
+    #expect(FindingStatusText(finding("a", status: .resolved), full: false, time: utc).text == "Resolved")
+}
+
+@Test func severityStylesAlwaysHaveText() {
+    #expect(Severity.allCases.map { SeverityStyle($0).text } == ["Critical", "High", "Medium", "Low", "Unknown"])
+    #expect(Severity.allCases.map(\.rank) == [0, 1, 2, 3, 4])
+}
+
+@MainActor
+private func osvModel(_ coverage: CoverageState, _ findings: [FindingRecord]) -> DashboardModel {
+    var s = state(.complete, finished: hours(1), lastComplete: hours(1), findings: findings)
+    s.coverage = [CoverageRecord(source: "osv", label: "OSV", state: coverage, lastSuccessAt: hours(1))]
+    return DashboardModel(engine: FakeEngine(mode: .hang), state: s, projects: [web], clock: { now })
+}
+
+@MainActor
+@Test func partialBannerShowsOnlyForAnOpenFindingAfterAnIncompleteScan() {
+    let open = finding("SEC-0001")
+    let deferred = finding("SEC-0002", status: .deferred)
+    let resolved = finding("SEC-0003", status: .resolved)
+    for s in [CoverageState.partial, .failed, .stale, .notRun] {
+        #expect(osvModel(s, [open]).showsPartialBanner(for: open), "\(s)")
+    }
+    let complete = osvModel(.complete, [open])
+    #expect(!complete.showsPartialBanner(for: open))
+    let partial = osvModel(.partial, [open, deferred, resolved])
+    #expect(!partial.showsPartialBanner(for: deferred))
+    #expect(!partial.showsPartialBanner(for: resolved))
+}
+
+@MainActor
+@Test func findingActionsCallTheEngineAndUpdateTheRow() async {
+    let engine = FakeEngine(mode: .hang)
+    let model = findingsModel([finding("SEC-0001"), finding("SEC-0002")], engine: engine)
+    let first = model.state!.findings[0]
+    await model.deferFinding(first, days: 7)
+    #expect(model.state?.findings[0].status == .deferred)
+    #expect(model.state?.findings[0].deferredUntil == now.addingTimeInterval(7 * 86400))
+    #expect(model.state?.findings[1].status == .open)
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0002"])  // It left the Open filter
+    await model.moveToBacklog(model.state!.findings[0])
+    #expect(model.state?.findings[0].status == .backlog)
+    await model.reopen(model.state!.findings[0])
+    #expect(model.state?.findings[0].status == .open)
+    #expect(await engine.calls.findingCalls == ["defer SEC-0001 7", "backlog SEC-0001", "reopen SEC-0001"])
+    #expect(model.lastError == nil)
+}
+
+@MainActor
+@Test func failedFindingActionKeepsTheRowAndShowsTheError() async {
+    var engine = FakeEngine(mode: .hang)
+    engine.failFindings = true
+    let model = findingsModel([finding("SEC-0001")], engine: engine)
+    await model.moveToBacklog(model.state!.findings[0])
+    #expect(model.state?.findings[0].status == .open)
+    #expect(model.lastError?.message == "There is no finding SEC-0001.")
+}
+
+@Test func advisoryLinksGoToTheSourcePage() {
+    #expect(AdvisoryLink.url(for: "CVE-2021-23337")?.absoluteString == "https://nvd.nist.gov/vuln/detail/CVE-2021-23337")
+    #expect(AdvisoryLink.url(for: "GHSA-35jh-r3h4-6jhm")?.absoluteString
+        == "https://github.com/advisories/GHSA-35jh-r3h4-6jhm")
+    #expect(AdvisoryLink.url(for: "PYSEC-2024-1")?.absoluteString == "https://osv.dev/vulnerability/PYSEC-2024-1")
+    #expect(AdvisoryLink.url(for: "OSV-2021-1/../x")?.absoluteString == "https://osv.dev/vulnerability/OSV-2021-1/../x")
+    let ids = finding("a", ids: ["PYSEC-1", "GHSA-b", "CVE-2", "CVE-1", "GHSA-a"]).sortedAdvisoryIds
+    #expect(ids == ["CVE-1", "CVE-2", "GHSA-a", "GHSA-b", "PYSEC-1"])
+}
+
+@Test func findingPathReachesTheLockfileInFinder() {
+    let path = FindingPath(project: "web", projectPath: "~/Projects/web", lockfile: "app/package-lock.json",
+                           version: "1")
+    #expect(path.lockfileURL.path == NSHomeDirectory() + "/Projects/web/app/package-lock.json")
 }

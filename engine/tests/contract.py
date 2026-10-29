@@ -10,6 +10,7 @@ from pathlib import Path
 
 from watchtower_engine.models import CoverageRecord as C
 from watchtower_engine.models import ItemRecord as I
+from watchtower_engine.scanners.osv import Lockfile, Match, OsvResult, ProjectScan
 from watchtower_engine.store import Store
 
 FIXTURES = Path(__file__).resolve().parents[2] / "Tests" / "WatchtowerCoreTests" / "Fixtures"
@@ -42,7 +43,9 @@ def build_partial_state(data_dir) -> Store:
             C("homebrew", "Homebrew", "complete"),
             C("apps", "Applications", "complete"),
             C("macos", "macOS", "complete"),
+            C("osv", "OSV", "complete", source_at="2026-10-28T06:00:00Z"),
         ],
+        scan=osv_scan(),
         items=[
             I("formula:git", "homebrew", "git", "up_to_date", kind="formula",
               installed_version="2.46.0", latest_version="2.46.0"),
@@ -86,7 +89,36 @@ def build_partial_state(data_dir) -> Store:
               installed_version="1.3.0", project="watchtower"),
         ],
     )
+    # Two more statuses, set directly: a scan never defers or resolves by itself in this fixture.
+    store.db.execute("UPDATE findings SET status = 'deferred', deferred_until = '2099-01-01T00:00:00Z' "
+                     "WHERE seq = 2")
+    store.db.execute("UPDATE findings SET status = 'resolved', resolved_at = '2026-10-28T09:02:10Z', "
+                     "resolved_scan_at = '2026-10-28T09:02:10Z' WHERE seq = 3")
+    store.db.execute("DELETE FROM finding_paths WHERE seq = 3")
     return store
+
+
+def osv_scan() -> OsvResult:
+    """One scan with three findings. Fixed dates and ids, so the JSON fixture stays the same."""
+    lodash = {"ids": ["CVE-2021-23337", "GHSA-35jh-r3h4-6jhm"], "title": "Command Injection in lodash",
+              "severity": "high", "fixed_in": ["4.17.21"]}
+    redos = {"ids": ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], "title": "ReDoS in lodash",
+             "severity": "medium", "fixed_in": []}
+    minimist = {"ids": ["CVE-2021-44906", "GHSA-xvch-5gv4-984h"], "title": "Prototype Pollution in minimist",
+                "severity": "critical", "fixed_in": ["1.2.6"]}
+    matches = [
+        Match("web", "~/Projects/web", "package-lock.json", "lodash", "npm", "4.17.20", ["web", "lodash"],
+              ["GHSA-35jh-r3h4-6jhm"], ["CVE-2021-23337"], [lodash]),
+        Match("admin", "~/Projects/admin", "package-lock.json", "lodash", "npm", "4.17.19", None,
+              ["GHSA-35jh-r3h4-6jhm"], ["CVE-2021-23337"], [lodash]),
+        Match("web", "~/Projects/web", "package-lock.json", "lodash", "npm", "4.17.20", None,
+              ["GHSA-29mw-wpgm-hmr9"], ["CVE-2020-28500"], [redos]),
+        Match("api", "~/Projects/api", "package-lock.json", "minimist", "npm", "1.2.5", None,
+              ["GHSA-xvch-5gv4-984h"], ["CVE-2021-44906"], [minimist]),
+    ]
+    return OsvResult(C("osv", "OSV", "complete", source_at="2026-10-28T06:00:00Z"),
+                     [ProjectScan(p, f"~/Projects/{p}", [Lockfile("package-lock.json", "npm", "scanned")])
+                      for p in ("web", "admin", "api")], matches, [])
 
 
 def check_fixture(name: str, text: str) -> None:

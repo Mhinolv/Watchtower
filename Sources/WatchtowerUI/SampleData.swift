@@ -45,10 +45,43 @@ public enum SampleData {
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
             item("macos", "macos", "macOS", .manual, kind: "os", installed: "15.1", latest: nil,
                  note: "Update macOS in System Settings."),
-            item("npm:lodash@4.17.20:web/package-lock.json", "osv", "lodash", .vulnerable, kind: "npm",
-                 installed: "4.17.20", latest: nil, project: "web"),
         ]
     }
+
+    static func days(_ day: Double) -> Date { now.addingTimeInterval(-day * 86400) }
+
+    private static func path(_ project: String, _ lockfile: String, _ version: String,
+                             via: [String]? = nil) -> FindingPath {
+        FindingPath(project: project, projectPath: "~/Projects/\(project)", lockfile: lockfile, version: version,
+                    dependencyPath: via)
+    }
+
+    /// Findings for the snapshots: open with 2 paths, critical, deferred and resolved.
+    public static let findings: [FindingRecord] = [
+        FindingRecord(id: "SEC-0001", package: "lodash", title: "Command Injection in lodash", severity: .high,
+                      advisoryIds: ["CVE-2021-23337", "GHSA-35jh-r3h4-6jhm"], fixedIn: "4.17.21",
+                      firstSeen: days(9), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [path("api", "tools/package-lock.json", "4.17.19", via: ["build-tools", "lodash"]),
+                              path("web", "package-lock.json", "4.17.20")],
+                      nextSteps: ["Update lodash to 4.17.21 or later in the lockfile.",
+                                  "Restart the dev server after the update."]),
+        FindingRecord(id: "SEC-0002", package: "minimist", title: "Prototype Pollution in minimist",
+                      severity: .critical, advisoryIds: ["CVE-2021-44906", "GHSA-xvch-5gv4-984h", "OSV-2021-1"],
+                      fixedIn: "1.2.6", firstSeen: days(3), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [path("web", "package-lock.json", "1.2.5", via: ["mkdirp", "minimist"])],
+                      nextSteps: ["Update minimist to 1.2.6 or later in the lockfile.",
+                                  "Restart the dev server after the update."]),
+        FindingRecord(id: "SEC-0003", package: "lodash", title: "ReDoS in lodash", severity: .medium,
+                      advisoryIds: ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], status: .deferred,
+                      deferredUntil: now.addingTimeInterval(7 * 86400), firstSeen: days(9), lastSeen: ago(2),
+                      sourceAt: ago(6), paths: [path("web", "package-lock.json", "4.17.20")],
+                      nextSteps: ["Check the advisory for a workaround. No fixed version is known."]),
+        FindingRecord(id: "SEC-0004", ecosystem: "PyPI", package: "jinja2",
+                      title: "Jinja vulnerable to HTML attribute injection", severity: .high,
+                      advisoryIds: ["CVE-2024-22195", "GHSA-h5c8-rqwp-cp95", "PYSEC-2024-1"], fixedIn: "3.1.3",
+                      status: .resolved, firstSeen: days(12), lastSeen: days(1), resolvedAt: ago(30),
+                      resolvedScanAt: ago(30), sourceAt: ago(30), paths: []),
+    ]
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
         [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV")].map { source, label in
@@ -60,12 +93,13 @@ public enum SampleData {
     }
 
     public static func state(status: RefreshStatus, finished: Date, lastComplete: Date?,
-                             failing: Set<String> = []) -> EngineState {
+                             failing: Set<String> = [], findings: [FindingRecord] = SampleData.findings)
+        -> EngineState {
         EngineState(schemaVersion: 1,
                     refresh: RefreshRecord(id: 7, status: status, startedAt: finished.addingTimeInterval(-90),
                                            finishedAt: finished, lastCompleteAt: lastComplete),
                     coverage: coverage(at: lastComplete ?? finished, failing: failing),
-                    items: items(at: lastComplete ?? finished))
+                    items: items(at: lastComplete ?? finished), findings: findings)
     }
 
     /// The scenarios that the snapshot script renders.
@@ -77,6 +111,12 @@ public enum SampleData {
         case running
         case settingsInactive = "settings-inactive"
         case backlog
+        case findings
+        case findingOpen = "finding-open"
+        case findingDeferred = "finding-deferred"
+        case findingResolved = "finding-resolved"
+        case findingPartial = "finding-partial"
+        case findingsEmpty = "findings-empty"
     }
 
     @MainActor
@@ -120,7 +160,33 @@ public enum SampleData {
             model.selection = .backlog
             model.selectedItemKey = projects[2].path
             return model
+        case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty:
+            return findingsModel(scenario, engine: engine, clock: clock)
         }
+    }
+}
+
+extension SampleData {
+    @MainActor
+    static func findingsModel(_ scenario: Scenario, engine: PreviewEngine,
+                              clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        let partial = scenario == .findingPartial
+        let sample = state(status: partial ? .partial : .complete, finished: ago(2),
+                           lastComplete: partial ? ago(26) : ago(2), failing: partial ? ["osv"] : [],
+                           findings: scenario == .findingsEmpty ? [] : findings)
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .findings
+        switch scenario {
+        case .findingOpen, .findingPartial: model.selectedItemKey = "SEC-0001"
+        case .findingDeferred:
+            model.findingFilter = .deferred
+            model.selectedItemKey = "SEC-0003"
+        case .findingResolved:
+            model.findingFilter = .resolved
+            model.selectedItemKey = "SEC-0004"
+        default: break
+        }
+        return model
     }
 }
 
@@ -144,6 +210,29 @@ public struct PreviewEngine: EngineClient {
         var project = SampleData.projects.first { $0.path == path }!
         project.state = active ? "active" : "inactive"
         return project
+    }
+
+    private func finding(_ id: String, _ change: (inout FindingRecord) -> Void) throws -> FindingRecord {
+        guard var found = SampleData.findings.first(where: { $0.id == id }) else {
+            throw EngineError.reported(message: "There is no finding \(id).", detail: nil)
+        }
+        change(&found)
+        return found
+    }
+
+    public func deferFinding(id: String, days: Int) async throws -> FindingRecord {
+        try finding(id) {
+            $0.status = .deferred
+            $0.deferredUntil = SampleData.now.addingTimeInterval(Double(days) * 86400)
+        }
+    }
+
+    public func moveFindingToBacklog(id: String) async throws -> FindingRecord {
+        try finding(id) { $0.status = .backlog }
+    }
+
+    public func reopenFinding(id: String) async throws -> FindingRecord {
+        try finding(id) { $0.status = .open }
     }
 }
 

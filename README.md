@@ -34,11 +34,14 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | Command | Output |
 |---|---|
 | `watchtower version` | `{"schema_version", "engine"}` |
-| `watchtower state` | `{"schema_version", "refresh", "coverage", "items"}` |
+| `watchtower state` | `{"schema_version", "refresh", "coverage", "items", "findings"}` |
 | `watchtower refresh` | Runs every source and saves the result. Prints the state. Progress lines go to stderr. SIGTERM saves a `cancelled` refresh and exits 130 |
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
 | `watchtower macos` | `{"schema_version", "coverage", "items"}` for the macOS version and build |
 | `watchtower apps` | `{"schema_version", "coverage", "items"}` for apps in `/Applications` and `~/Applications` |
+| `watchtower finding-defer <SEC-id> 7\|30` | `{"schema_version", "finding"}`. The finding is deferred until that many days from now |
+| `watchtower finding-backlog <SEC-id>` | `{"schema_version", "finding"}`. The finding moves to the backlog |
+| `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
@@ -64,3 +67,9 @@ The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/re
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
 It scans `package-lock.json` and `uv.lock` only. A database older than 7 days makes the OSV coverage `stale`.
+
+## Findings
+
+Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.
+A finding lists every local lockfile that has the package. Only a complete scan resolves a finding: OSV coverage `complete` with no error, and every lockfile of the finding scanned.
+A partial, stale or failed scan never removes a path or resolves a finding. The findings are saved in the same SQLite file as the rest of the state.

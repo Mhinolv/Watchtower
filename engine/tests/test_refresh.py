@@ -8,7 +8,7 @@ from watchtower_engine import cli, refresh
 from watchtower_engine.inventory.homebrew import SourceResult
 from watchtower_engine.models import CoverageRecord as C
 from watchtower_engine.models import ItemRecord as I
-from watchtower_engine.refresh import Cancelled, Source, StopOnSigterm, osv_items, run_refresh
+from watchtower_engine.refresh import Cancelled, ScanSourceResult, Source, StopOnSigterm, run_refresh
 from watchtower_engine.scanners.osv import Match, OsvResult
 from watchtower_engine.store import Store
 
@@ -101,15 +101,17 @@ def test_sigterm_after_the_sources_does_not_cut_the_save(tmp_path):
     assert state["refresh"]["status"] == "complete"
 
 
-def test_osv_matches_become_vulnerable_items():
+def test_osv_scan_becomes_findings_in_the_same_save(tmp_path):
+    adv = {"ids": ["CVE-1", "GHSA-1"], "title": "Bad", "severity": "high", "fixed_in": ["4.17.21"]}
     m = Match("web", "~/Projects/web", "package-lock.json", "lodash", "npm", "4.17.20", None,
-              ["GHSA-1", "GHSA-2"], ["CVE-1"])
-    (item,) = osv_items(OsvResult(C("osv", "OSV", "complete"), [], [m], []))
-    assert (item.source, item.state, item.project, item.installed_version) == (
-        "osv", "vulnerable", "web", "4.17.20")
-    assert item.id == "npm:lodash@4.17.20:web/package-lock.json"
-    assert item.attributes == {"lockfile": "package-lock.json", "advisories": "GHSA-1, GHSA-2",
-                               "aliases": "CVE-1"}
+              ["GHSA-1"], ["CVE-1"], [adv])
+    scan = OsvResult(C("osv", "OSV", "complete"), [], [m], [])
+    osv_source = Source("osv", "OSV", lambda: ScanSourceResult(scan.coverage, [], scan))
+    with Store(tmp_path, clock=clock()) as s:
+        state = run_refresh(s, [BREW, osv_source])
+    assert state["items"] == [i for i in state["items"] if i["source"] != "osv"]
+    [finding] = state["findings"]
+    assert (finding["id"], finding["package"], finding["status"]) == ("SEC-0001", "lodash", "open")
 
 
 def test_cli_refresh_prints_state_and_progress(tmp_path, monkeypatch, capsys):

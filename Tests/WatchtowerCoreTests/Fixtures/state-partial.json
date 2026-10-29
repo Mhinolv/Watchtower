@@ -41,7 +41,7 @@
       "source": "osv",
       "label": "OSV",
       "state": "not_run",
-      "last_success_at": null,
+      "last_success_at": "2026-10-28T09:02:10Z",
       "error": null,
       "detail": null,
       "source_at": null
@@ -203,6 +203,105 @@
       "source_at": null,
       "note": null,
       "attributes": null
+    }
+  ],
+  "findings": [
+    {
+      "id": "SEC-0003",
+      "ecosystem": "npm",
+      "package": "minimist",
+      "title": "Prototype Pollution in minimist",
+      "severity": "critical",
+      "advisory_ids": [
+        "CVE-2021-44906",
+        "GHSA-xvch-5gv4-984h"
+      ],
+      "fixed_in": "1.2.6",
+      "status": "resolved",
+      "deferred_until": null,
+      "first_seen": "2026-10-28T09:02:10Z",
+      "last_seen": "2026-10-28T09:02:10Z",
+      "resolved_at": "2026-10-28T09:02:10Z",
+      "resolved_scan_at": "2026-10-28T09:02:10Z",
+      "source": "OSV",
+      "source_at": "2026-10-28T06:00:00Z",
+      "paths": [],
+      "next_steps": []
+    },
+    {
+      "id": "SEC-0001",
+      "ecosystem": "npm",
+      "package": "lodash",
+      "title": "Command Injection in lodash",
+      "severity": "high",
+      "advisory_ids": [
+        "CVE-2021-23337",
+        "GHSA-35jh-r3h4-6jhm"
+      ],
+      "fixed_in": "4.17.21",
+      "status": "open",
+      "deferred_until": null,
+      "first_seen": "2026-10-28T09:02:10Z",
+      "last_seen": "2026-10-28T09:02:10Z",
+      "resolved_at": null,
+      "resolved_scan_at": null,
+      "source": "OSV",
+      "source_at": "2026-10-28T06:00:00Z",
+      "paths": [
+        {
+          "project": "admin",
+          "project_path": "~/Projects/admin",
+          "lockfile": "package-lock.json",
+          "version": "4.17.19",
+          "dependency_path": null
+        },
+        {
+          "project": "web",
+          "project_path": "~/Projects/web",
+          "lockfile": "package-lock.json",
+          "version": "4.17.20",
+          "dependency_path": [
+            "web",
+            "lodash"
+          ]
+        }
+      ],
+      "next_steps": [
+        "Update lodash to 4.17.21 or later in the lockfile.",
+        "Restart the dev server after the update."
+      ]
+    },
+    {
+      "id": "SEC-0002",
+      "ecosystem": "npm",
+      "package": "lodash",
+      "title": "ReDoS in lodash",
+      "severity": "medium",
+      "advisory_ids": [
+        "CVE-2020-28500",
+        "GHSA-29mw-wpgm-hmr9"
+      ],
+      "fixed_in": null,
+      "status": "deferred",
+      "deferred_until": "2099-01-01T00:00:00Z",
+      "first_seen": "2026-10-28T09:02:10Z",
+      "last_seen": "2026-10-28T09:02:10Z",
+      "resolved_at": null,
+      "resolved_scan_at": null,
+      "source": "OSV",
+      "source_at": "2026-10-28T06:00:00Z",
+      "paths": [
+        {
+          "project": "web",
+          "project_path": "~/Projects/web",
+          "lockfile": "package-lock.json",
+          "version": "4.17.20",
+          "dependency_path": null
+        }
+      ],
+      "next_steps": [
+        "Check the advisory for a workaround. No fixed version is known."
+      ]
     }
   ]
 }

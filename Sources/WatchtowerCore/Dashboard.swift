@@ -81,6 +81,74 @@ extension ItemState {
     }
 }
 
+// MARK: - Findings
+
+public struct SeverityStyle: Equatable, Sendable {
+    public var text: String
+    public var symbol: String
+    public var tone: Tone
+
+    public init(_ severity: Severity) {
+        switch severity {
+        case .critical: (text, symbol, tone) = ("Critical", "exclamationmark.octagon", .red)
+        case .high: (text, symbol, tone) = ("High", "exclamationmark.triangle", .red)
+        case .medium: (text, symbol, tone) = ("Medium", "exclamationmark.circle", .orange)
+        case .low: (text, symbol, tone) = ("Low", "info.circle", .blue)
+        case .unknown: (text, symbol, tone) = ("Unknown", "questionmark.circle", .gray)
+        }
+    }
+}
+
+/// The status of a finding as text: `Open`, `Deferred until Nov 5`, `Backlog`, `Resolved: …`.
+public struct FindingStatusText: Equatable, Sendable {
+    public var text: String
+    public var symbol: String
+    public var tone: Tone
+
+    /// `full` is the long form for the detail view. The table uses the short form.
+    public init(_ finding: FindingRecord, full: Bool = true, time: TimeText = TimeText()) {
+        switch finding.status {
+        case .open:
+            (text, symbol, tone) = ("Open", "exclamationmark.shield", .red)
+        case .deferred:
+            let until = finding.deferredUntil.map { " until \(time.day($0))" } ?? ""
+            (text, symbol, tone) = ("Deferred\(until)", "clock", .gray)
+        case .backlog:
+            (text, symbol, tone) = ("Backlog", "archivebox", .gray)
+        case .resolved:
+            let day = (finding.resolvedScanAt ?? finding.resolvedAt).map { time.day($0) }
+            let long = day.map { "Resolved: not found in complete scan of \($0)" } ?? "Resolved"
+            (text, symbol, tone) = (full ? long : "Resolved", "checkmark.circle", .green)
+        }
+    }
+}
+
+/// The filter control above the findings table.
+public enum FindingFilter: String, CaseIterable, Identifiable, Sendable {
+    case open, deferred, resolved, all
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .open: "Open"
+        case .deferred: "Deferred"
+        case .resolved: "Resolved"
+        case .all: "All"
+        }
+    }
+
+    /// `Deferred` also holds the findings in the backlog.
+    public func matches(_ finding: FindingRecord) -> Bool {
+        switch self {
+        case .open: finding.status == .open
+        case .deferred: finding.status == .deferred || finding.status == .backlog
+        case .resolved: finding.status == .resolved
+        case .all: true
+        }
+    }
+}
+
 // MARK: - Time text
 
 public struct TimeText: Sendable {
@@ -96,6 +164,15 @@ public struct TimeText: Sendable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone
         formatter.dateFormat = "MMM d, HH:mm"
+        return formatter.string(from: date)
+    }
+
+    /// `Oct 29` in local time.
+    public func day(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "MMM d"
         return formatter.string(from: date)
     }
 
@@ -203,6 +280,7 @@ public final class DashboardModel {
     public var selection: SidebarSection? = .apps
     public var selectedItemKey: String?
     public var searchText = ""
+    public var findingFilter: FindingFilter = .open
 
     @ObservationIgnored private let engine: any EngineClient
     @ObservationIgnored private let clock: @Sendable () -> Date
@@ -305,16 +383,13 @@ public final class DashboardModel {
     public var activeProjects: [ProjectRecord] { projects.filter(\.isActive) }
     public var backlogProjects: [ProjectRecord] { projects.filter { !$0.isActive } }
 
-    private var inactiveNames: Set<String> { Set(backlogProjects.map(\.name)) }
-
     /// Items for a section, before the search filter. Action first, then by name.
     public func items(in section: SidebarSection) -> [ItemRecord] {
         let all = state?.items ?? []
-        let inactive = inactiveNames
         let picked: [ItemRecord] = switch section {
         case .apps: all.filter { $0.source == "apps" || $0.source == "macos" }
         case .homebrew: all.filter { $0.source == "homebrew" }
-        case .findings: all.filter { $0.state == .vulnerable && !inactive.contains($0.project ?? "") }
+        case .findings: []  // Findings are not items. See `visibleFindings`.
         case .projects, .backlog: []
         }
         return picked.sorted {
@@ -338,7 +413,8 @@ public final class DashboardModel {
 
     public func count(_ section: SidebarSection) -> Int {
         switch section {
-        case .apps, .homebrew, .findings: items(in: section).count
+        case .apps, .homebrew: items(in: section).count
+        case .findings: findingsInScope.filter(\.isOpen).count
         case .projects: activeProjects.count
         case .backlog: backlogProjects.count
         }
@@ -351,9 +427,71 @@ public final class DashboardModel {
         return state?.items.first { $0.key == key }
     }
 
-    /// Findings in one project.
-    public func findings(in project: ProjectRecord) -> [ItemRecord] {
-        (state?.items ?? []).filter { $0.state == .vulnerable && $0.project == project.name }
+    // Findings
+
+    /// A finding belongs to a project by the project's display path.
+    private var inactivePaths: Set<String> { Set(backlogProjects.map(\.displayPath)) }
+
+    /// Findings that have at least one path in an active project, and findings with no path (resolved).
+    /// A finding that is only in inactive projects is part of the Backlog.
+    public var findingsInScope: [FindingRecord] {
+        let inactive = inactivePaths
+        return (state?.findings ?? []).filter { f in
+            f.paths.isEmpty || f.paths.contains { !inactive.contains($0.projectPath) }
+        }
+    }
+
+    /// The findings that pass the filter control and the search box. Worst severity first, then newest.
+    public var visibleFindings: [FindingRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        return findingsInScope
+            .filter { findingFilter.matches($0) }
+            .filter { f in
+                query.isEmpty || f.id.localizedCaseInsensitiveContains(query)
+                    || f.package.localizedCaseInsensitiveContains(query)
+                    || f.title.localizedCaseInsensitiveContains(query)
+                    || f.advisoryIds.contains { $0.localizedCaseInsensitiveContains(query) }
+            }
+            .sorted { ($0.severity.rank, -$0.lastSeen.timeIntervalSince1970, $0.id)
+                < ($1.severity.rank, -$1.lastSeen.timeIntervalSince1970, $1.id) }
+    }
+
+    public var selectedFinding: FindingRecord? {
+        guard let id = selectedItemKey else { return nil }
+        return state?.findings.first { $0.id == id }
+    }
+
+    /// Open findings in one project.
+    public func findings(in project: ProjectRecord) -> [FindingRecord] {
+        findingsInScope.filter { $0.isOpen && $0.paths.contains { $0.projectPath == project.displayPath } }
+    }
+
+    /// True if the last OSV scan was not complete. An open finding then stays open and the
+    /// detail view says so.
+    public func showsPartialBanner(for finding: FindingRecord) -> Bool {
+        guard finding.isOpen else { return false }
+        return state?.coverage.first { $0.source == finding.source.lowercased() }?.state != .complete
+    }
+
+    public func deferFinding(_ finding: FindingRecord, days: Int) async {
+        await changeFinding("The finding was not deferred.") { try await $0.deferFinding(id: finding.id, days: days) }
+    }
+
+    public func moveToBacklog(_ finding: FindingRecord) async {
+        await changeFinding("The finding was not moved.") { try await $0.moveFindingToBacklog(id: finding.id) }
+    }
+
+    public func reopen(_ finding: FindingRecord) async {
+        await changeFinding("The finding was not opened.") { try await $0.reopenFinding(id: finding.id) }
+    }
+
+    private func changeFinding(_ message: String, _ act: (any EngineClient) async throws -> FindingRecord) async {
+        do {
+            let saved = try await act(engine)
+            if let i = state?.findings.firstIndex(where: { $0.id == saved.id }) { state?.findings[i] = saved }
+        } catch {
+            lastError = (error as? EngineError) ?? .failed(message: message, detail: "\(error)")
+        }
     }
 
     /// `Homebrew data: 3 h old`, from the source time of the item.
