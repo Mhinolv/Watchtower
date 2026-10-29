@@ -154,8 +154,12 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
         case .notVerified:
-            (symbol, tone, text) = ("exclamationmark.triangle", .orange,
-                                    "The command finished, but the installed version is still \(attempt.afterVersion ?? "unknown").")
+            let text = if let after = attempt.afterVersion, after != attempt.beforeVersion {
+                "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
+            } else {
+                "The command finished, but the installed version is still \(attempt.afterVersion ?? "unknown")."
+            }
+            (symbol, tone, self.text) = ("exclamationmark.triangle", .orange, text)
         case .failed:
             (symbol, tone, text) = ("xmark.octagon", .red,
                                     "The update failed (exit code \(attempt.exitCode.map(String.init) ?? "none")).")

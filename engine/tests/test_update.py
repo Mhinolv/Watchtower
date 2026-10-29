@@ -356,3 +356,32 @@ def test_cli_rejects_items_that_cannot_update(fake_cli, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert json.loads(captured.err)["error"] == "Watchtower can update Homebrew formulae and casks only."
+
+
+# Fix round 2 (QA non-blocking items, main answer 109)
+
+
+@pytest.mark.parametrize("artifact", [
+    {"preflight": None}, {"postflight": None}, {"uninstall_preflight": None}, {"uninstall_postflight": None},
+])
+def test_cask_preflight_and_postflight_are_scripts(artifact):
+    entry = cask(artifacts=[{"app": ["Fluff.app"]}, artifact])
+    assert hb.script_reasons("cask", entry, machine="arm64", macos=15) == [hb.SCRIPT_FLIGHT]
+
+
+def test_cask_with_postflight_needs_scripts_confirmation(tmp_path):
+    store = seeded(tmp_path, key="cask:fluff", latest="1.3", installed="1.2", kind="cask")
+    brew = FakeBrew(cask(artifacts=[{"app": ["Fluff.app"]}, {"postflight": None}]), kind="cask")
+    p = plan(store, brew, key="homebrew/cask:fluff")
+    assert p.scripts == [hb.SCRIPT_FLIGHT]
+    runner = FakeRunner(brew, new_version="1.3")
+    attempt, _ = run(store, brew, runner, p.id, key="homebrew/cask:fluff")
+    assert attempt.status == "refused" and runner.calls == []
+
+
+def test_moved_to_another_version_does_not_say_still(tmp_path):
+    store = seeded(tmp_path)
+    brew = FakeBrew(formula())
+    attempt, _ = run(store, brew, FakeRunner(brew, new_version="2.47.0"), plan(store, brew).id)
+    assert attempt.status == "not_verified"
+    assert attempt.error == "The command finished, but the installed version is 2.47.0, not 2.47.1."

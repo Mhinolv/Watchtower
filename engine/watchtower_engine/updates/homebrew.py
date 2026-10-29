@@ -35,6 +35,8 @@ SCRIPT_BUILD = "it builds from source, because no bottle fits this Mac"
 SCRIPT_POST_INSTALL = "the formula runs a post-install step"
 SCRIPT_PKG = "the cask runs a package installer"
 SCRIPT_INSTALLER = "the cask runs an installer script"
+SCRIPT_FLIGHT = "the cask runs preflight or postflight code"
+FLIGHT_KEYS = {"preflight", "postflight", "uninstall_preflight", "uninstall_postflight"}
 
 MACOS_NAMES = {26: "tahoe", 15: "sequoia", 14: "sonoma", 13: "ventura", 12: "monterey"}
 
@@ -194,6 +196,9 @@ def script_reasons(kind: str, entry: dict, machine: str | None = None, macos: in
                 reasons.append(SCRIPT_PKG)
             if isinstance(artifact, dict) and "installer" in artifact and SCRIPT_INSTALLER not in reasons:
                 reasons.append(SCRIPT_INSTALLER)
+            # An upgrade also uninstalls the old version, so its uninstall flights run too.
+            if isinstance(artifact, dict) and FLIGHT_KEYS & set(artifact) and SCRIPT_FLIGHT not in reasons:
+                reasons.append(SCRIPT_FLIGHT)
     return reasons
 
 

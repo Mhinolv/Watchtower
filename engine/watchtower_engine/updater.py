@@ -23,6 +23,7 @@ ERROR_NEEDS_MAJOR = "A new major version needs its own confirmation."
 ERROR_NEEDS_SCRIPTS = "This update needs install scripts. Confirm them first."
 ERROR_FAILED = "The update failed (exit code {code})."
 ERROR_NOT_VERIFIED = "The command finished, but the installed version is still {version}."
+ERROR_OTHER_VERSION = "The command finished, but the installed version is {version}, not {target}."
 ERROR_PLAN_CHANGED = "The plan changed. Review the new plan."
 ERROR_INTERRUPTED = "The update was interrupted. Refresh to see the installed version."
 
@@ -112,8 +113,11 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
         log.finish(attempt_id, "verified", after, code, text)
         _mark_item_updated(store, plan, after)
     else:
-        log.finish(attempt_id, "not_verified", after, code, text,
-                   ERROR_NOT_VERIFIED.format(version=after or "unknown"))
+        if after is not None and after != plan.installed_version:
+            error = ERROR_OTHER_VERSION.format(version=after, target=plan.target_version)
+        else:
+            error = ERROR_NOT_VERIFIED.format(version=after or "unknown")
+        log.finish(attempt_id, "not_verified", after, code, text, error)
     return log.get(attempt_id), plan.to_dict()
 
 

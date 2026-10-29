@@ -106,6 +106,9 @@ private let gitItem = ItemRecord(id: "formula:git", source: "homebrew", name: "g
     let notVerified = UpdateResultStyle(attempt(.notVerified, after: "2.46.0"))
     #expect(notVerified.text == "The command finished, but the installed version is still 2.46.0.")
     #expect((notVerified.symbol, notVerified.tone) == ("exclamationmark.triangle", .orange))
+    // Moved to a version that is not the plan target: no "still".
+    #expect(UpdateResultStyle(attempt(.notVerified, after: "2.47.0")).text
+        == "The command finished, but the installed version is 2.47.0, not 2.47.1.")
     let failed = UpdateResultStyle(attempt(.failed, after: "2.46.0", exit: 1))
     #expect((failed.text, failed.symbol, failed.tone) == ("The update failed (exit code 1).", "xmark.octagon", .red))
     let changed = UpdateResultStyle(attempt(.planChanged, after: nil, exit: nil))
