@@ -6,6 +6,7 @@ Every file in it is mode 0600. Scan data never goes into the repo.
 """
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from pathlib import Path
@@ -93,12 +94,13 @@ CREATE TABLE IF NOT EXISTS items (
     origin TEXT,
     source_at TEXT,
     note TEXT,
+    attributes TEXT,
     PRIMARY KEY (source, id)
 );
 """
 
 # Columns added after schema 1 shipped. Old stores get them with ALTER TABLE.
-_ADDED_COLUMNS = {"items": ("origin", "source_at", "note"), "coverage": ("source_at",)}
+_ADDED_COLUMNS = {"items": ("origin", "source_at", "note", "attributes"), "coverage": ("source_at",)}
 
 
 class Store:
@@ -237,12 +239,13 @@ class Store:
         for i in items:
             self.db.execute(
                 "INSERT OR REPLACE INTO items (source, id, name, state, kind, installed_version, "
-                "latest_version, project, seen_at, error, detail, origin, source_at, note) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "latest_version, project, seen_at, error, detail, origin, source_at, note, attributes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     i.source, i.id, i.name, i.state, i.kind, i.installed_version,
                     i.latest_version, i.project, now, owner_error(i.error), i.detail,
                     i.origin, i.source_at, i.note,
+                    json.dumps(i.attributes, sort_keys=True) if i.attributes is not None else None,
                 ),
             )
 
@@ -281,9 +284,15 @@ class Store:
     def items(self) -> list[ItemRecord]:
         rows = self.db.execute(
             "SELECT id, source, name, state, kind, installed_version, latest_version, project, "
-            "seen_at, error, detail, origin, source_at, note FROM items ORDER BY source, id"
+            "seen_at, error, detail, origin, source_at, note, attributes FROM items ORDER BY source, id"
         ).fetchall()
-        return [ItemRecord(**dict(r)) for r in rows]
+        items = []
+        for r in rows:
+            row = dict(r)
+            if row["attributes"] is not None:
+                row["attributes"] = json.loads(row["attributes"])
+            items.append(ItemRecord(**row))
+        return items
 
     def state(self) -> dict:
         """The current state, as the `state` CLI command prints it (without the envelope)."""
