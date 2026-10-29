@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: update dialog rows for npm and uv (#10, #11)</title>
+<link rel="stylesheet" href="shared.css"><link rel="stylesheet" href="dialog.css"><script src="shared.js"></script></head>
+<body><h1 class="pg">Update dialog rows for npm (#10) and uv (#11). Same layout as #6. Row names follow the issue notes. Commands are samples. The engine gives the real command.</h1>
+<div class="board" id="b"></div>
+<script>
+const cell = (l, inner, note) => `<div class="cell"><div class="lbl">${l}</div>${inner}${note ? `<div class="note">${note}</div>` : ''}</div>`;
+const sheet = (t, s, body, btns) => `<div class="sheet"><h2>${t}</h2><div class="sub num">${s}</div>${body}<div class="btns">${btns}</div></div>`;
+const cmd = c => `<div class="code cmd"><span class="mono">${c.split(' ').map(t => `<span style="white-space:nowrap">${t}</span>`).join(' ')}</span><span class="cpy">${sf('doc.on.doc')}</span></div>`;
+const plan = '<span class="btn lg focus">Cancel</span><span class="btn lg">Update</span>';
+const done = '<span class="btn lg">View Log</span><span class="btn lg prom">Done</span>';
+const resLine = (sym, cls, txt) => `<div class="line">${sf(sym, cls)}<span>${txt}</span></div>`;
+const dl = items => `<div class="dl">${items.map(([n, v]) => `<div class="pk"><span>${n}</span><span class="mono sec">${v}</span></div>`).join('')}</div>`;
+const resHead = (sym, cls, t) => `<div class="res"><svg class="sf big ${cls}" viewBox="0 0 16 16">${P[sym]}</svg><div><div class="tt">${t}</div></div></div>`;
+
+const npmPlan = sheet('Update acme-router', '4.17.1 → 4.19.2', `<div class="rows w">
+  <div class="k">Command</div>${cmd('npm install acme-router@4.19.2 --ignore-scripts')}
+  <div class="k">Project</div><div class="mono">~/Projects/storefront</div>
+  <div class="k">package.json</div><div class="mono" style="font-size:11.5px">"acme-router": "^4.17.1" → "^4.19.2"</div>
+  <div class="k">package-lock.json</div><div class="mono" style="font-size:11.5px">acme-router 4.17.1 → 4.19.2</div>
+  <div class="k">Other packages</div><div><div>3 packages change</div><div class="disc" style="margin-top:4px">${sf('chevron.down')}Hide list</div>${dl([['path-to-regexp', '0.1.7 → 0.1.10'], ['cookie', '0.5.0 → 0.6.0'], ['send', '0.18.0 → 0.19.0']])}</div>
+  <div class="k">Scripts</div><div><span class="chip">Disabled (--ignore-scripts)</span></div></div>`, plan);
+const npmScripts = sheet('Update acme-router', '4.17.1 → 4.19.2', `<div class="res" style="margin-top:2px">${sf('exclamationmark.triangle', 't-orange big')}<div><div class="tt">esbuild needs its postinstall script to install a binary.</div><div class="sec" style="margin-top:4px">Scripts run only after you click Run Scripts.</div></div></div>
+  <div class="rows w" style="margin-top:14px"><div class="k">Package</div><div class="mono">esbuild 0.21.5</div><div class="k">Script</div><div class="mono">postinstall</div></div>`, '<span class="btn lg focus">Not Now</span><span class="btn lg">Run Scripts</span>');
+const npmOk = sheet('Update acme-router', '4.17.1 → 4.19.2', `${resHead('checkmark.seal', 't-green', 'Updated. Installed version is now 4.19.2.')}<div style="margin-top:14px">
+  ${resLine('checkmark.seal', 't-green', 'Lockfile: acme-router 4.19.2')}${resLine('checkmark.seal', 't-green', 'Installed (node_modules): acme-router 4.19.2')}</div>`, done);
+const npmLock = sheet('Update acme-router', '4.17.1 → 4.19.2', `${resHead('exclamationmark.triangle', 't-orange', 'Not verified: the installed package is still 4.17.1.')}<div style="margin-top:14px">
+  ${resLine('checkmark.seal', 't-green', 'Lockfile: acme-router 4.19.2')}${resLine('exclamationmark.triangle', 't-orange', 'Installed (node_modules): acme-router 4.17.1')}</div>`, done);
+const uvPlan = sheet('Update fastjson-lite', '0.26.0 → 0.27.2', `<div class="rows w">
+  <div class="k">Command</div>${cmd('uv lock --upgrade-package fastjson-lite')}
+  <div class="k">Project</div><div class="mono">~/Real/tool</div>
+  <div class="k">Environment</div><div class="mono">.venv (exists)</div>
+  <div class="k">pyproject.toml</div><div class="mono" style="font-size:11.5px">"fastjson-lite>=0.26" → "fastjson-lite>=0.27"</div>
+  <div class="k">uv.lock</div><div class="mono" style="font-size:11.5px">fastjson-lite 0.26.0 → 0.27.2</div>
+  <div class="k">Groups and extras</div><div>Groups: dev. Extras: none.</div>
+  <div class="k">Other packages</div><div><div>1 package changes</div><div class="disc" style="margin-top:4px">${sf('chevron.right')}Show list</div></div>
+  <div class="k">Build</div><div><span class="chip">Disabled</span></div></div>`, plan);
+const uvBuild = sheet('Update fastjson-lite', '0.26.0 → 0.27.2', `<div class="res" style="margin-top:2px">${sf('exclamationmark.triangle', 't-orange big')}<div><div class="tt">fastjson-lite needs a source build: no wheel for this platform.</div><div class="sec" style="margin-top:4px">The build runs only after you click Run Scripts.</div></div></div>`, '<span class="btn lg focus">Not Now</span><span class="btn lg">Run Scripts</span>');
+const uvOk = sheet('Update fastjson-lite', '0.26.0 → 0.27.2', `${resHead('checkmark.seal', 't-green', 'Updated. Installed version is now 0.27.2.')}<div style="margin-top:14px">
+  ${resLine('checkmark.seal', 't-green', 'Lockfile: fastjson-lite 0.27.2')}${resLine('checkmark.seal', 't-green', 'Installed (.venv): fastjson-lite 0.27.2')}</div>`, done);
+const uvLock = sheet('Update fastjson-lite', '0.26.0 → 0.27.2', `${resHead('exclamationmark.triangle', 't-orange', 'Not verified: the environment still has 0.26.0.')}<div style="margin-top:14px">
+  ${resLine('checkmark.seal', 't-green', 'Lockfile: fastjson-lite 0.27.2')}${resLine('exclamationmark.triangle', 't-orange', 'Installed (.venv): fastjson-lite 0.26.0')}</div>`, done);
+const dis = (a, why) => `<div style="display:flex;gap:10px;align-items:flex-start"><span class="btn dis" style="flex:none">${a}</span><div class="sec" style="font-size:12.5px;padding-top:3px">${why}</div></div>`;
+const nope = `<div class="snip">${dis('Update…', 'Watchtower cannot update workspace projects yet.')}${dis('Update…', 'Watchtower cannot update git dependencies.')}${dis('Update…', 'This package needs scripts that Watchtower cannot check.')}${dis('Update…', 'No environment found. Watchtower does not create environments.')}</div>`;
+document.getElementById('b').innerHTML =
+  cell('npm 1. Plan with 3 other packages', npmPlan, 'The first six rows are new in #10. Other packages opens a list.') +
+  cell('npm 2. Scripts step', npmScripts, 'Shown only when a package needs a script. Focus starts on Not Now.') +
+  cell('npm 3. Result: both verified', npmOk, 'Lockfile and installed package have separate lines.') +
+  cell('npm 4. Result: lockfile only', npmLock, 'Orange. The update does not count as done.') +
+  cell('uv 5. Plan with groups', uvPlan, 'Groups and extras always shows, also when both are empty.') +
+  cell('uv 6. Build step', uvBuild, 'The same layout as the npm scripts step.') +
+  cell('uv 7. Result: both verified', uvOk, '') +
+  cell('uv 8. Result: lockfile only', uvLock, '') +
+  cell('Not supported: the button and its reason', nope, 'Never show a disabled Update with no reason. The reason shows as help text and in the detail pane.');
+document.querySelectorAll('svg.big').forEach(e => { e.classList.add('big'); });
+</script></body></html>

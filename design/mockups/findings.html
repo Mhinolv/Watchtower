@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: Findings list and detail (#8, #9, #17)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>
+.aff { padding: 10px 12px; display: flex; gap: 10px; align-items: center; border-bottom: .5px solid var(--sep); }
+.aff:last-child { border-bottom: 0; }
+.aff .tx { flex: 1; min-width: 0; line-height: 1.45; }
+.rv { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; border: .5px solid var(--btn-border); background: var(--btn-bg); box-shadow: var(--btn-shadow); font-size: 11.5px; flex: none; }
+.rv svg.sf { width: 13px; height: 13px; vertical-align: 0; color: var(--accent); }
+.feed { display: flex; gap: 6px; align-items: center; font-size: 12.5px; line-height: 1.5; }
+.feed.o { color: var(--orange); }
+.th, .tr { --cols: 82px 132px 192px 58px 92px 1fr; }
+.ev { display: grid; grid-template-columns: 124px 1fr; row-gap: 5px; font-size: 12.5px; }
+.ev > :nth-child(odd) { color: var(--label2); }
+</style></head>
+<body><script>
+P['clock'] = '<circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.3 1.4"/>';
+T['Deferred'] = ['gray', 'clock']; T['Resolved'] = ['green', 'checkmark.circle']; T['Backlog'] = ['gray', 'tray'];
+const view = q.get('view') || 'open';
+const F = [ // id, package, ver, eco, sev, extra, projects, status, last, title
+  ['SEC-0006', 'tinycolor-fx', '1.4.2', 'npm', 'Critical', 'Malware', 2, 'Open', 'Oct 29', 'Package published with malicious code'],
+  ['SEC-0003', 'Quillnote', '2.4.1', 'app', 'High', 'Known exploited', '—', 'Open', 'Oct 29', 'Path traversal in the import filter'],
+  ['SEC-0001', 'acme-router', '4.17.1', 'npm', 'High', '', 2, 'Open', 'Oct 29', 'Open redirect in the route matcher'],
+  ['SEC-0005', 'fastjson-lite', '0.26.0', 'PyPI', 'Medium', '', 1, 'Open', 'Oct 28', 'Denial of service with deep nesting'],
+  ['SEC-0002', 'yaml-tools', '2.1.0', 'npm', 'Low', '', 1, 'Deferred', 'Oct 25', 'Regular expression slowdown in the parser'],
+  ['SEC-0004', 'old-parser', '1.0.3', 'npm', 'Medium', '', 1, 'Resolved', 'Oct 22', 'Prototype pollution in merge()'],
+];
+const filt = { open: 'Open', partial: 'Open', deferred: 'Deferred', resolved: 'Resolved', empty: 'Open' }[view];
+const rows = view === 'empty' ? [] : F.filter(f => f[7] === filt);
+const selId = { open: 'SEC-0001', partial: 'SEC-0001', deferred: 'SEC-0002', resolved: 'SEC-0004' }[view];
+const cnt = s => F.filter(f => f[7] === s).length;
+const strip = `<div class="strip"><span class="segctl">${['Open', 'Deferred', 'Resolved', 'All'].map(x => `<span class="${x === filt ? 'on' : ''}">${x}</span>`).join('')}</span><span class="sec" style="margin-left:auto;font-size:12px">Sorted by exploit, then severity</span></div>`;
+const row = f => `<div class="tr ${f[0] === selId ? 'sel' : ''}"><span class="mono b">${f[0]}</span><span class="nm"><span style="min-width:0"><div>${f[1]}</div><div class="sec" style="font-size:11px;font-weight:400">${f[2]} · ${f[3]}</div></span></span><span class="badges">${badge(f[4])}${f[5] ? badge(f[5]) : ''}</span><span class="v">${f[6]}</span><span>${badge(f[7])}</span><span class="v">${f[8]}</span></div>`;
+const list = `<div class="list" style="width:700px">${strip}<div class="th"><span>ID</span><span>Package</span><span>Severity ▾</span><span>Projects</span><span>Status</span><span>Last seen</span></div>
+  ${rows.length ? rows.map(row).join('') : `<div class="empty"><i data-i="checkmark.seal"></i><div class="t">No findings</div><div>No findings match this filter in the last complete scan.</div></div>`}</div>`;
+
+function detail() {
+  if (view === 'empty') return `<div class="detail"><div class="empty"><div class="t">No selection</div><div>Select a finding to see its evidence.</div></div></div>`;
+  const f = F.find(x => x[0] === selId);
+  const statusTxt = { Open: badge('Open'), Deferred: '<span class="badge gray">' + sf('clock') + 'Deferred until Nov 5</span>', Resolved: '<span class="badge green">' + sf('checkmark.circle') + 'Resolved: not found in complete scan of Oct 29</span>' }[f[7]];
+  const acts = f[7] === 'Resolved' ? '' : `<div style="display:flex;gap:8px"><span class="btn lg prom">Update…</span><span class="btn lg dmenu">Defer ${sf('chevron.down')}</span><span class="btn lg">Move to Backlog</span></div>`;
+  const aff = f[7] === 'Resolved' ? '' : `<div><div class="h">Affected (${f[0] === 'SEC-0001' ? 2 : 1})</div><div class="card">
+    <div class="aff"><div class="tx"><div class="b">~/Projects/storefront</div><div class="mono sec" style="font-size:11.5px">package-lock.json</div><div class="mono sec" style="font-size:11.5px">${f[1]}@${f[2]}</div><div class="sec" style="font-size:11.5px">Path: storefront › web-app › ${f[1]}</div></div><span class="rv">${sf('folder')}Reveal in Finder</span></div>
+    ${f[0] === 'SEC-0001' ? `<div class="aff"><div class="tx"><div class="b">~/Real/dashboard</div><div class="mono sec" style="font-size:11.5px">package-lock.json</div><div class="mono sec" style="font-size:11.5px">${f[1]}@${f[2]}</div><div class="sec" style="font-size:11.5px">Dependency path not available.</div></div><span class="rv">${sf('folder')}Reveal in Finder</span></div>` : ''}</div></div>`;
+  const src = `<div><div class="h">Source</div>
+    <div class="feed">${sf('checkmark.circle', 't-green')}OSV: retrieved Oct 29, 08:00</div>
+    <div class="feed">${sf('checkmark.circle', 't-green')}CISA KEV: retrieved Oct 29, 08:00</div>
+    <div class="feed o">${sf('exclamationmark.triangle')}GitHub Advisories: failed (rate limit). Data from Oct 28.</div></div>`;
+  const ev = `<div><div class="h">Evidence</div><div class="ev"><span>Installed</span><span class="num">${f[2]}</span><span>Lockfile</span><span class="num">${f[2]}</span><span>Running</span><span class="num">${view === 'open' ? f[2] : 'not checked'}</span><span>Container image</span><span class="mono" style="font-size:12px">node:20.11 <span class="sec">(metadata only)</span></span><span>Deployment</span><span>Unknown</span></div></div>`;
+  return `<div class="detail">
+    ${view === 'partial' ? `<div class="banner">${sf('exclamationmark.triangle')}The last scan was partial. This finding stays open.</div>` : ''}
+    <div><div style="display:flex;align-items:baseline;gap:8px"><span class="mono b" style="font-size:13px">${f[0]}</span><span class="sec">${f[1]}@${f[2]}</span></div>
+      <div style="font-size:17px;font-weight:700;margin:3px 0 8px;line-height:1.25">${f[9]}</div>
+      <div class="badges" style="flex-wrap:wrap">${badge(f[4])}${f[5] ? badge(f[5]) : ''}${statusTxt}</div></div>
+    ${acts}${aff}
+    <div class="kv"><span>Fixed in</span><span class="num">${f[1] === 'yaml-tools' ? 'No fixed version is known.' : '4.19.2'}</span>
+      <span>Aliases</span><span style="display:flex;gap:10px;flex-wrap:wrap"><span class="link">CVE-2026-11111</span><span class="link">GHSA-aaaa-bbbb-cccc</span><span class="link">OSV-2026-0042</span></span>
+      <span>Seen</span><span>First seen Oct 20. Last seen ${f[8]}.</span></div>
+    ${src}${ev}
+    ${f[7] === 'Resolved' ? '' : `<div><div class="h">Next steps</div><div style="font-size:12.5px">Restart the dev server after the update.</div></div>`}</div>`;
+}
+mount({ active: 'Findings', title: 'Findings', wide: true, tool: `<span id="rb">${refreshButton('complete')}</span>${refreshLabel('complete')}${SEARCH}`, body: list + detail() });
+
+if (view === 'empty') document.querySelectorAll('.side-i').forEach(n => { if (n.querySelector('span').textContent === 'Findings') { const c = n.querySelector('.n'); if (c) { c.textContent = '0'; c.classList.remove('hot'); } } });
+</script></body></html>
