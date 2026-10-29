@@ -232,7 +232,7 @@ struct ItemDetail: View {
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
-                    Button("Update") { Task { await updates?.start(item) } }
+                    Button("Update…") { Task { await updates?.start(item) } }
                         .buttonStyle(.borderedProminent)
                         .disabled(blocked != nil)
                         .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
