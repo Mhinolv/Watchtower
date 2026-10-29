@@ -8,7 +8,7 @@
 .seg b { font-weight: 600; color: var(--label); font-variant-numeric: tabular-nums; }
 .seg.on { background: var(--accent-soft); border-color: transparent; color: var(--label); }
 .seg svg.sf { width: 14px; height: 14px; }
-.th, .tr { display: grid; grid-template-columns: 206px 82px 82px 82px 1fr; align-items: center; padding: 0 16px; }
+.th, .tr { display: grid; grid-template-columns: 196px 78px 78px 72px minmax(150px, 1fr); align-items: center; padding: 0 16px; }
 .th { height: 26px; font-size: 11.5px; color: var(--label2); border-bottom: 1px solid var(--sep); font-weight: 500; }
 .tr { height: 36px; border-bottom: .5px solid var(--sep); }
 .tr:nth-child(even) { background: var(--bg-row-alt); }
@@ -81,7 +81,7 @@ dEl.innerHTML = never ? `<div class="empty" style="display:flex;margin-top:120px
   <div class="dh"><span class="ico" style="background:${C.Q}">Q</span>
     <div><h1>Quillnote</h1><div class="meta">Direct download<br><span class="mono" style="font-size:11.5px">/Applications/Quillnote.app</span></div>
       <div style="display:flex;gap:6px;margin-top:9px">${badge('Vulnerable')}${badge('Known exploited')}</div></div>
-    <div class="act"><span class="btn prom lg">Update</span></div></div>
+    <div class="act"><span class="btn prom lg">Update…</span></div></div>
   <div><div class="h">Versions</div><div class="kv"><span>Installed</span><span class="num">2.4.1</span><span>Latest</span><span class="num">2.5.0 <span class="chip" style="margin-left:6px">minor update</span></span><span>Source</span><span>Direct download (Sparkle feed)</span><span>Last checked</span><span>Oct 29, 08:02</span></div></div>
   <div><div class="h">Findings (1)</div><div class="card find">
     <div class="top"><span class="mono b">SEC-0003</span><span class="b">Path traversal in the import filter</span></div>

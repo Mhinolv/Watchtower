@@ -53,5 +53,5 @@ Use the system font. Use `.monospaced` for commands, versions in logs, and IDs l
 - Sidebar: 210 pt. List pane: 620 pt. Detail pane fills the rest.
 
 ## Rules
-- The `Update` button uses the accent color. In a sheet, `Update` is not the default button.
+- The `Update…` button uses the accent color. In a sheet, `Update` is not the default button.
 - Stale, partial and failed states change the refresh label color and add a symbol.
