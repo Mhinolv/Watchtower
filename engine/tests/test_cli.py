@@ -77,3 +77,46 @@ def test_unexpected_error_goes_to_stderr_not_stdout(tmp_path, monkeypatch, capsy
 def test_no_command_prints_help_to_stderr(capsys):
     assert main([]) == 2
     assert capsys.readouterr().out == ""
+
+
+# Projects
+
+
+def test_projects_command_prints_projects_and_root_errors(tmp_path, capsys):
+    home = tmp_path / "home"
+    (home / "Projects" / "web").mkdir(parents=True)
+    (home / "Projects" / "web" / "package.json").write_text("")
+    assert main(["--data-dir", str(tmp_path / "data"), "projects"]) == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    out = json.loads(captured.out)
+    assert out == {
+        "schema_version": SCHEMA_VERSION,
+        "projects": [{
+            "name": "web",
+            "path": str(home / "Projects" / "web"),
+            "root": "~/Projects",
+            "manifests": ["package.json"],
+            "state": "active",
+        }],
+        "root_errors": [{"root": "~/Real", "kind": "missing", "message": "~/Real does not exist."}],
+        "skipped": [],
+    }
+
+
+def test_project_state_command_saves_the_choice(tmp_path, capsys):
+    home = tmp_path / "home"
+    (home / "Projects" / "web").mkdir(parents=True)
+    data = str(tmp_path / "data")
+    assert main(["--data-dir", data, "project-state", str(home / "Projects" / "web"), "inactive"]) == 0
+    assert json.loads(capsys.readouterr().out)["project"]["state"] == "inactive"
+    assert main(["--data-dir", data, "projects"]) == 0
+    assert json.loads(capsys.readouterr().out)["projects"][0]["state"] == "inactive"
+
+
+def test_project_state_for_unknown_folder_goes_to_stderr(tmp_path, capsys):
+    (tmp_path / "home" / "Projects").mkdir(parents=True)
+    assert main(["--data-dir", str(tmp_path / "data"), "project-state", str(tmp_path), "inactive"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert json.loads(captured.err)["error"] == "That folder is not a project in the project roots."
