@@ -117,6 +117,12 @@ class ItemRecord:
     seen_at: str | None = None
     error: str | None = None
     detail: str | None = None
+    # Where the item comes from inside its source, for example a Homebrew tap that is not core.
+    origin: str | None = None
+    # When the source data for `latest_version` was fetched. Older than seen_at if a cache was used.
+    source_at: str | None = None
+    # One sentence for the owner about the state, for example why an item is pinned. Not an error.
+    note: str | None = None
 
     def __post_init__(self) -> None:
         _check(self.state, ITEM_STATES, "state")

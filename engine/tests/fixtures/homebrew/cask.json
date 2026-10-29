@@ -1,0 +1,6 @@
+[
+  {"token": "zed", "full_token": "zed", "tap": "homebrew/cask", "version": "0.159.0", "auto_updates": true, "old_tokens": []},
+  {"token": "fluff", "full_token": "fluff", "tap": "homebrew/cask", "version": "1.3,200", "auto_updates": false, "old_tokens": []},
+  {"token": "steady", "full_token": "steady", "tap": "homebrew/cask", "version": "5.0", "auto_updates": true, "old_tokens": []},
+  {"token": "nightly", "full_token": "nightly", "tap": "homebrew/cask", "version": "latest", "auto_updates": false, "old_tokens": []}
+]

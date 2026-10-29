@@ -90,9 +90,15 @@ CREATE TABLE IF NOT EXISTS items (
     seen_at TEXT,
     error TEXT,
     detail TEXT,
+    origin TEXT,
+    source_at TEXT,
+    note TEXT,
     PRIMARY KEY (source, id)
 );
 """
+
+# Columns added after schema 1 shipped. Old stores get them with ALTER TABLE.
+_ADDED_COLUMNS = {"items": ("origin", "source_at", "note")}
 
 
 class Store:
@@ -118,6 +124,11 @@ class Store:
 
     def _migrate(self) -> None:
         self.db.executescript(_SCHEMA)
+        for table, columns in _ADDED_COLUMNS.items():
+            have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
+            for column in columns:
+                if column not in have:
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
         row = self.db.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         if row is None:
             self.db.execute(
@@ -225,11 +236,12 @@ class Store:
         for i in items:
             self.db.execute(
                 "INSERT OR REPLACE INTO items (source, id, name, state, kind, installed_version, "
-                "latest_version, project, seen_at, error, detail) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "latest_version, project, seen_at, error, detail, origin, source_at, note) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     i.source, i.id, i.name, i.state, i.kind, i.installed_version,
                     i.latest_version, i.project, now, owner_error(i.error), i.detail,
+                    i.origin, i.source_at, i.note,
                 ),
             )
 
@@ -267,7 +279,7 @@ class Store:
     def items(self) -> list[ItemRecord]:
         rows = self.db.execute(
             "SELECT id, source, name, state, kind, installed_version, latest_version, project, "
-            "seen_at, error, detail FROM items ORDER BY source, id"
+            "seen_at, error, detail, origin, source_at, note FROM items ORDER BY source, id"
         ).fetchall()
         return [ItemRecord(**dict(r)) for r in rows]
 

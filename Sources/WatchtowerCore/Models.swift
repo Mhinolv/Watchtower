@@ -66,6 +66,12 @@ public struct ItemRecord: Codable, Hashable, Sendable {
     public var seenAt: Date?
     public var error: String?
     public var detail: String?
+    /// Where the item comes from inside its source, for example a Homebrew tap that is not core.
+    public var origin: String?
+    /// When the source data for `latestVersion` was fetched. Older than `seenAt` if a cache was used.
+    public var sourceAt: Date?
+    /// One sentence for the owner about the state, for example why an item is pinned. Not an error.
+    public var note: String?
 
     public var key: String { "\(source)/\(id)" }
 }

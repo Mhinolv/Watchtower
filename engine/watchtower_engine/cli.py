@@ -24,6 +24,7 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("version", help="print the engine version as JSON")
     sub.add_parser("state", help="print the last refresh, coverage and items as JSON")
+    sub.add_parser("homebrew", help="check Homebrew formulae and casks, print coverage and items as JSON")
     sub.add_parser("projects", help="print the projects, root errors and skipped links as JSON")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
@@ -37,6 +38,12 @@ def main(argv=None) -> int:
             with Store(args.data_dir) as store:
                 state = store.state()
             _emit(sys.stdout, state)
+            return 0
+        if args.cmd == "homebrew":
+            from .inventory import homebrew
+            from .store import default_data_dir
+
+            _emit(sys.stdout, homebrew.collect(args.data_dir or default_data_dir()).to_dict())
             return 0
         if args.cmd == "projects":
             _emit(sys.stdout, list_projects(args.data_dir).to_dict())

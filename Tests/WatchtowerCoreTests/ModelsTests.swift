@@ -46,6 +46,25 @@ private func utc(_ text: String) -> Date {
 
     let leftPad = try #require(state.items.first { $0.id == "npm:left-pad" })
     #expect(leftPad.project == "watchtower")
+    #expect(leftPad.sourceAt == nil)
+}
+
+@Test func decodesItemOriginSourceAgeAndNote() throws {
+    let state = try EngineJSON.decode(EngineState.self, from: fixture("state-partial"))
+    let git = try #require(state.items.first { $0.key == "homebrew/formula:git" })
+    #expect(git.sourceAt == utc("2026-10-29T08:30:40Z"))
+    #expect(git.origin == nil)
+    #expect(git.note == nil)
+
+    let node = try #require(state.items.first { $0.key == "homebrew/formula:node" })
+    #expect(node.state == .pinned)
+    #expect(node.note == "Pinned with brew pin. Watchtower does not update pinned items.")
+
+    let widget = try #require(state.items.first { $0.key == "homebrew/formula:acme/tools/widget" })
+    #expect(widget.state == .manual)
+    #expect(widget.origin == "acme/tools")
+    #expect(widget.latestVersion == nil)
+    #expect(widget.note == "Watchtower cannot check tap acme/tools.")
 }
 
 @Test func partialFixtureUsesEveryCoverageAndItemState() throws {
