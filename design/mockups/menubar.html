@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: menu bar (#5)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>
+body { padding: 22px 30px 30px; }
+h1.pg { font-size: 15px; margin: 0 0 16px; font-weight: 700; }
+.grid { display: grid; grid-template-columns: 590px 590px; gap: 26px 40px; justify-content: center; }
+.lbl { font-size: 11.5px; font-weight: 600; color: var(--label2); margin-bottom: 6px; }
+.note { font-size: 11.5px; color: var(--label2); margin-top: 8px; max-width: 560px; }
+.scene { position: relative; height: 352px; border-radius: 10px; overflow: hidden; background: linear-gradient(160deg, #8e87d8, #c9c5ee 55%, #e6d9ef); }
+html.dark .scene { background: linear-gradient(160deg, #1d1b3d, #2b2860 60%, #3b2a58); }
+.mb { height: 26px; background: rgba(255,255,255,.55); display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 0 12px; font-size: 12.5px; font-weight: 500; backdrop-filter: blur(20px); }
+html.dark .mb { background: rgba(20,20,24,.55); color: #fff; }
+.mb .wi { width: 16px; height: 12px; border-radius: 3px; border: 1.4px solid currentColor; opacity: .75; }
+.mb .bt { width: 24px; height: 11px; border-radius: 3px; border: 1.4px solid currentColor; opacity: .75; }
+.wt { width: 28px; height: 20px; border-radius: 5px; background: rgba(0,0,0,.2); display: flex; align-items: center; justify-content: center; }
+html.dark .wt { background: rgba(255,255,255,.25); }
+.wt img { width: 18px; height: 18px; }
+html.dark .wt img { filter: invert(1); }
+/* menu style */
+.menu { position: absolute; top: 30px; right: 138px; width: 262px; padding: 5px; border-radius: 10px; background: var(--menu-bg); box-shadow: var(--shadow); backdrop-filter: blur(30px); }
+.mi { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 10px; border-radius: 5px; font-size: 13px; }
+.mi.off { color: var(--label3); }
+.mi .kk { margin-left: auto; color: var(--label2); }
+.mi.hl { background: var(--accent); color: var(--accent-text); } .mi.hl .kk { color: var(--accent-text); opacity: .8; }
+.ms { height: 1px; background: var(--sep); margin: 5px 8px; }
+/* popover */
+.pop { position: absolute; top: 32px; right: 70px; width: 330px; border-radius: 13px; background: var(--menu-bg); box-shadow: var(--shadow); backdrop-filter: blur(30px); padding: 14px 14px 10px; }
+.pop::before { content: ""; position: absolute; top: -5px; right: 76px; width: 12px; height: 12px; transform: rotate(45deg); background: var(--menu-bg); border-radius: 2px; }
+.ph { display: flex; gap: 10px; align-items: center; }
+.ph img { width: 36px; height: 36px; }
+.ph .tt { font-weight: 700; font-size: 14px; line-height: 1.2; }
+.ph .rl { margin-left: auto; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: var(--btn-bg); border: .5px solid var(--btn-border); box-shadow: var(--btn-shadow); color: var(--accent); }
+.sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 10px; }
+.tile { border-radius: 9px; padding: 8px 10px; background: var(--gray-bg); }
+.tile .nn { font-size: 22px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .ll { font-size: 11px; display: flex; gap: 4px; align-items: center; margin-top: 2px; font-weight: 600; }
+.tile.red { background: var(--red-bg); color: var(--red); } .tile.blue { background: var(--blue-bg); color: var(--blue); } .tile.orange { background: var(--orange-bg); color: var(--orange); } .tile.green { background: var(--green-bg); color: var(--green); }
+.tile .ll svg.sf { width: 12px; height: 12px; vertical-align: 0; }
+.nh { font-size: 11px; font-weight: 600; color: var(--label2); margin: 4px 0 4px; }
+.it { display: flex; align-items: center; gap: 8px; height: 30px; font-size: 12.5px; border-top: .5px solid var(--sep); }
+.it .ico { width: 20px; height: 20px; border-radius: 5px; color: #fff; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.it .badge { margin-left: auto; height: 19px; font-size: 10.5px; }
+.pf { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: .5px solid var(--sep); align-items: center; }
+.pf .lk { color: var(--label2); font-size: 12.5px; }
+.ok { display: flex; gap: 10px; align-items: center; padding: 14px 4px 8px; }
+.ok svg { width: 30px; height: 30px; stroke-width: 1.2; }
+</style></head>
+<body>
+<h1 class="pg">Menu bar (#5). The icon shows the alert variant while findings are open, and the normal variant when none are open.</h1>
+<div class="grid" id="g"></div>
+<script>
+const alertImg = '../logo/menubar-alert-template@2x.png', calmImg = '../logo/menubar-template@2x.png';
+const bar = (img) => `<div class="mb"><span class="wi"></span><span class="bt"></span><span class="wt"><img src="${img}" alt="Watchtower"></span><span>Thu Oct 29&nbsp;&nbsp;9:41 AM</span></div>`;
+const mi = (t, o = {}) => `<div class="mi ${o.off ? 'off' : ''} ${o.hl ? 'hl' : ''}">${o.sym ? sf(o.sym, o.cls) : ''}<span>${t}</span>${o.k ? `<span class="kk">${o.k}</span>` : ''}</div>`;
+const menu = (stateLabel, counts) => `<div class="menu">${mi(stateLabel, { off: true })}<div class="ms"></div>${mi('Refresh', { k: '⌘R', hl: true })}<div class="ms"></div>${counts}<div class="ms"></div>${mi('Open Watchtower')}${mi('Settings…', { k: '⌘,' })}<div class="ms"></div>${mi('Quit Watchtower', { k: '⌘Q' })}</div>`;
+const countsOpen = mi('1 vulnerable', { sym: 'exclamationmark.shield', cls: 't-red', off: false }) + mi('5 updates available', { sym: 'arrow.up.circle', cls: 't-blue' }) + mi('1 error', { sym: 'exclamationmark.triangle', cls: 't-orange' });
+const item = (l, c, n, v, b) => `<div class="it"><span class="ico" style="background:${c}">${l}</span><span class="b">${n}</span><span class="sec num">${v}</span>${badge(b)}</div>`;
+const pop = (rlabel, body, warn) => `<div class="pop"><div class="ph"><img src="../logo/watchtower-icon-1024.png" alt=""><div><div class="tt">Watchtower</div><div class="rlabel ${warn || ''}" style="font-size:11.5px">${rlabel}</div></div><span class="rl">${sf('arrow.clockwise')}</span></div>${body}
+ <div class="pf"><span class="btn prom lg">Open Watchtower</span><span class="lk" style="margin-left:auto">Settings…</span><span class="lk">Quit</span></div></div>`;
+const tiles = `<div class="sum"><div class="tile red"><div class="nn">1</div><div class="ll">${sf('exclamationmark.shield')}Vulnerable</div></div><div class="tile blue"><div class="nn">5</div><div class="ll">${sf('arrow.up.circle')}Updates</div></div><div class="tile orange"><div class="nn">1</div><div class="ll">${sf('exclamationmark.triangle')}Error</div></div></div>`;
+const list = `<div class="nh">Needs attention</div>${item('Q', '#6b5ce7', 'Quillnote', '2.4.1', 'Vulnerable')}${item('C', '#e8710a', 'Google Chrome', '129', 'Update available')}${item('D', '#1f7ae0', 'Docker Desktop', '4.34', 'Update available')}`;
+const allclear = `<div class="ok"><svg class="sf t-green" viewBox="0 0 16 16">${P['checkmark.seal']}</svg><div><div class="b" style="font-size:14px">Everything is up to date</div><div class="sec" style="font-size:12px">0 findings open. Scan was complete.</div></div></div>`;
+const cell = (l, scene, note) => `<div><div class="lbl">${l}</div><div class="scene">${scene}</div><div class="note">${note}</div></div>`;
+document.getElementById('g').innerHTML =
+  cell('1. Menu style: the minimum for #5', bar(alertImg) + menu('Last refresh: 2 h ago', countsOpen), 'Standard menu. Use this if the window popover is not ready. Same items as the #5 notes.') +
+  cell('2. Popover (target): findings open', bar(alertImg) + pop('Last refresh: 2 h ago', tiles + list), 'MenuBarExtra with the window style. Rows open the main window. Update starts only in the main window.') +
+  cell('3. Popover: all clear', bar(calmImg) + pop('Last refresh: 12 min ago', allclear), 'Normal icon. A calm state with no list.') +
+  cell('4. Popover: stale scan', bar(alertImg) + pop('Stale: last refresh Oct 27, 09:14', tiles + list, 'orange'), 'An old scan is never shown as fresh. The label turns orange and carries the full date.');
+</script></body></html>

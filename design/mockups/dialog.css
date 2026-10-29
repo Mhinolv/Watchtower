@@ -1,0 +1,28 @@
+body { padding: 24px 28px 32px; }
+h1.pg { font-size: 15px; margin: 0 0 18px; font-weight: 700; }
+.board { display: grid; grid-template-columns: repeat(3, 500px); gap: 30px 28px; justify-content: center; }
+.cell { display: flex; flex-direction: column; align-items: center; }
+.cell .lbl { font-size: 11.5px; font-weight: 600; color: var(--label2); margin-bottom: 8px; align-self: flex-start; }
+.cell .note { font-size: 11.5px; color: var(--label2); margin-top: 8px; align-self: flex-start; max-width: 480px; }
+.rows { display: grid; grid-template-columns: 100px 1fr; row-gap: 12px; align-items: start; }
+.rows > .k { color: var(--label2); font-size: 12.5px; padding-top: 1px; }
+.cmd { display: flex; align-items: center; gap: 8px; }
+.cmd .mono { flex: 1; user-select: all; }
+.cpy { width: 24px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; color: var(--label2); }
+.pk { display: flex; justify-content: space-between; font-size: 12.5px; padding: 2px 0; }
+.res { display: flex; gap: 14px; align-items: flex-start; }
+.res svg.big { width: 34px; height: 34px; stroke-width: 1.2; flex: none; }
+.res .t { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.out { margin-top: 12px; font-size: 11.5px; line-height: 1.5; color: var(--label2); white-space: pre; overflow: hidden; }
+.disc { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--label2); margin-top: 14px; }
+.prog { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+.prog .spin { width: 18px; height: 18px; border-width: 2.5px; }
+.bar { height: 5px; border-radius: 3px; background: var(--gray-bg); margin-top: 12px; position: relative; overflow: hidden; }
+.bar i { position: absolute; left: 22%; width: 34%; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.rows.w { grid-template-columns: 138px 1fr; }
+.line { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; }
+.line + .line { margin-top: 6px; }
+.dl { margin-top: 6px; padding-left: 4px; font-size: 12px; }
+.dl .pk { padding: 1px 0; }
+.res .tt { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.snip { width: 480px; background: var(--bg-window); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 22px; display: grid; gap: 14px; }
