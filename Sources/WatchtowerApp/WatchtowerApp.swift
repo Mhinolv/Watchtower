@@ -38,16 +38,17 @@ struct WatchtowerApp: App {
         } label: {
             MenuBarIcon(model: model)
         }
+        .menuBarExtraStyle(.window)
     }
 }
 
-/// The menu bar menu, with access to `openWindow`.
+/// The menu bar popover, with access to `openWindow`.
 struct MenuBarMenu: View {
     let model: DashboardModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        MenuBarContent(model: model) {
+        MenuBarPopover(model: model) {
             openWindow(id: "main")
             NSApplication.shared.activate()
         }

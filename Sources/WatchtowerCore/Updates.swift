@@ -147,6 +147,16 @@ public struct UpdateResultStyle: Equatable, Sendable {
     public var symbol: String
     public var tone: Tone
     public var text: String
+    /// The second line under the result, from the approved update-dialog mockup.
+    public var detail: String? {
+        switch symbol {
+        case "checkmark.seal": "Watchtower read the version again after the command."
+        case "xmark.octagon": "Watchtower did not confirm any change."
+        case "exclamationmark.triangle" where text.hasPrefix("The command finished"):
+            "Watchtower does not count this update as done."
+        default: nil
+        }
+    }
 
     public init(_ attempt: UpdateAttempt) {
         switch attempt.status {

@@ -21,6 +21,9 @@ The app reads the stored state at launch. Only the Refresh button starts a refre
 
 `scripts/snapshot.sh <out-dir>` renders the dashboard scenarios offscreen to PNG files, light and dark. It uses sample data, not the engine.
 
+`scripts/bundle.sh [out-dir]` builds `Watchtower.app` (default `build/`). The bundle has `AppIcon.icns` from `design/logo/`, the `AccentColor` asset catalog (Watchtower Indigo) and the menu bar template icons.
+The UI follows `design/system.md` and the approved mockups in `design/mockups/`.
+
 ## Local data
 
 The engine keeps its state in `~/Library/Application Support/Watchtower/watchtower.sqlite3`.

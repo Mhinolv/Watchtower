@@ -1,20 +1,31 @@
+import AppKit
 import SwiftUI
 import WatchtowerCore
 
+// Colors and shapes from design/system.md.
+
+extension Color {
+    /// A color that follows light and dark mode.
+    public init(_ pair: ColorPair) {
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let hex = dark ? pair.dark : pair.light
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        })
+    }
+
+    /// Watchtower Indigo. The app bundle also sets it as `AccentColor` in the asset catalog.
+    public static let watchtowerAccent = Color(DesignTokens.accent)
+}
+
 extension Tone {
     public var color: Color {
-        switch self {
-        case .secondary: .secondary
-        case .green: .green
-        case .blue: .blue
-        case .red: .red
-        case .orange: .orange
-        case .gray: .gray
-        }
+        DesignTokens.pair(self).map(Color.init) ?? .secondary
     }
 }
 
-/// The shared status badge: symbol, text and color. The text is always shown.
+/// The shared status badge: a capsule with symbol and word. The word is always shown.
 public struct StatusBadge: View {
     let style: StatusStyle
 
@@ -23,11 +34,102 @@ public struct StatusBadge: View {
     }
 
     public var body: some View {
-        Label(style.text, systemImage: style.symbol)
-            .foregroundStyle(style.tone.color)
-            .labelStyle(.titleAndIcon)
+        Capsule(text: style.text, symbol: style.symbol, color: style.tone.color)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Status: \(style.text)")
+    }
+
+    /// 21 pt high, 11.5 pt semibold, symbol color at 16 percent behind.
+    struct Capsule: View {
+        let text: String
+        let symbol: String
+        let color: Color
+
+        var body: some View {
+            HStack(spacing: 4) {
+                Image(systemName: symbol).imageScale(.small)
+                Text(text).lineLimit(1)
+            }
+            .font(.system(size: DesignTokens.badgeFontSize, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .frame(height: DesignTokens.badgeHeight)
+            .background(color.opacity(DesignTokens.badgeFill), in: SwiftUI.Capsule())
+            .fixedSize()
+        }
+    }
+}
+
+/// A letter tile for an item: 22 pt in a row (5 pt radius), 52 pt in the detail header.
+public struct ItemIcon: View {
+    let name: String
+    let size: Double
+
+    public init(name: String, size: Double = DesignTokens.rowIconSize) {
+        self.name = name
+        self.size = size
+    }
+
+    static let palette: [Color] = [
+        Color(red: 0.42, green: 0.36, blue: 0.91), Color(red: 0.91, green: 0.45, blue: 0.10),
+        Color(red: 0.16, green: 0.47, blue: 0.86), Color(red: 0.49, green: 0.23, blue: 0.85),
+        Color(red: 0.80, green: 0.27, blue: 0.20), Color(red: 0.13, green: 0.55, blue: 0.47),
+        Color(red: 0.29, green: 0.33, blue: 0.40),
+    ]
+
+    public var body: some View {
+        let hash = name.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
+        RoundedRectangle(cornerRadius: size <= 24 ? DesignTokens.rowIconRadius : size * 0.22)
+            .fill(Self.palette[hash % Self.palette.count])
+            .frame(width: size, height: size)
+            .overlay {
+                Text(String(name.prefix(1)).uppercased())
+                    .font(.system(size: size * 0.5, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+/// A count in a gray capsule. Red when `alert` is set (Findings above 0).
+struct CountCapsule: View {
+    let count: Int
+    var alert = false
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: 11, weight: .semibold).monospacedDigit())
+            .foregroundStyle(alert ? Tone.red.color : .secondary)
+            .padding(.horizontal, 7)
+            .frame(minWidth: 24, minHeight: 17)
+            .background((alert ? Tone.red.color : Color.gray).opacity(alert ? 0.16 : 0.18), in: SwiftUI.Capsule())
+    }
+}
+
+/// One filter chip above the item list. The selected chip has the accent tint.
+struct FilterChipButton: View {
+    let chip: FilterChip
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text("\(chip.count)").fontWeight(.semibold).monospacedDigit()
+                if let symbol = chip.filter.symbol { Image(systemName: symbol).imageScale(.small) }
+                Text(chip.filter.title)
+            }
+            .font(.system(size: 12.5))
+            .foregroundStyle(chip.selected ? Color.watchtowerAccent : .primary)
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(chip.selected ? Color.watchtowerAccent.opacity(0.16) : Color.clear, in: SwiftUI.Capsule())
+            .overlay(SwiftUI.Capsule().strokeBorder(chip.selected ? Color.watchtowerAccent.opacity(0.5)
+                                                                   : Color.secondary.opacity(0.35)))
+            .contentShape(SwiftUI.Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(chip.filter.title), \(chip.count)")
+        .accessibilityAddTraits(chip.selected ? .isSelected : [])
     }
 }
 
@@ -48,6 +150,9 @@ public struct RefreshLabelView: View {
             HStack(spacing: 6) {
                 if label.showsProgress {
                     ProgressView().controlSize(.small)
+                }
+                if let symbol = label.symbol {
+                    Image(systemName: symbol).foregroundStyle(label.tone.color)
                 }
                 Text(label.text).foregroundStyle(label.tone.color)
             }

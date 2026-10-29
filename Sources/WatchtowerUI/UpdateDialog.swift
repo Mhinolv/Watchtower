@@ -33,8 +33,9 @@ public struct UpdateDialog: View {
                 FailedStep(model: model, error: error)
             }
         }
-        .padding(20)
+        .padding(24)
         .frame(width: 580)
+        .tint(.watchtowerAccent)
         .interactiveDismissDisabled(model.isRunning)
         .alert("Update to a new major version?", isPresented: majorBinding, presenting: majorPlan) { plan in
             Button("Cancel", role: .cancel) { model.backToPlan() }
@@ -64,43 +65,44 @@ struct PlanStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Update \(plan.name)").font(.title2).bold()
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
                 Text(plan.versionLine).foregroundStyle(.secondary)
             }
-            Grid(alignment: .topLeading, horizontalSpacing: 14, verticalSpacing: 10) {
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 12) {
                 GridRow {
                     Text("Command").foregroundStyle(.secondary)
-                    HStack(alignment: .top) {
-                        Text(plan.commandText)
-                            .font(.callout.monospaced())
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(plan.commandText, forType: .string)
-                        } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
-                        }
-                        .help("Copy the command")
-                    }
+                    CommandBox(text: plan.commandText)
                 }
                 GridRow {
                     Text("Also changes").foregroundStyle(.secondary)
                     if plan.alsoChanges.isEmpty {
                         Text("No other packages change.")
                     } else {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             ForEach(plan.alsoChanges, id: \.name) { change in
-                                Text(change.change == "install"
-                                     ? "\(change.name) \(change.after ?? "") (new)"
-                                     : "\(change.name) \(change.before ?? "?") → \(change.after ?? "?")")
+                                HStack {
+                                    Text(change.name)
+                                    Spacer()
+                                    Text(change.change == "install"
+                                         ? "new \(change.after ?? "")"
+                                         : "\(change.before ?? "?") → \(change.after ?? "?")")
+                                        .font(.callout.monospaced())
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
                 }
                 GridRow {
                     Text("Scripts").foregroundStyle(.secondary)
-                    Text(plan.scripts.isEmpty ? "Disabled" : "Needed: \(plan.scripts.joined(separator: ", "))")
+                    if plan.scripts.isEmpty {
+                        SmallBadge(text: "Disabled", tone: .gray)
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            SmallBadge(text: "Needed", tone: .orange)
+                            Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             if let refusal = plan.refusal {
@@ -117,6 +119,47 @@ struct PlanStep: View {
             }
         }
         .onAppear { cancelFocused = true }
+    }
+}
+
+/// The exact command in a monospaced box, with a Copy button inside it.
+struct CommandBox: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(text)
+                .font(.callout.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .help("Copy the command")
+            .accessibilityLabel("Copy")
+        }
+        .padding(10)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.25)))
+    }
+}
+
+/// A small gray or colored word in a rounded box, for example the `Disabled` scripts badge.
+struct SmallBadge: View {
+    let text: String
+    let tone: Tone
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(tone.color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(tone.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -142,18 +185,27 @@ struct ScriptsStep: View {
 struct RunningStep: View {
     let plan: UpdatePlan
     let output: [String]
-    @State private var showsOutput = false
+    @State private var showsOutput = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Update \(plan.name)").font(.title2).bold()
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Running…")
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+                Text(plan.versionLine).foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Running…").fontWeight(.semibold)
+                ProgressView().progressViewStyle(.linear)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityLabel("Running")
             DisclosureGroup("Show output", isExpanded: $showsOutput) {
                 OutputText(text: output.joined(separator: "\n"))
+            }
+            HStack {
+                Spacer()
+                // Escape and Done do nothing while the update runs.
+                Button("Done") {}.disabled(true)
             }
         }
     }
@@ -168,17 +220,40 @@ struct ResultStep: View {
     var body: some View {
         let style = UpdateResultStyle(attempt)
         VStack(alignment: .leading, spacing: 14) {
-            Text("Update \(attempt.name)").font(.title2).bold()
-            Label(style.text, systemImage: style.symbol)
-                .foregroundStyle(style.tone.color)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: style.symbol)
+                    .font(.system(size: 26))
+                    .foregroundStyle(style.tone.color)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(style.text).font(.system(size: 15, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail = style.detail {
+                        Text(detail).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            if attempt.status == .verified || attempt.status == .notVerified {
+                Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
+                    GridRow {
+                        Text("Before").foregroundStyle(.secondary)
+                        Text(attempt.beforeVersion ?? "—").monospacedDigit()
+                    }
+                    GridRow {
+                        Text("After").foregroundStyle(.secondary)
+                        Text(attempt.afterVersion ?? "—").monospacedDigit()
+                    }
+                }
+            }
             if attempt.status == .verified, !attempt.manualSteps.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Manual steps").font(.headline)
                     ForEach(attempt.manualSteps, id: \.self) { Text("• \($0)") }
                 }
             }
-            if !attempt.output.isEmpty {
+            if !attempt.output.isEmpty, attempt.status != .verified, attempt.status != .notVerified {
                 DisclosureGroup("Show output", isExpanded: $showsOutput) {
                     OutputText(text: attempt.output)
                 }
@@ -189,7 +264,9 @@ struct ResultStep: View {
                 }
                 Spacer()
                 Button("View Log") { model.viewLog() }
-                Button("Done") { model.close() }.keyboardShortcut(.defaultAction)
+                Button("Done") { model.close() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
             }
         }
         .onAppear {
