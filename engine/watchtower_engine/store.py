@@ -177,7 +177,8 @@ class Store:
         - `last_complete_at` changes only when `status` is `complete`.
         - A source with `complete` coverage gets `last_success_at` = now and its items are replaced.
         - Other sources keep their previous items, and reported items are added or updated.
-        - A source that this refresh does not report becomes `stale`.
+        - A source that this refresh does not report becomes `stale`, unless the owner
+          cancelled the refresh: then every source keeps its previous state.
         If the save fails, nothing from it is kept and the refresh is marked failed.
         """
         if status not in REFRESH_STATUSES or status == "running":
@@ -194,7 +195,7 @@ class Store:
                 "UPDATE refreshes SET status = ?, finished_at = ?, error = ?, detail = ? WHERE id = ?",
                 (status, now, owner_error(error), detail, refresh_id),
             )
-            self._write_coverage(refresh_id, now, coverage)
+            self._write_coverage(refresh_id, now, coverage, mark_stale=status != "cancelled")
             self._write_items(now, coverage, items)
             self.db.execute("COMMIT")
         except BaseException as exc:
@@ -210,7 +211,8 @@ class Store:
             raise
         return self.refresh(refresh_id)
 
-    def _write_coverage(self, refresh_id: int, now: str, coverage: list[CoverageRecord]) -> None:
+    def _write_coverage(self, refresh_id: int, now: str, coverage: list[CoverageRecord],
+                        mark_stale: bool = True) -> None:
         reported = {c.source for c in coverage}
         for c in coverage:
             row = self.db.execute(
@@ -226,6 +228,8 @@ class Store:
                 (c.source, c.label, c.state, last_success, owner_error(c.error), c.detail, refresh_id,
                  c.source_at),
             )
+        if not mark_stale:
+            return
         for row in self.db.execute(
             "SELECT source FROM coverage WHERE state IN ('complete', 'partial')"
         ).fetchall():

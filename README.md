@@ -13,6 +13,14 @@ Status: in development. See `AGENTS.md`.
 ./scripts/test.sh
 ```
 
+## App
+
+`swift run Watchtower` opens the dashboard and the menu bar icon. The app runs the engine in `engine/` with the first Python 3 it finds.
+Set `WATCHTOWER_PYTHON` or `WATCHTOWER_ENGINE_DIR` to change that.
+The app reads the stored state at launch. Only the Refresh button starts a refresh.
+
+`scripts/snapshot.sh <out-dir>` renders the dashboard scenarios offscreen to PNG files, light and dark. It uses sample data, not the engine.
+
 ## Local data
 
 The engine keeps its state in `~/Library/Application Support/Watchtower/watchtower.sqlite3`.
@@ -27,6 +35,7 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 |---|---|
 | `watchtower version` | `{"schema_version", "engine"}` |
 | `watchtower state` | `{"schema_version", "refresh", "coverage", "items"}` |
+| `watchtower refresh` | Runs every source and saves the result. Prints the state. Progress lines go to stderr. SIGTERM saves a `cancelled` refresh and exits 130 |
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
 | `watchtower macos` | `{"schema_version", "coverage", "items"}` for the macOS version and build |
 | `watchtower apps` | `{"schema_version", "coverage", "items"}` for apps in `/Applications` and `~/Applications` |
