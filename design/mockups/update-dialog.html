@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: update dialog (#6, #10, #11)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>
+body { padding: 24px 28px 32px; }
+h1.pg { font-size: 15px; margin: 0 0 18px; font-weight: 700; }
+.board { display: grid; grid-template-columns: repeat(3, 500px); gap: 30px 28px; justify-content: center; }
+.cell { display: flex; flex-direction: column; align-items: center; }
+.cell .lbl { font-size: 11.5px; font-weight: 600; color: var(--label2); margin-bottom: 8px; align-self: flex-start; }
+.cell .note { font-size: 11.5px; color: var(--label2); margin-top: 8px; align-self: flex-start; max-width: 480px; }
+.rows { display: grid; grid-template-columns: 100px 1fr; row-gap: 12px; align-items: start; }
+.rows > .k { color: var(--label2); font-size: 12.5px; padding-top: 1px; }
+.cmd { display: flex; align-items: center; gap: 8px; }
+.cmd .mono { flex: 1; user-select: all; }
+.cpy { width: 24px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; color: var(--label2); }
+.pk { display: flex; justify-content: space-between; font-size: 12.5px; padding: 2px 0; }
+.res { display: flex; gap: 14px; align-items: flex-start; }
+.res svg.big { width: 34px; height: 34px; stroke-width: 1.2; flex: none; }
+.res .t { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.out { margin-top: 12px; font-size: 11.5px; line-height: 1.5; color: var(--label2); white-space: pre; overflow: hidden; }
+.disc { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--label2); margin-top: 14px; }
+.prog { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+.prog .spin { width: 18px; height: 18px; border-width: 2.5px; }
+.bar { height: 5px; border-radius: 3px; background: var(--gray-bg); margin-top: 12px; position: relative; overflow: hidden; }
+.bar i { position: absolute; left: 22%; width: 34%; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+</style></head>
+<body>
+<h1 class="pg">Update dialog: every step (#6). npm (#10) and uv (#11) add rows to the plan step. Example item: Homebrew formula ripgrep.</h1>
+<div class="board">
+
+ <div class="cell"><div class="lbl">1. Plan step</div>
+  <div class="sheet">
+   <h2>Update ripgrep</h2><div class="sub num">14.1.0 → 14.1.1</div>
+   <div class="rows">
+    <div class="k">Command</div>
+    <div class="code cmd"><span class="mono">brew upgrade ripgrep</span><span class="cpy"><i data-i="doc.on.doc"></i></span></div>
+    <div class="k">Also changes</div>
+    <div><div class="pk"><span>pcre2</span><span class="mono sec">10.42 → 10.44</span></div></div>
+    <div class="k">Scripts</div><div><span class="chip">Disabled</span></div>
+   </div>
+   <div class="btns"><span class="btn lg focus">Cancel</span><span class="btn lg">Update</span></div>
+  </div>
+  <div class="note">Focus starts on Cancel. Update is not the default button. Return does nothing. Escape cancels.</div></div>
+
+ <div class="cell"><div class="lbl">2. Major version alert</div>
+  <div class="alert"><img src="../logo/watchtower-icon-1024.png" alt="Watchtower">
+   <h3>Update to a new major version?</h3><p>2.x → 3.0 can break your setup.</p>
+   <div class="btns"><span class="btn lg focus">Cancel</span><span class="btn lg">Update to 3.0</span></div></div>
+  <div class="note">Shown after Update in the plan step, only when the major version changes.</div></div>
+
+ <div class="cell"><div class="lbl">3. Running step</div>
+  <div class="sheet">
+   <h2>Update ripgrep</h2><div class="sub num">14.1.0 → 14.1.1</div>
+   <div class="prog">Running…</div><div class="bar"><i></i></div>
+   <div class="disc"><i data-i="chevron.down"></i>Show output</div>
+   <div class="code mono out">==&gt; Upgrading ripgrep
+  14.1.0 -&gt; 14.1.1
+==&gt; Pouring ripgrep--14.1.1.arm64.bottle.tar.gz
+==&gt; Cleaning up old versions</div>
+   <div class="btns"><span class="btn lg dis">Done</span></div>
+  </div>
+  <div class="note">Escape does nothing. If the app quits, the log records Interrupted.</div></div>
+
+ <div class="cell"><div class="lbl">4. Result: verified</div>
+  <div class="sheet">
+   <div class="res"><svg class="sf big t-green" viewBox="0 0 16 16"><use/></svg><div><div class="t">Updated. Installed version is now 14.1.1.</div>
+    <div class="sec" style="margin-top:4px">Watchtower read the version again after the command.</div></div></div>
+   <div class="rows" style="margin-top:16px"><div class="k">Before</div><div class="num">14.1.0</div><div class="k">After</div><div class="num">14.1.1</div></div>
+   <div class="btns"><span class="btn lg">View Log</span><span class="btn lg prom">Done</span></div>
+  </div><div class="note">Symbol checkmark.seal, green. VoiceOver reads the result text. Done is the default button.</div></div>
+
+ <div class="cell"><div class="lbl">5. Result: not verified</div>
+  <div class="sheet">
+   <div class="res"><svg class="sf big t-orange" viewBox="0 0 16 16"><use/></svg><div><div class="t">The command finished, but the installed version is still 14.1.0.</div>
+    <div class="sec" style="margin-top:4px">Watchtower does not count this update as done.</div></div></div>
+   <div class="rows" style="margin-top:16px"><div class="k">Before</div><div class="num">14.1.0</div><div class="k">After</div><div class="num">14.1.0</div></div>
+   <div class="btns"><span class="btn lg">View Log</span><span class="btn lg prom">Done</span></div>
+  </div><div class="note">Symbol exclamationmark.triangle, orange.</div></div>
+
+ <div class="cell"><div class="lbl">6. Result: failed</div>
+  <div class="sheet">
+   <div class="res"><svg class="sf big t-red" viewBox="0 0 16 16"><use/></svg><div><div class="t">The update failed (exit code 1).</div>
+    <div class="sec" style="margin-top:4px">Watchtower did not confirm any change.</div></div></div>
+   <div class="disc"><i data-i="chevron.right"></i>Show output</div>
+   <div class="btns"><span class="btn lg">View Log</span><span class="btn lg prom">Done</span></div>
+  </div><div class="note">Symbol xmark.octagon, red. Output stays collapsed. View Log opens Update Log (⌘7).</div></div>
+
+</div>
+<script>
+// Fill the big result symbols from the shared drawings.
+const sym = ['checkmark.seal', 'exclamationmark.triangle', 'xmark.octagon'];
+document.querySelectorAll('svg.big').forEach((e, i) => { e.innerHTML = P[sym[i]]; });
+</script></body></html>

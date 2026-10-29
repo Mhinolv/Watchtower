@@ -197,8 +197,14 @@ def test_npm_and_uv_advisories_parse(tmp_path, projects):
     assert jinja.aliases == ["CVE-2024-22195"]
     assert set(lodash.to_dict()) == {
         "project", "project_path", "lockfile", "name", "ecosystem", "version",
-        "dependency_path", "advisory_ids", "aliases",
+        "dependency_path", "advisory_ids", "aliases", "advisories",
     }
+    # Two advisory groups for lodash. PYSEC and GHSA are one group for jinja2.
+    assert [g["ids"] for g in lodash.advisories] == [
+        ["CVE-2021-23337", "GHSA-35jh-r3h4-6jhm"], ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"],
+    ]
+    assert [g["severity"] for g in lodash.advisories] == ["high", "medium"]
+    assert [g["ids"] for g in jinja.advisories] == [["CVE-2024-22195", "GHSA-h5c8-rqwp-cp95", "PYSEC-2024-1"]]
 
 
 def test_parse_output_reads_fixture_paths_exactly():

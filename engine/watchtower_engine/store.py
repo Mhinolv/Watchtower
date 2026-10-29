@@ -12,6 +12,7 @@ import sqlite3
 from pathlib import Path
 from typing import Callable, Iterable
 
+from . import findings as findings_module
 from .models import (
     REFRESH_STATUSES,
     SCHEMA_VERSION,
@@ -126,6 +127,7 @@ class Store:
 
     def _migrate(self) -> None:
         self.db.executescript(_SCHEMA)
+        findings_module.migrate(self.db)
         for table, columns in _ADDED_COLUMNS.items():
             have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
             for column in columns:
@@ -171,8 +173,12 @@ class Store:
         items: Iterable[ItemRecord] = (),
         error: str | None = None,
         detail: str | None = None,
+        scan=None,
     ) -> RefreshRecord:
         """Save the result of a refresh in one transaction.
+
+        `scan` is the OSV result of this refresh, if any. It updates the findings in the same
+        transaction (see findings.py).
 
         - `last_complete_at` changes only when `status` is `complete`.
         - A source with `complete` coverage gets `last_success_at` = now and its items are replaced.
@@ -197,6 +203,8 @@ class Store:
             )
             self._write_coverage(refresh_id, now, coverage, mark_stale=status != "cancelled")
             self._write_items(now, coverage, items)
+            if scan is not None:
+                findings_module.apply_scan(self.db, now, scan)
             self.db.execute("COMMIT")
         except BaseException as exc:
             self.db.execute("ROLLBACK")
@@ -298,6 +306,29 @@ class Store:
             items.append(ItemRecord(**row))
         return items
 
+    def findings(self) -> list[findings_module.Finding]:
+        return findings_module.list_findings(self.db, self.clock())
+
+    def _finding_action(self, finding_id: str, act: Callable) -> findings_module.Finding:
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            act(self.db)
+            self.db.execute("COMMIT")
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            raise
+        return findings_module.get(self.db, self.clock(), finding_id)
+
+    def defer_finding(self, finding_id: str, days: int) -> findings_module.Finding:
+        now = self.clock()
+        return self._finding_action(finding_id, lambda db: findings_module.defer(db, finding_id, days, now))
+
+    def backlog_finding(self, finding_id: str) -> findings_module.Finding:
+        return self._finding_action(finding_id, lambda db: findings_module.move_to_backlog(db, finding_id))
+
+    def reopen_finding(self, finding_id: str) -> findings_module.Finding:
+        return self._finding_action(finding_id, lambda db: findings_module.reopen(db, finding_id))
+
     def state(self) -> dict:
         """The current state, as the `state` CLI command prints it (without the envelope)."""
         latest = self.latest_refresh()
@@ -305,4 +336,5 @@ class Store:
             "refresh": latest.to_dict() if latest else None,
             "coverage": [c.to_dict() for c in self.coverage()],
             "items": [i.to_dict() for i in self.items()],
+            "findings": [f.to_dict() for f in self.findings()],
         }

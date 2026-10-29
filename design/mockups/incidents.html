@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watchtower: Incidents (#12)</title>
+<link rel="stylesheet" href="shared.css"><script src="shared.js"></script>
+<style>
+.th, .tr { --cols: 130px 1fr 90px 152px 150px; } .tr { height: 44px; }
+.src { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 20px 6px; }
+.sc { padding: 11px 14px; display: grid; gap: 4px; }
+.sc .top { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.sc .top .badge { margin-left: auto; }
+</style></head>
+<body><script>
+T['Confirmed'] = ['red', 'exclamationmark.shield']; T['Possible relevance'] = ['orange', 'questionmark.circle']; T['Unconfirmed'] = ['gray', 'questionmark.circle'];
+T['Checked'] = ['green', 'checkmark.circle']; T['Failed'] = ['orange', 'exclamationmark.triangle']; T['Checking'] = ['gray', 'arrow.clockwise'];
+const view = q.get('view') || 'default';
+const label = { default: 'Reviewed Oct 22 – Oct 29', missed: 'Reviewed Oct 22 – Oct 29', failed: 'Reviewed Oct 22 – Oct 28', checking: 'Checking 2 of 3 sources…', empty: 'Reviewed Oct 22 – Oct 29' }[view];
+const sources = [
+  ['GitHub', 'Checked', 'Last success Oct 29, 08:10', ''],
+  ['Google / Gmail', view === 'failed' ? 'Failed' : view === 'checking' ? 'Checking' : 'Checked', view === 'failed' ? 'Last success Oct 28, 08:10' : 'Last success Oct 29, 08:10', view === 'failed' ? 'Google / Gmail: check failed. The review is not complete.' : ''],
+  ['Apple security', view === 'checking' ? 'Checking' : 'Checked', 'Last success Oct 29, 08:11', ''],
+];
+const sc = sources.map(([n, st, t, e]) => `<div class="card sc"><div class="top">${n}${badge(st)}</div><div class="sec" style="font-size:12px">${t}</div>${e ? `<div style="font-size:12px;color:var(--orange)">${e}</div>` : ''}</div>`).join('');
+const inc = [
+  ['GitHub', 'Third-party app tokens reset after a security event (sample)', 'Oct 27', 'Confirmed', 'GitHub status page'],
+  ['Google / Gmail', 'Phishing campaign targets Workspace sign-in (sample)', 'Oct 26', 'Possible relevance', 'Google Workspace status'],
+  ['Apple security', 'Update fixes a kernel flaw under attack (sample)', 'Oct 24', 'Confirmed', 'Apple security releases'],
+  ['GitHub', 'Report of leaked access tokens on a forum (sample)', 'Oct 23', 'Unconfirmed', 'News report only'],
+];
+const banner = view === 'missed' ? `<div style="padding:10px 20px 0"><div class="banner">${sf('exclamationmark.triangle')}No review for Oct 20 – Oct 21.</div></div>` : '';
+const table = view === 'empty' ? `<div class="empty" style="padding-top:40px"><i data-i="antenna.radiowaves.left.and.right"></i><div class="t">No incidents found in reviewed sources.</div><div>This does not prove that no breach happened.</div></div>` :
+  `<div class="th"><span>Service</span><span>Title</span><span>Date</span><span>Status</span><span>Source</span></div>` +
+  inc.map((r, i) => `<div class="tr ${i === 0 ? 'sel' : ''}"><span class="b">${r[0]}</span><span>${r[1]}</span><span class="v">${r[2]}</span><span>${badge(r[3])}</span><span class="sec" style="font-size:12px">${r[4]}</span></div>`).join('');
+const btn = view === 'checking' ? `<span class="tbtn">${sf('stop.fill')}Stop</span>` : `<span class="tbtn">${sf('antenna.radiowaves.left.and.right')}Check Sources</span>`;
+mount({ active: 'Incidents', title: 'Incidents', tool: `${btn}<span class="rlabel ${view === 'failed' ? 'orange' : ''}">${view === 'checking' ? '<span class="spin"></span>' : ''}${label}</span>${SEARCH}`,
+  body: `<div style="flex:1;display:flex;flex-direction:column;min-width:0">${banner}<div class="src">${sc}</div><div class="h" style="padding:14px 20px 6px;margin:0">Incidents</div>${table}</div>` });
+
+if (view === 'empty') document.querySelectorAll('.side-i').forEach(n => { if (n.querySelector('span').textContent === 'Incidents') { const c = n.querySelector('.n'); if (c) { c.textContent = '0'; c.classList.remove('hot'); } } });
+</script></body></html>

@@ -36,22 +36,11 @@ class Source:
 Progress = Callable[[int, int, str], None]
 
 
-def osv_items(result) -> list[ItemRecord]:
-    """One `vulnerable` item for each package match. Findings (#8) will replace this view."""
-    items = []
-    for m in result.matches:
-        items.append(ItemRecord(
-            id=f"{m.ecosystem}:{m.name}@{m.version}:{m.project}/{m.lockfile}",
-            source="osv",
-            name=m.name,
-            state="vulnerable",
-            kind=m.ecosystem,
-            installed_version=m.version,
-            project=m.project,
-            attributes={"lockfile": m.lockfile, "advisories": ", ".join(m.advisory_ids),
-                        "aliases": ", ".join(m.aliases)},
-        ))
-    return items
+@dataclass
+class ScanSourceResult(SourceResult):
+    """A source result that also carries the OSV scan. The store turns the scan into findings."""
+
+    osv: object = None
 
 
 def default_sources(data_dir: Path) -> list[Source]:
@@ -76,7 +65,7 @@ def default_sources(data_dir: Path) -> list[Source]:
 
     def osv_source() -> SourceResult:
         result = osv.collect(data_dir, list_projects(data_dir).projects)
-        return SourceResult(result.coverage, osv_items(result))
+        return ScanSourceResult(result.coverage, [], result)
 
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
@@ -93,6 +82,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
     refresh = store.begin_refresh()
     coverage: list[CoverageRecord] = []
     items: list[ItemRecord] = []
+    scan = None
     try:
         for done, src in enumerate(sources):
             progress(done, len(sources), src.label)
@@ -106,6 +96,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
                                                      detail=repr(exc)), [])
             coverage.append(result.coverage)
             items.extend(result.items)
+            scan = getattr(result, "osv", None) or scan
         if guard:
             guard.armed = False  # From here on, a stop must not cut the save short.
         progress(len(sources), len(sources), "")
@@ -120,7 +111,8 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
     else:
         status, error = "complete", None
     detail = "\n".join(f"{c.source}: {c.error}" for c in failed if c.error) or None
-    store.finish_refresh(refresh.id, status, coverage=coverage, items=items, error=error, detail=detail)
+    store.finish_refresh(refresh.id, status, coverage=coverage, items=items, error=error, detail=detail,
+                         scan=scan)
     return store.state()
 
 

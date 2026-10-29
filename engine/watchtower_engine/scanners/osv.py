@@ -85,6 +85,8 @@ class Match:
     dependency_path: list[str] | None  # None: OSV-Scanner gives no path for these lockfiles.
     advisory_ids: list[str]
     aliases: list[str]
+    # One entry for each advisory group: {ids, title, severity, fixed_in}. See `advisory_groups`.
+    advisories: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -141,6 +143,79 @@ def _strings(value, what: str) -> list[str]:
     return value
 
 
+def severity_label(score) -> str:
+    """CVSS base score (a number or text such as `7.2`) or a GHSA word to critical/high/medium/low/unknown."""
+    if isinstance(score, str):
+        word = score.strip().lower()
+        if word in ("critical", "high", "low"):
+            return word
+        if word == "moderate" or word == "medium":
+            return "medium"
+        try:
+            score = float(word)
+        except ValueError:
+            return "unknown"
+    if isinstance(score, bool) or not isinstance(score, (int, float)):
+        return "unknown"
+    if score >= 9.0:
+        return "critical"
+    if score >= 7.0:
+        return "high"
+    if score >= 4.0:
+        return "medium"
+    return "low" if score > 0 else "unknown"
+
+
+SEVERITY_ORDER = ("critical", "high", "medium", "low", "unknown")
+
+
+def _fixed_versions(vuln: dict, name: str) -> list[str]:
+    """`fixed` versions that the advisory lists for package `name`. Ignores any other shape."""
+    def norm(n: str) -> str:
+        return n.lower().replace("_", "-")
+
+    fixed: list[str] = []
+    for affected in vuln.get("affected") or []:
+        pkg = affected.get("package") if isinstance(affected, dict) else None
+        if not isinstance(pkg, dict) or norm(str(pkg.get("name", ""))) != norm(name):
+            continue
+        for rng in affected.get("ranges") or []:
+            for event in (rng.get("events") if isinstance(rng, dict) else None) or []:
+                value = event.get("fixed") if isinstance(event, dict) else None
+                if isinstance(value, str) and value:
+                    fixed.append(value)
+    return fixed
+
+
+def advisory_groups(entry: dict, name: str) -> list[dict]:
+    """One dict for each group of advisories that are the same issue.
+
+    `ids` holds every id of the group, with aliases (CVE, GHSA, OSV). Scanner output is untrusted:
+    optional fields with the wrong type are ignored.
+    """
+    vulns = {v["id"]: v for v in entry.get("vulnerabilities") or []}
+    groups = [g for g in entry.get("groups") or [] if isinstance(g, dict) and isinstance(g.get("ids"), list)]
+    if not groups:
+        groups = [{"ids": [i], "aliases": v.get("aliases") or []} for i, v in vulns.items()]
+    out = []
+    for g in groups:
+        members = [vulns[i] for i in g["ids"] if i in vulns]
+        ids = {i for i in g["ids"] if isinstance(i, str)}
+        for source in (g.get("aliases") or [], *[m.get("aliases") or [] for m in members]):
+            ids.update(a for a in source if isinstance(a, str))
+        title = next((m["summary"].strip() for m in members
+                      if isinstance(m.get("summary"), str) and m["summary"].strip()), None)
+        labels = [severity_label(g.get("max_severity"))]
+        for m in members:
+            specific = m.get("database_specific")
+            labels.append(severity_label(specific.get("severity") if isinstance(specific, dict) else None))
+        fixed = sorted({f for m in members for f in _fixed_versions(m, name)})
+        if ids:
+            out.append({"ids": sorted(ids), "title": title,
+                        "severity": min(labels, key=SEVERITY_ORDER.index), "fixed_in": fixed})
+    return out
+
+
 def parse_output(text: str) -> dict[str, list[dict]]:
     """Map each scanned source path to its vulnerable packages. Raises UnreadableOutput."""
     if not text.strip():
@@ -182,6 +257,7 @@ def parse_output(text: str) -> dict[str, list[dict]]:
                 rows.append({
                     "name": pkg["name"], "ecosystem": pkg["ecosystem"], "version": pkg["version"],
                     "advisory_ids": sorted(ids), "aliases": sorted(aliases - ids),
+                    "advisories": advisory_groups(entry, pkg["name"]),
                 })
     return found
 

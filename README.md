@@ -34,7 +34,7 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | Command | Output |
 |---|---|
 | `watchtower version` | `{"schema_version", "engine"}` |
-| `watchtower state` | `{"schema_version", "refresh", "coverage", "items"}` |
+| `watchtower state` | `{"schema_version", "refresh", "coverage", "items", "findings"}` |
 | `watchtower refresh` | Runs every source and saves the result. Prints the state. Progress lines go to stderr. SIGTERM saves a `cancelled` refresh and exits 130 |
 | `watchtower update-plan <item>` | `{"schema_version", "plan"}`: the exact command, other packages that change, script needs, refusal |
 | `watchtower update-run <item> --plan-id <id> [--confirm-major] [--confirm-scripts]` | `{"schema_version", "attempt", "plan"}`. Output lines go to stderr |
@@ -42,6 +42,9 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower homebrew` | `{"schema_version", "coverage", "items"}` for Homebrew formulae and casks |
 | `watchtower macos` | `{"schema_version", "coverage", "items"}` for the macOS version and build |
 | `watchtower apps` | `{"schema_version", "coverage", "items"}` for apps in `/Applications` and `~/Applications` |
+| `watchtower finding-defer <SEC-id> 7\|30` | `{"schema_version", "finding"}`. The finding is deferred until that many days from now |
+| `watchtower finding-backlog <SEC-id>` | `{"schema_version", "finding"}`. The finding moves to the backlog |
+| `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
@@ -79,3 +82,9 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - Every attempt goes in the update log (`update_attempts` table in the store): command, versions, output, result.
 - `brew upgrade` downloads the new bottle or app from Homebrew's usual sources. Watchtower sends nothing itself.
 - There is no "update all" and no `brew update`.
+
+## Findings
+
+Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.
+A finding lists every local lockfile that has the package. Only a complete scan resolves a finding: OSV coverage `complete` with no error, and every lockfile of the finding scanned.
+A partial, stale or failed scan never removes a path or resolves a finding. The findings are saved in the same SQLite file as the rest of the state.

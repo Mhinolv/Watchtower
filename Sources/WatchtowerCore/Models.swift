@@ -123,6 +123,127 @@ public struct ItemRecord: Codable, Hashable, Sendable {
     }
 }
 
+// MARK: - Findings
+
+public enum FindingStatus: String, Codable, Sendable, CaseIterable {
+    case open, deferred, backlog, resolved
+}
+
+public enum Severity: String, Codable, Sendable, CaseIterable {
+    case critical, high, medium, low, unknown
+
+    /// Sort order: worst first.
+    public var rank: Int {
+        switch self {
+        case .critical: 0
+        case .high: 1
+        case .medium: 2
+        case .low: 3
+        case .unknown: 4
+        }
+    }
+}
+
+/// One local place where a finding is present: a lockfile with the vulnerable package.
+public struct FindingPath: Codable, Hashable, Sendable, Identifiable {
+    public var project: String
+    /// Display path of the project, for example `~/Projects/web`.
+    public var projectPath: String
+    /// Relative to the project, for example `web/package-lock.json`.
+    public var lockfile: String
+    public var version: String
+    /// Packages from the project to the vulnerable one. nil if the scanner gives no path.
+    public var dependencyPath: [String]?
+
+    public var id: String { "\(projectPath)/\(lockfile)@\(version)" }
+
+    public init(project: String, projectPath: String, lockfile: String, version: String,
+                dependencyPath: [String]? = nil) {
+        self.project = project
+        self.projectPath = projectPath
+        self.lockfile = lockfile
+        self.version = version
+        self.dependencyPath = dependencyPath
+    }
+
+    /// The lockfile in Finder. `~` in `projectPath` becomes the home folder.
+    public var lockfileURL: URL {
+        URL(fileURLWithPath: (projectPath as NSString).expandingTildeInPath).appendingPathComponent(lockfile)
+    }
+}
+
+/// A stable finding: one advisory, with all its aliases, for one package.
+public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
+    /// `SEC-0001`. No later scan changes or reuses it.
+    public var id: String
+    public var ecosystem: String
+    public var package: String
+    public var title: String
+    public var severity: Severity
+    /// Every id of the advisory: CVE, GHSA and OSV ids.
+    public var advisoryIds: [String]
+    public var fixedIn: String?
+    public var status: FindingStatus
+    public var deferredUntil: Date?
+    public var firstSeen: Date
+    public var lastSeen: Date
+    public var resolvedAt: Date?
+    public var resolvedScanAt: Date?
+    public var source: String
+    public var sourceAt: Date?
+    public var paths: [FindingPath]
+    public var nextSteps: [String]
+
+    public var isOpen: Bool { status == .open }
+
+    public init(id: String, ecosystem: String = "npm", package: String, title: String, severity: Severity,
+                advisoryIds: [String], fixedIn: String? = nil, status: FindingStatus = .open,
+                deferredUntil: Date? = nil, firstSeen: Date, lastSeen: Date, resolvedAt: Date? = nil,
+                resolvedScanAt: Date? = nil, source: String = "OSV", sourceAt: Date? = nil,
+                paths: [FindingPath] = [], nextSteps: [String] = []) {
+        self.id = id
+        self.ecosystem = ecosystem
+        self.package = package
+        self.title = title
+        self.severity = severity
+        self.advisoryIds = advisoryIds
+        self.fixedIn = fixedIn
+        self.status = status
+        self.deferredUntil = deferredUntil
+        self.firstSeen = firstSeen
+        self.lastSeen = lastSeen
+        self.resolvedAt = resolvedAt
+        self.resolvedScanAt = resolvedScanAt
+        self.source = source
+        self.sourceAt = sourceAt
+        self.paths = paths
+        self.nextSteps = nextSteps
+    }
+
+    /// Distinct projects that have this finding.
+    public var projectNames: [String] {
+        var seen = Set<String>()
+        return paths.map(\.project).filter { seen.insert($0).inserted }
+    }
+
+    /// CVE ids first, then GHSA, then the rest.
+    public var sortedAdvisoryIds: [String] {
+        func rank(_ id: String) -> Int { id.hasPrefix("CVE-") ? 0 : id.hasPrefix("GHSA-") ? 1 : 2 }
+        return advisoryIds.sorted { (rank($0), $0) < (rank($1), $1) }
+    }
+}
+
+/// The page of an advisory at its source.
+public enum AdvisoryLink {
+    public static func url(for id: String) -> URL? {
+        let allowed = CharacterSet.urlPathAllowed
+        guard let path = id.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        if id.hasPrefix("CVE-") { return URL(string: "https://nvd.nist.gov/vuln/detail/\(path)") }
+        if id.hasPrefix("GHSA-") { return URL(string: "https://github.com/advisories/\(path)") }
+        return URL(string: "https://osv.dev/vulnerability/\(path)")
+    }
+}
+
 /// Output of `watchtower state`.
 public struct EngineState: Codable, Hashable, Sendable {
     public var schemaVersion: Int
@@ -130,12 +251,29 @@ public struct EngineState: Codable, Hashable, Sendable {
     public var refresh: RefreshRecord?
     public var coverage: [CoverageRecord]
     public var items: [ItemRecord]
+    public var findings: [FindingRecord]
 
-    public init(schemaVersion: Int, refresh: RefreshRecord?, coverage: [CoverageRecord], items: [ItemRecord]) {
+    public init(schemaVersion: Int, refresh: RefreshRecord?, coverage: [CoverageRecord], items: [ItemRecord],
+                findings: [FindingRecord] = []) {
         self.schemaVersion = schemaVersion
         self.refresh = refresh
         self.coverage = coverage
         self.items = items
+        self.findings = findings
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, refresh, coverage, items, findings
+    }
+
+    /// An engine that is older than the findings view sends no `findings` key.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        refresh = try c.decodeIfPresent(RefreshRecord.self, forKey: .refresh)
+        coverage = try c.decode([CoverageRecord].self, forKey: .coverage)
+        items = try c.decode([ItemRecord].self, forKey: .items)
+        findings = try c.decodeIfPresent([FindingRecord].self, forKey: .findings) ?? []
     }
 }
 
