@@ -13,7 +13,9 @@ from dataclasses import asdict, dataclass, field
 from .models import owner_error
 from .store import Store
 
-STATUSES = ("running", "verified", "not_verified", "failed", "plan_changed", "refused", "interrupted")
+# `lockfile_updated`: a Cargo update (#15). The lockfile is checked, nothing installed can be read.
+STATUSES = ("running", "verified", "not_verified", "failed", "plan_changed", "refused", "interrupted",
+            "lockfile_updated")
 OUTPUT_MAX_CHARS = 256 * 1024
 
 _SCHEMA = """
