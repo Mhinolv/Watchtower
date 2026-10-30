@@ -150,6 +150,11 @@ public enum SampleData {
         case findingUv = "finding-uv"
         case failed
         case chipSelected = "chip-selected"
+        case sparkleNewer = "sparkle-newer"
+        case sparkleBeta = "sparkle-beta"
+        case sparkleOsTooOld = "sparkle-os-too-old"
+        case sparkleRejected = "sparkle-rejected"
+        case sparkleFailed = "sparkle-failed"
         case menubarFindings = "menubar-findings"
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
@@ -226,6 +231,8 @@ public enum SampleData {
             model.selection = .apps
             model.itemFilter = .error
             return model
+        case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
+            return sparkleModel(scenario, engine: engine, clock: clock)
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
         case .menubarStale:
@@ -277,6 +284,64 @@ extension SampleData {
             model.selectedItemKey = "SEC-0004"
         default: break
         }
+        return model
+    }
+}
+
+extension SampleData {
+    /// One app with a Sparkle feed (#14), in the state of `scenario`, selected in Apps.
+    static func sparkleApp(_ scenario: Scenario) -> ItemRecord {
+        let feed = "https://updates.example.com/acme-notes/appcast.xml"
+        var app = item("com.example.acme-notes", "apps", "Acme Notes", .updateAvailable, kind: "app",
+                       installed: "3.3.0", latest: "3.4.1", origin: "Sparkle feed",
+                       note: "Use the app's Check for Updates command to install it.", sourceAt: ago(3))
+        var attributes = ["path": "/Applications/Acme Notes.app", "bundleId": "com.example.acme-notes",
+                          "sparkleFeed": feed, "sparkleLatest": "3.4.1 (341)", "sparkleChannel": "Stable",
+                          "sparkleMinimumOs": "14.0", "sparkleChecked": "2026-10-29T09:12:00Z"]
+        switch scenario {
+        case .sparkleBeta:
+            app.state = .upToDate
+            app.installedVersion = "3.4.1"
+            app.note = "A beta (3.5b1) is available."
+        case .sparkleOsTooOld:
+            app.state = .manual
+            attributes["sparkleMinimumOs"] = "15.2"
+            app.note = "3.4.1 needs macOS 15.2. This Mac has 15.1."
+        case .sparkleRejected:
+            app.state = .unknown
+            app.latestVersion = nil
+            app.origin = nil
+            app.sourceAt = nil
+            app.note = "Watchtower reads HTTPS feeds only."
+            attributes = ["path": attributes["path"]!, "bundleId": attributes["bundleId"]!,
+                          "sparkleFeed": "http://updates.example.com/acme-notes/appcast.xml"]
+        case .sparkleFailed:
+            // The feed did not load. The evidence from the day before stays.
+            app.sourceAt = days(1)
+            attributes["sparkleChecked"] = "2026-10-28T09:12:00Z"
+            app.error = "Feed check failed."
+            app.detail = "URLError(code: -1001, \"The request timed out.\")"
+        default: break
+        }
+        app.attributes = attributes
+        return app
+    }
+
+    @MainActor
+    static func sparkleModel(_ scenario: Scenario, engine: PreviewEngine,
+                             clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+        let app = sparkleApp(scenario)
+        sample.items.append(app)
+        let failed = scenario == .sparkleFailed
+        sample.coverage.append(CoverageRecord(source: "sparkle", label: "Sparkle feeds",
+                                              state: failed ? .partial : .complete, lastSuccessAt: ago(2),
+                                              error: failed ? "Some Sparkle feeds did not load." : nil,
+                                              note: failed ? "5 of 6 read" : "6 of 6 read"))
+        if failed { sample.refresh?.status = .partial }
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .apps
+        model.selectedItemKey = app.key
         return model
     }
 }

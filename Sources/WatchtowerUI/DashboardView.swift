@@ -413,16 +413,20 @@ struct ItemDetail: View {
                     row("Installed", item.installedVersion ?? "—")
                     row("Latest", item.latestVersion ?? "—")
                     if let kind = item.kind { row("Kind", kind) }
-                    if let origin = item.origin { row("Tap", origin) }
+                    if let origin = item.origin { row(origin == "Sparkle feed" ? "Source" : "Tap", origin) }
                     if let project = item.project { row("Project", project) }
-                    ForEach((item.attributes ?? [:]).sorted(by: { $0.key < $1.key }), id: \.key) { pair in
+                    ForEach(SparkleDetail.otherAttributes(item), id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
                 }
-                if let note = item.note {
-                    Text(note)
+                if let sparkle {
+                    SparkleSection(detail: sparkle)
                 }
-                if let error = item.error {
+                if let note = item.note {
+                    // A newer beta is extra information, not an action (#14 Design notes).
+                    Text(note).foregroundStyle(sparkle != nil && item.state == .upToDate ? .secondary : .primary)
+                }
+                if let error = sparkle?.failure ?? item.error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                     if let detail = item.detail {
                         DisclosureGroup("Details", isExpanded: $showsDetail) {
@@ -439,6 +443,8 @@ struct ItemDetail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+
+    var sparkle: SparkleDetail? { SparkleDetail(item) }
 
     func row(_ label: String, _ value: String) -> some View {
         GridRow {
@@ -457,6 +463,26 @@ struct ItemDetail: View {
         default: item.kind?.capitalized ?? item.source
         }
         return [kind, item.origin].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// `Sparkle feed` rows below the app fields (#14). Watchtower never installs Sparkle updates.
+struct SparkleSection: View {
+    let detail: SparkleDetail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sparkle feed").font(.headline)
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                ForEach(detail.rows, id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Text(row.value).textSelection(.enabled)
+                            .font(row.label == "Feed" ? .callout.monospaced() : .body)
+                    }
+                }
+            }
+        }
     }
 }
 
