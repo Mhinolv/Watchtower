@@ -252,7 +252,7 @@ def test_inactive_state_applies_by_resolved_path(home):
 # #85: manifests at any depth up to a fixed limit
 
 from watchtower_engine import discovery
-from watchtower_engine.scanners import osv
+from watchtower_engine.scanners import osv, requirements_pins
 from watchtower_engine.updates import cargo as cargo_updates
 from watchtower_engine.updates import npm as npm_updates
 from watchtower_engine.updates import requirements as requirements_updates
@@ -332,8 +332,12 @@ def test_discovery_finds_what_the_osv_scan_scans_and_the_update_targets_are_the_
     project(home / "Projects", "mono", *DEEP)
     [found] = discover().projects
     [scan] = osv.plan([found])
-    assert sorted(lf.path for lf in scan.lockfiles) == sorted(
-        m for m in found.manifests if os.path.basename(m) in osv.SUPPORTED)
+    # Lockfiles, and requirements.txt files in folders with no lockfile (#80: their exact pins are scanned).
+    names = set(osv.SUPPORTED) | set(osv.NOT_SUPPORTED)
+    assert sorted(lf.path for lf in scan.lockfiles if lf.ecosystem) == sorted(
+        m for m in found.manifests if os.path.basename(m) in osv.SUPPORTED
+        or requirements_pins.requirements_only(m, found.manifests, names))
+    assert "scripts/x/y/requirements.txt" in {lf.path for lf in scan.lockfiles}
     assert {lf.path for lf in scan.lockfiles} >= {"app/Cargo.lock", "services/api/web/package-lock.json",
                                                   "tools/a/b/c/uv.lock"}
     base = found.path

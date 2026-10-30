@@ -1,0 +1,7 @@
+# Production dependencies
+requests==2.31.0
+urllib3==1.26.18  # pinned for botocore
+Jinja2[i18n]==3.1.2 ; python_version >= "3.8"
+flask>=2.0,<3
+click~=8.1
+idna

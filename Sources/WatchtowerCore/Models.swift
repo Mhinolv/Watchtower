@@ -160,22 +160,65 @@ public struct FindingPath: Codable, Hashable, Sendable, Identifiable {
     public var dependencyPath: [String]?
     /// Why `Update…` is off for this lockfile, for example a uv project with no environment.
     public var updateBlock: String?
+    /// A requirements.txt path (#80): the declared line, the evidence type and the version in `.venv`.
+    public var evidence: PathEvidence?
 
     public var id: String { "\(projectPath)/\(lockfile)@\(version)" }
 
     public init(project: String, projectPath: String, lockfile: String, version: String,
-                dependencyPath: [String]? = nil, updateBlock: String? = nil) {
+                dependencyPath: [String]? = nil, updateBlock: String? = nil, evidence: PathEvidence? = nil) {
         self.project = project
         self.projectPath = projectPath
         self.lockfile = lockfile
         self.version = version
         self.dependencyPath = dependencyPath
         self.updateBlock = updateBlock
+        self.evidence = evidence
+    }
+
+    /// A pin in a requirements.txt (#80), not a lockfile.
+    public var isRequirements: Bool { (lockfile as NSString).lastPathComponent == "requirements.txt" }
+
+    /// `requirements.txt · requests==2.31.0 · Exact pin`, or the lockfile path.
+    public var sourceText: String {
+        guard isRequirements, let declared = evidence?.declared else { return lockfile }
+        return [lockfile, declared, evidence?.evidence].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// `Direct (requirements.txt)` for a pin, else the dependency path from the scanner.
+    public var dependencyText: String {
+        if isRequirements { return "Direct (requirements.txt)" }
+        return dependencyPath.map { "Path: " + $0.joined(separator: " › ") } ?? "Dependency path not available."
+    }
+
+    /// The `Evidence` rows of a requirements.txt path: Declared, Lockfile, Installed. Empty for lockfiles.
+    public var evidenceRows: [(label: String, value: String, quiet: Bool)] {
+        guard isRequirements else { return [] }
+        let declared = evidence?.declared.map { line in evidence?.evidence.map { "\(line) (\($0))" } ?? line }
+        return [("Declared", declared ?? "not found in requirements.txt", declared == nil),
+                ("Lockfile", "No lockfile.", true),
+                ("Installed", evidence?.installed.map { "\($0) (.venv)" } ?? "not checked", evidence?.installed == nil)]
     }
 
     /// The lockfile in Finder. `~` in `projectPath` becomes the home folder.
     public var lockfileURL: URL {
         URL(fileURLWithPath: (projectPath as NSString).expandingTildeInPath).appendingPathComponent(lockfile)
+    }
+}
+
+/// The evidence of a requirements.txt finding path (#80). Exact pins and ranges stay distinct.
+public struct PathEvidence: Codable, Hashable, Sendable {
+    /// The requirement as written, for example `requests==2.31.0`.
+    public var declared: String?
+    /// `Exact pin`, `Range` or `Unpinned`.
+    public var evidence: String?
+    /// The version in `.venv`. nil: not checked.
+    public var installed: String?
+
+    public init(declared: String?, evidence: String?, installed: String?) {
+        self.declared = declared
+        self.evidence = evidence
+        self.installed = installed
     }
 }
 
