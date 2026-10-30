@@ -62,7 +62,7 @@ public struct MenuBarPopover: View {
             header
             switch summary.mode {
             case .never:
-                Text("Never refreshed. Click Refresh.")
+                Text(MenuBarSummary.neverBody)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 6)
             case .allClear:
