@@ -1,7 +1,6 @@
 # mas fixtures
 
-mas is not installed on the build Mac, so these files are not captured from the owner's Mac.
-They follow the documented output of mas v7.0.0 (`mas list --json`, `mas outdated --json`,
-`mas version`): one JSON object per app, keys `adamID`, `bundleID`, `name`, `version`,
-`newVersion`. Source: https://mpm.run/managers/mas.html and the mas README at tag v7.0.0.
-Replace them with captured output when mas is installed.
+`list.jsonl`, `outdated.jsonl` and `stderr.txt` are real output of mas 7.0.0 on the owner's Mac
+(`mas list --json`, `mas outdated --json`, and the warning that mas wrote to stderr; exit code 0).
+Real output has a first record `{"name":""}` with no `adamID`, and `outdated` adds `bundleID`.
+`version.txt` is not captured. It follows the documented `mas version` output.

@@ -36,7 +36,9 @@ ERROR_ADMIN = "This update needs an administrator. Use the App Store app."
 ORIGIN = "App Store"
 
 # Text that mas prints for each limit. The wording is matched loosely and in lower case.
-_SPOTLIGHT = ("spotlight", "metadata service", "mdfind", "mds ")
+# Sign-in and administrator limits come first: they are real failures. A Spotlight word alone is not one,
+# because mas 7.0.0 also writes a Spotlight `Warning:` and still exits 0 with full output.
+_SPOTLIGHT = ("spotlight", "metadata service")
 _SIGNED_OUT = ("not signed in", "sign in", "signed in", "apple account", "apple id")
 _ADMIN = ("root privileges", "requires root", "need root", "sudo", "administrator", "password is required",
           "a terminal is required", "permission denied", "operation not permitted")
@@ -107,10 +109,25 @@ def read_version(mas: str, run: Callable = subprocess.run) -> str:
     return match.group(0)
 
 
+def without_warnings(text: str) -> str:
+    """The text without `Warning:` blocks. A block runs through its blank and indented lines."""
+    kept: list[str] = []
+    in_warning = False
+    for line in text.splitlines():
+        if line.startswith("Warning:"):
+            in_warning = True
+            continue
+        if in_warning and (not line.strip() or line[:1].isspace()):
+            continue
+        in_warning = False
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def classify(text: str) -> str | None:
-    """Name the limit that a mas message describes: spotlight, signed_out, admin, or None."""
-    lower = text.lower()
-    for state, words in (("spotlight", _SPOTLIGHT), ("signed_out", _SIGNED_OUT), ("admin", _ADMIN)):
+    """Name the limit that a mas message describes: signed_out, admin, spotlight, or None."""
+    lower = without_warnings(text).lower()
+    for state, words in (("signed_out", _SIGNED_OUT), ("admin", _ADMIN), ("spotlight", _SPOTLIGHT)):
         if any(w in lower for w in words):
             return state
     return None
@@ -145,16 +162,30 @@ def _text(obj: dict, key: str) -> str:
     return str(value).strip()
 
 
+def is_adam_id(value: object) -> bool:
+    """An App Store ID is digits only. Anything else never becomes part of a command."""
+    return isinstance(value, str) and re.fullmatch(r"\d+", value) is not None
+
+
+def _has_ids(obj: dict, *keys: str) -> bool:
+    """Real mas 7.0.0 output has records like `{"name":""}`. Records without these ids are skipped."""
+    try:
+        values = [_text(obj, key) for key in keys]
+    except ValueError:
+        return False
+    return is_adam_id(values[0])
+
+
 def parse_list(text: str) -> list[MasApp]:
     """Read `mas list --json`. Raises ValueError for output that is not in the pinned format."""
     return [MasApp(_text(o, "adamID"), _text(o, "bundleID"), _text(o, "name"), _text(o, "version"))
-            for o in _objects(text)]
+            for o in _objects(text) if _has_ids(o, "adamID", "bundleID")]
 
 
 def parse_outdated(text: str) -> list[Outdated]:
     """Read `mas outdated --json`. Raises ValueError for output that is not in the pinned format."""
     return [Outdated(_text(o, "adamID"), _text(o, "name"), _text(o, "version"), _text(o, "newVersion"))
-            for o in _objects(text)]
+            for o in _objects(text) if _has_ids(o, "adamID")]
 
 
 # Inventory

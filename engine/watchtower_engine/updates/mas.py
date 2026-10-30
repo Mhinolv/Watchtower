@@ -45,7 +45,7 @@ def make_plan(item_key: str, name: str, adam_id: str | None, installed: str | No
                 [mas or "mas", "update", adam_id or "<id>"], rows=[dict(SCRIPTS_ROW)])
     if mas is None:
         return _refuse(plan, inv.NOTE_NO_MAS)
-    if not adam_id:
+    if not inv.is_adam_id(adam_id):
         return _refuse(plan, REFUSE_NO_ID.format(name=name))
     try:
         version = inv.read_version(mas, run)
@@ -66,6 +66,10 @@ def make_plan(item_key: str, name: str, adam_id: str | None, installed: str | No
     except ValueError as exc:
         return _refuse(plan, REFUSE_UNREADABLE, repr(exc))
     if not entries:
+        # An empty answer is "up to date" only if stderr names no limit. A warning alone is not one.
+        limit = _limit_message(proc.stderr or "")
+        if limit:
+            return _refuse(plan, limit, f"mas outdated printed nothing: {(proc.stderr or '').strip()[-300:]}")
         return _refuse(plan, REFUSE_CURRENT.format(name=name, version=installed or "current"))
     entry = entries[0]
     plan.installed_version, plan.target_version = entry.version, entry.new_version
