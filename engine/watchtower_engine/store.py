@@ -103,7 +103,9 @@ CREATE TABLE IF NOT EXISTS items (
 """
 
 # Columns added after schema 1 shipped. Old stores get them with ALTER TABLE.
-_ADDED_COLUMNS = {"items": ("origin", "source_at", "note", "attributes"), "coverage": ("source_at", "note")}
+# `refreshes.actor` (#111): `app` or the agent name. NULL in rows from before #111 reads as `app`.
+_ADDED_COLUMNS = {"items": ("origin", "source_at", "note", "attributes"), "coverage": ("source_at", "note"),
+                  "refreshes": ("actor",)}
 
 
 class Store:
@@ -149,8 +151,11 @@ class Store:
 
     # Refresh lifecycle
 
-    def begin_refresh(self) -> RefreshRecord:
-        """Start a refresh. An older refresh that never finished is marked failed."""
+    def begin_refresh(self, actor: str = "app") -> RefreshRecord:
+        """Start a refresh. An older refresh that never finished is marked failed.
+
+        `actor` is `app` or the agent name that started it (#111).
+        """
         now = self.clock()
         self.db.execute("BEGIN IMMEDIATE")
         try:
@@ -160,7 +165,7 @@ class Store:
                 (now, "Refresh did not finish."),
             )
             cur = self.db.execute(
-                "INSERT INTO refreshes (status, started_at) VALUES ('running', ?)", (now,)
+                "INSERT INTO refreshes (status, started_at, actor) VALUES ('running', ?, ?)", (now, actor)
             )
             self.db.execute("COMMIT")
         except BaseException:
@@ -289,6 +294,7 @@ class Store:
             last_complete_at=last["finished_at"] if last else None,
             error=row["error"],
             detail=row["detail"],
+            actor=row["actor"] or "app",
         )
 
     def latest_refresh(self) -> RefreshRecord | None:

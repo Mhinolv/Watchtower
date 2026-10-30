@@ -91,12 +91,15 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
                runner: brew_updates.RunStreaming = brew_updates.run_streaming,
                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
                npm: str | None = None, get=None, mas: str | None = None, cargo: str | None = None,
-               **platform) -> tuple[Attempt, dict]:
-    """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
+               actor: str = "app", **platform) -> tuple[Attempt, dict]:
+    """Run one confirmed update. Returns the logged attempt and the plan that was checked.
+
+    `actor` marks the log row: `app` or the agent name (#111).
+    """
     log = UpdateLog(store)
     plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, cargo, **platform)
     if plan.id != plan_id:
-        attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
+        attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED, actor)
         return log.get(attempt_id), plan.to_dict()
     refusal = plan.refusal
     if refusal is None and plan.major_change and not confirm_major:
@@ -104,10 +107,10 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
     if refusal is None and plan.scripts and not confirm_scripts:
         refusal = ERROR_NEEDS_SCRIPTS
     if refusal:
-        attempt_id = log.begin(plan, confirm_major, confirm_scripts, "refused", refusal)
+        attempt_id = log.begin(plan, confirm_major, confirm_scripts, "refused", refusal, actor)
         return log.get(attempt_id), plan.to_dict()
 
-    attempt_id = log.begin(plan, confirm_major, confirm_scripts)
+    attempt_id = log.begin(plan, confirm_major, confirm_scripts, actor=actor)
     output: list[str] = []
 
     def line(text: str) -> None:

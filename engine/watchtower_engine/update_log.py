@@ -67,8 +67,15 @@ class Attempt:
     finished_at: str | None = None
     # Lines for the result step, for example the lockfile and the installed version of a uv update.
     result_rows: list[dict] = field(default_factory=list)
+    # `app` or the agent name that ran the update (#111). Only agent output shows it: the app contract stays.
+    actor: str = "app"
 
     def to_dict(self) -> dict:
+        data = asdict(self)
+        del data["actor"]
+        return data
+
+    def to_agent_dict(self) -> dict:
         return asdict(self)
 
 
@@ -92,17 +99,19 @@ class UpdateLog:
         have = {r["name"] for r in self.db.execute("PRAGMA table_info(update_attempts)")}
         if "result_rows" not in have:  # A log from before #11.
             self.db.execute("ALTER TABLE update_attempts ADD COLUMN result_rows TEXT NOT NULL DEFAULT '[]'")
+        if "actor" not in have:  # A log from before #111. Those rows read as `app`.
+            self.db.execute("ALTER TABLE update_attempts ADD COLUMN actor TEXT")
 
     def begin(self, plan, confirmed_major: bool, confirmed_scripts: bool, status: str = "running",
-              error: str | None = None) -> int:
+              error: str | None = None, actor: str = "app") -> int:
         cur = self.db.execute(
             "INSERT INTO update_attempts (item_key, name, kind, command, before_version, target_version, "
             "status, error, manual_steps, confirmed_major, confirmed_scripts, plan_id, pid, started_at, "
-            "finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "finished_at, actor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (plan.item_key, plan.name, plan.kind, json.dumps(plan.command), plan.installed_version,
              plan.target_version, status, owner_error(error), json.dumps(plan.manual_steps),
              int(confirmed_major), int(confirmed_scripts), plan.id, os.getpid(), self.store.clock(),
-             None if status == "running" else self.store.clock()),
+             None if status == "running" else self.store.clock(), actor),
         )
         return cur.lastrowid
 
@@ -132,7 +141,7 @@ class UpdateLog:
                 manual_steps=json.loads(r["manual_steps"]), confirmed_major=bool(r["confirmed_major"]),
                 confirmed_scripts=bool(r["confirmed_scripts"]), plan_id=r["plan_id"],
                 started_at=r["started_at"], finished_at=r["finished_at"],
-                result_rows=json.loads(r["result_rows"] or "[]"),
+                result_rows=json.loads(r["result_rows"] or "[]"), actor=r["actor"] or "app",
             ))
         return out
 

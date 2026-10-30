@@ -197,12 +197,16 @@ class RefreshRecord:
     last_complete_at: str | None = None
     error: str | None = None
     detail: str | None = None
+    # `app` or the agent name that ran the refresh (#111). Only agent output shows it: the app contract stays.
+    actor: str = "app"
 
     def __post_init__(self) -> None:
         _check(self.status, REFRESH_STATUSES, "status")
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        del data["actor"]
+        return data
 
 
 @dataclass

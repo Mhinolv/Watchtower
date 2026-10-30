@@ -1,0 +1,5 @@
+#!/bin/zsh
+# Agent entry point (#111). Usage: watchtower-agent <claude-code|codex|other> <command> [options]
+# Runs the engine CLI from this repo in agent mode. A symlink (for example ~/.local/bin/watchtower-agent) works.
+repo="${0:A:h:h}"
+PYTHONPATH="$repo/engine" exec python3 -s -m watchtower_engine.cli --agent "$@"
