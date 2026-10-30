@@ -78,12 +78,15 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | `mas outdated --json <id>` | The App Store ID of one app. mas asks the App Store. | App Store update plan, after the owner clicks `Check for Update…` |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
+| GET `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | None. A bulk download of the whole public EPSS file (about 3 MB). No CVE list, finding id or inventory data. The URL answers 302 to the file of the day. | EPSS check, each refresh, at most once a day (the cached file is used for 24 hours) |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
+| GET `https://sofafeed.macadmins.io/v2/macos_data_feed.json` and `/v2/safari_data_feed.json` | None. Two public bulk feeds (SOFA, MacAdmins). No version, path, bundle id or finding. | SOFA check, each refresh |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
+| GET `https://haveibeenpwned.com/api/v3/breaches` | None. The public breach list (about 1 MB), no API key. No email address, account name or finding data. The engine keeps only the breaches of GitHub and Google / Gmail. | Check Sources (on demand only) |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -99,6 +102,11 @@ It connects to the address that it checked, so a second DNS answer cannot change
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
+The SOFA check (#58) compares the installed macOS version and build and the Safari version with the SOFA feeds. The compare runs on this Mac.
+The engine reads only known fields of the feeds, with format checks and limits. It shows the latest release, the CVEs that newer releases fix and the actively exploited CVEs.
+The Apple security releases page (`https://support.apple.com/en-us/100100`) stays the primary source. SOFA is a summary of that page.
+Safari compares within its installed major version. The engine keeps the last copy in `cache/sofa/feeds.json`. If a feed fails, it uses that copy and the coverage is `partial`.
+Watchtower never installs macOS or Safari. The `Open Software Update` button opens System Settings.
 
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
@@ -159,8 +167,17 @@ If a feed fails, the old marks stay and the Source section of the finding shows 
 
 The GitHub check reads the local OSV databases first (`osv/osv-scalibr/<ecosystem>/all.zip`, from the OSV scan). They hold the reviewed GHSA records and the malicious-package (`MAL`) records with their GHSA aliases.
 If a database has the id, the engine uses that record and sends no request. The age of that answer is the age of the database.
+A GHSA record that lists a `MAL-` alias can be malware on GitHub. The engine sends that id to the API (#66).
 Only the other ids go to the GitHub API. The call list above does not change: no new host and no token.
 If the 40-request limit leaves ids, the coverage is `partial` with `request limit`. A later refresh asks only for those ids, because answers stay valid for 7 days.
+
+### EPSS (exploit chance)
+
+- EPSS (FIRST) gives each CVE a score: the chance of exploit in the next 30 days. Only a bulk download is used: the whole public file, one GET, no per-finding request.
+- The engine keeps the file in `cache/epss/` in the data folder and downloads it again only after one day. The Source row of a finding shows the retrieval time.
+- A finding with a CVE shows the score (`94%`, `2.1%`, `<0.1%`) and the percentile. With several CVEs it shows the highest score. A finding without a CVE shows `EPSS covers CVEs only.`
+- Sort order: malware, known exploited, EPSS high to low, then severity. A finding with no score sorts by severity after the others.
+- Data older than 2 days shows in orange. A failed download makes the EPSS coverage `partial` and keeps the earlier scores.
 
 ## Incidents
 
@@ -171,3 +188,11 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - An incident does not need a CVE. A record is never removed or resolved because a feed stopped listing it. A later check can raise its status, never lower it.
 - A review window ends now and starts 48 hours before the end of the last complete review (7 days back for the first). A review is complete only if every source finished. A failed source makes it partial: its row shows the failure, the other incidents are saved, and the label keeps the end date of the last complete review. Days that no review covers show as a gap.
 - A quiet feed does not prove that no breach happened. The empty result says so.
+
+### Have I Been Pwned (breach list)
+
+- `Check Sources` also reads the public Have I Been Pwned breach list: `GET https://haveibeenpwned.com/api/v3/breaches`. It needs no key.
+- **No email address or account name is ever sent, searched or checked.** The request is the fixed URL. Watchtower never calls the account endpoints. The owner checks an account on haveibeenpwned.com.
+- The engine keeps a breach only if it is about a watched service: GitHub (domain `github.com` or a subdomain, or the exact name or title `GitHub`) or Google / Gmail (domain `google.com`, `gmail.com`, `googlemail.com` or a subdomain, or the exact name or title `Google` or `Gmail`). A part of a name does not match: `Bitcoin Security Forum Gmail Dump` is not Gmail.
+- A verified breach is `Possible relevance`. A breach that is not verified, or is fabricated, is `Unconfirmed`. The list is untrusted text: markup and control characters are removed and lengths are cut.
+- The review window compares with the day HIBP added the breach. A row added by the newest check shows `New`. A failed fetch keeps the earlier rows and shows `Have I Been Pwned: check failed. Data from <day>.`

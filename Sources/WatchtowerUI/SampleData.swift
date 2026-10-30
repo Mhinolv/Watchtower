@@ -71,14 +71,16 @@ public enum SampleData {
                               path("web", "package-lock.json", "4.17.20")],
                       nextSteps: ["Update lodash to 4.17.21 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12")),
+                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12"),
+                      epss: epss("CVE-2021-23337", 0.21333, 0.97595)),
         FindingRecord(id: "SEC-0002", package: "minimist", title: "Prototype Pollution in minimist",
                       severity: .critical, advisoryIds: ["CVE-2021-44906", "GHSA-xvch-5gv4-984h", "OSV-2021-1"],
                       fixedIn: "1.2.6", firstSeen: days(3), lastSeen: ago(2), sourceAt: ago(6),
                       paths: [path("web", "package-lock.json", "1.2.5", via: ["mkdirp", "minimist"])],
                       nextSteps: ["Update minimist to 1.2.6 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001")),
+                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001"),
+                      epss: epss("CVE-2021-44906", 0.00182, 0.07828)),
         FindingRecord(id: "SEC-0003", package: "lodash", title: "ReDoS in lodash", severity: .medium,
                       advisoryIds: ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], status: .deferred,
                       deferredUntil: now.addingTimeInterval(7 * 86400), firstSeen: days(9), lastSeen: ago(2),
@@ -95,7 +97,7 @@ public enum SampleData {
                       paths: [path("web", "package-lock.json", "2.1.0")],
                       nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      withdrawnAt: days(1)),
+                      withdrawnAt: days(1), epss: epss("CVE-2026-20202", 0.00098, 0.00745)),
         FindingRecord(id: "SEC-0008", package: "yaml-tools", title: "Regular expression slowdown in the parser",
                       severity: .low, advisoryIds: ["CVE-2026-20203", "GHSA-bkgg-yaml-0008"], fixedIn: "2.1.2",
                       status: .backlog, firstSeen: days(9), lastSeen: ago(2), sourceAt: ago(6),
@@ -109,12 +111,19 @@ public enum SampleData {
                                           version: "0.25.1",
                                           updateBlock: "No environment found. Watchtower does not create environments.")],
                       nextSteps: ["Update httpx to 0.27.2 or later in the lockfile.",
-                                  "Restart the dev server after the update."]),
+                                  "Restart the dev server after the update."],
+                      epss: epss("CVE-2026-31337", 0.94, 0.99)),
     ]
+
+    /// The EPSS value of a sample finding, from the file of today.
+    static func epss(_ cve: String, _ score: Double?, _ percentile: Double?, fetched: Date? = nil) -> EpssMark {
+        EpssMark(cve: cve, score: score, percentile: percentile, scoreDate: "2026-10-29",
+                 fetchedAt: fetched ?? ago(6))
+    }
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
         [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV"),
-         ("kev", "CISA KEV"), ("github", "GitHub Advisories")].map { source, label in
+         ("kev", "CISA KEV"), ("github", "GitHub Advisories"), ("epss", "EPSS")].map { source, label in
             failing.contains(source)
                 ? CoverageRecord(source: source, label: label, state: .failed, lastSuccessAt: ago(30),
                                  error: "\(label) check did not finish.")
@@ -152,8 +161,16 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case findingEpssScore = "finding-epss-score"
+        case findingEpssNoCve = "finding-epss-no-cve"
+        case findingEpssMissing = "finding-epss-missing"
+        case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
+        case sofaMacosCurrent = "sofa-macos-current"
+        case sofaMacosExploited = "sofa-macos-exploited"
+        case sofaSafariBehind = "sofa-safari-behind"
+        case sofaFeedFailed = "sofa-feed-failed"
         case sparkleNewer = "sparkle-newer"
         case sparkleBeta = "sparkle-beta"
         case sparkleOsTooOld = "sparkle-os-too-old"
@@ -260,7 +277,8 @@ public enum SampleData {
             model.selection = .backlog
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
-             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:
+             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv, .findingEpssScore,
+             .findingEpssNoCve, .findingEpssMissing, .findingEpssStale:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -284,6 +302,8 @@ public enum SampleData {
             model.selection = .apps
             model.itemFilter = .error
             return model
+        case .sofaMacosCurrent, .sofaMacosExploited, .sofaSafariBehind, .sofaFeedFailed:
+            return sofaModel(scenario, engine: engine, clock: clock)
         case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
             return sparkleModel(scenario, engine: engine, clock: clock)
         case .menubarFindings, .menubarNever:
@@ -322,9 +342,37 @@ extension SampleData {
                 return c
             }
         }
+        var extra: [FindingRecord] = []
+        if scenario == .findingEpssNoCve || scenario == .findingEpssMissing {
+            // An OSV-only advisory has no CVE. A new CVE may not be in the EPSS file yet.
+            let cves = scenario == .findingEpssMissing ? ["CVE-2026-40404", "GHSA-newc-ve00-0009"] : ["GHSA-abcd-efgh-0009"]
+            extra = [FindingRecord(id: "SEC-0009", package: "tiny-parse", title: "Out-of-bounds read in the parser",
+                                   severity: .medium, advisoryIds: cves, fixedIn: "0.9.2", firstSeen: days(1),
+                                   lastSeen: ago(2), sourceAt: ago(6),
+                                   paths: [path("web", "package-lock.json", "0.9.1")],
+                                   nextSteps: ["Update tiny-parse to 0.9.2 or later in the lockfile.",
+                                               "Restart the dev server after the update."],
+                                   epss: scenario == .findingEpssMissing ? epss("CVE-2026-40404", nil, nil) : nil)]
+            sample.findings += extra
+        }
+        if scenario == .findingEpssStale {
+            // The download failed for 4 days and the file is old. The scores stay.
+            sample.findings = sample.findings.map { f in
+                var f = f
+                if let mark = f.epss { f.epss = epss(mark.cve, mark.score, mark.percentile, fetched: days(4)) }
+                return f
+            }
+            sample.coverage = sample.coverage.map { c in
+                var c = c
+                if c.source == "epss" { c.sourceAt = days(4) }
+                return c
+            }
+        }
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .findings
         switch scenario {
+        case .findingEpssScore, .findingEpssStale: model.selectedItemKey = "SEC-0006"
+        case .findingEpssNoCve, .findingEpssMissing: model.selectedItemKey = "SEC-0009"
         case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
         case .findingMalware: model.selectedItemKey = "SEC-0002"
         case .findingWithdrawn: model.selectedItemKey = "SEC-0005"
@@ -342,6 +390,60 @@ extension SampleData {
 }
 
 extension SampleData {
+    /// The macOS and Safari items with SOFA data (#58), as the engine writes them for each scenario.
+    static func sofaItems(_ scenario: Scenario) -> [ItemRecord] {
+        let fixed = (1...12).map { "CVE-2026-\(String(format: "%05d", 86940 + $0))" }
+        var macOS = item("macos", "macos", "macOS", .upToDate, kind: "os", installed: "15.8.2", latest: "15.8.2",
+                         origin: "SOFA", sourceAt: ago(4))
+        macOS.attributes = ["build": "24H232", "sofaLatest": "15.8.2 (24H232)", "sofaReleased": "2026-10-26",
+                            "sofaChecked": "2026-10-29T08:00:00Z"]
+        var safari = item("com.apple.Safari", "apps", "Safari", .upToDate, kind: "app", installed: "26.6.1",
+                          latest: "26.6.1", origin: "SOFA", sourceAt: ago(4))
+        safari.attributes = ["bundleId": "com.apple.Safari", "path": "/Applications/Safari.app",
+                             "sofaLatest": "26.6.1", "sofaReleased": "2026-08-18", "sofaChecked": "2026-10-29T08:00:00Z"]
+        switch scenario {
+        case .sofaMacosExploited, .sofaFeedFailed:
+            macOS.state = .vulnerable
+            macOS.installedVersion = "15.7.9"
+            macOS.attributes?["build"] = "24G830"
+            macOS.attributes?["sofaFixedCves"] = fixed.joined(separator: ", ")
+            macOS.attributes?["sofaExploited"] = "CVE-2026-86950, CVE-2026-86951"
+            macOS.note = "15.8.2 fixes 2 actively exploited CVEs."
+            if scenario == .sofaFeedFailed {
+                // The feed did not load. The data from the day before stays.
+                macOS.sourceAt = days(1)
+                macOS.attributes?["sofaChecked"] = "2026-10-28T08:00:00Z"
+                macOS.error = "SOFA feed did not load."
+                macOS.detail = "GET https://sofafeed.macadmins.io/v2/macos_data_feed.json: URLError(code: -1009)"
+            }
+        case .sofaSafariBehind:
+            safari.state = .updateAvailable
+            safari.installedVersion = "26.5.2"
+            safari.attributes?["sofaFixedCves"] = fixed.prefix(10).joined(separator: ", ")
+            safari.note = "Safari 26.6.1 fixes 10 CVEs."
+        default: break
+        }
+        return [macOS, safari]
+    }
+
+    @MainActor
+    static func sofaModel(_ scenario: Scenario, engine: PreviewEngine,
+                          clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+        let sofa = sofaItems(scenario)
+        sample.items = sample.items.filter { $0.id != "macos" } + sofa
+        let failed = scenario == .sofaFeedFailed
+        sample.coverage.append(CoverageRecord(source: "sofa", label: "SOFA", state: failed ? .partial : .complete,
+                                              lastSuccessAt: failed ? days(1) : ago(2),
+                                              error: failed ? "SOFA did not load. Watchtower used the last copy." : nil,
+                                              sourceAt: failed ? days(1) : ago(4)))
+        if failed { sample.refresh?.status = .partial }
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .apps
+        model.selectedItemKey = (scenario == .sofaSafariBehind ? sofa[1] : sofa[0]).key
+        return model
+    }
+
     /// One app with a Sparkle feed (#14), in the state of `scenario`, selected in Apps.
     static func sparkleApp(_ scenario: Scenario) -> ItemRecord {
         let feed = "https://updates.example.com/acme-notes/appcast.xml"
@@ -696,7 +798,27 @@ extension SampleData {
                  .unconfirmed, "News report only", source: "github"),
     ]
 
-    public static func incidentSources(failed: Bool = false) -> [IncidentSource] {
+    /// Two sample breach rows of Have I Been Pwned (#60). The data is made up.
+    public static func hibpIncidents(new: Bool = false) -> [IncidentRecord] {
+        func row(_ n: Int, _ service: String, _ title: String, _ date: String, _ added: String, _ status: IncidentStatus,
+                 _ verified: Bool, _ count: Int, _ domain: String, new: Bool) -> IncidentRecord {
+            IncidentRecord(id: String(format: "INC-%04d", n), source: "hibp", service: service, title: title,
+                           summary: "A sample description from the breach list. Watchtower shows it as plain text.",
+                           published: date, status: status, sourceName: "Have I Been Pwned",
+                           url: "https://haveibeenpwned.com/PwnedWebsites#Sample\(n)", firstSeen: ago(4), lastSeen: ago(4),
+                           breach: BreachDetails(breachDate: date, addedDate: added,
+                                                 dataClasses: ["Email addresses", "Passwords"], pwnCount: count,
+                                                 domain: domain, verified: verified), isNew: new)
+        }
+        return [
+            row(10, "GitHub", "GitHub data breach (sample)", "2024-06-04", "2026-10-27", .possible, true, 1_200_000,
+                "github.com", new: new),
+            row(11, "Google / Gmail", "Google account data breach (sample)", "2026-09-18", "2026-10-25", .unconfirmed,
+                false, 48_500, "accounts.google.com", new: false),
+        ]
+    }
+
+    public static func incidentSources(failed: Bool = false, hibpFailed: Bool = false) -> [IncidentSource] {
         [
             IncidentSource(source: "github", label: "GitHub", state: .complete, lastSuccessAt: ago(4)),
             failed
@@ -704,12 +826,16 @@ extension SampleData {
                                  error: "Google / Gmail: check failed. The review is not complete.", note: "HTTP 503")
                 : IncidentSource(source: "google", label: "Google / Gmail", state: .complete, lastSuccessAt: ago(4)),
             IncidentSource(source: "apple", label: "Apple security", state: .complete, lastSuccessAt: ago(4)),
+            hibpFailed
+                ? IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .failed, lastSuccessAt: days(2),
+                                 error: "Have I Been Pwned: check failed. The review is not complete.", note: "HTTP 503")
+                : IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .complete, lastSuccessAt: ago(4)),
         ]
     }
 
     public static func incidentState(incidents: [IncidentRecord] = incidentList, failed: Bool = false,
-                                     gaps: [IncidentGap] = []) -> IncidentState {
-        IncidentState(incidents: incidents, sources: incidentSources(failed: failed),
+                                     gaps: [IncidentGap] = [], hibpFailed: Bool = false) -> IncidentState {
+        IncidentState(incidents: incidents, sources: incidentSources(failed: failed, hibpFailed: hibpFailed),
                       review: IncidentReview(windowStart: days(7), windowEnd: failed ? ago(28) : ago(4),
                                              lastAttemptState: failed ? "partial" : "complete", lastAttemptAt: ago(4)),
                       gaps: gaps)
@@ -721,6 +847,10 @@ extension SampleData {
         case failed = "incidents-failed"
         case checking = "incidents-checking"
         case empty = "incidents-empty"
+        case hibp = "incidents-hibp"
+        case hibpNew = "incidents-hibp-new"
+        case hibpFailed = "incidents-hibp-failed"
+        case hibpNone = "incidents-hibp-none"
     }
 
     /// The window and the incident model of one scenario. The window shows the `Incidents` section.
@@ -746,6 +876,20 @@ extension SampleData {
             incidents.selectedID = "INC-0001"
         case .empty:
             incidents = IncidentModel(client: engine, state: incidentState(incidents: []))
+        case .hibp:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpNew:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents(new: true) + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpFailed:
+            // The check failed. The earlier breach rows stay.
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList,
+                                                                           hibpFailed: true))
+            incidents.selectedID = "INC-0010"
+        case .hibpNone:
+            incidents = IncidentModel(client: engine, state: incidentState())
+            incidents.selectedID = "INC-0001"
         }
         return (dashboard, incidents)
     }

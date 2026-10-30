@@ -1,0 +1,547 @@
+{
+  "SchemaVersion": "2026.04.11.2",
+  "Version": "2.0",
+  "UpdateHash": "284005512af8f9df42afeb57421f621f1e3ec4c811c53ee4a70e04aaffac6d59",
+  "LastCheck": "2026-10-30T00:55:06.301262553+00:00",
+  "OSVersions": [
+    {
+      "OSVersion": "Tahoe 26",
+      "Latest": {
+        "UpdateName": "macOS Tahoe 26.7.2",
+        "ProductName": "macOS",
+        "ProductVersion": "26.7.2",
+        "Build": "25G332",
+        "AllBuilds": [
+          "25G332"
+        ],
+        "ReleaseDate": "2026-10-26T00:00:00Z",
+        "ExpirationDate": "2027-01-28",
+        "ReleaseType": "OS",
+        "SecurityInfo": "https://support.apple.com/en-us/149522",
+        "SecurityInfoContext": "macOS Tahoe has been updated to version 26.7.2, released on October 26, 2026. This update addresses 213 security issues and is the most recent approved version. This update comes 28 days after the previous release.",
+        "SupportedDevices": [
+          "J152FAP",
+          "J160AP",
+          "J180dAP"
+        ],
+        "CVEs": {
+          "CVE-2026-112410": {},
+          "CVE-2026-112413": {},
+          "CVE-2026-112414": {},
+          "CVE-2026-112415": {},
+          "CVE-2026-112416": {},
+          "CVE-2026-112421": {}
+        },
+        "ActivelyExploitedCVEs": [],
+        "UniqueCVEsCount": 213,
+        "DaysSincePreviousRelease": 28,
+        "DeviceScope": "universal",
+        "UpdateSummary": {
+          "Priority": "high",
+          "Summary": "Addresses 213 security issues",
+          "Recommendation": "Update to stay secure - security fixes available",
+          "Stats": {
+            "Exploited": 0,
+            "Critical": 0,
+            "High": 0,
+            "Medium": 0,
+            "Low": 0,
+            "Remote": 0,
+            "Total": 213
+          }
+        }
+      },
+      "SecurityReleases": [
+        {
+          "UpdateName": "macOS Tahoe 26.7.2",
+          "ProductName": "macOS",
+          "ProductVersion": "26.7.2",
+          "Build": "25G332",
+          "AllBuilds": [
+            "25G332"
+          ],
+          "ReleaseDate": "2026-10-26T00:00:00Z",
+          "ExpirationDate": "2027-01-28",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149522",
+          "SecurityInfoContext": "macOS has been updated to version 26.7.2, released on October 26, 2026. This update addresses 213 security issues and is the most recent approved version.",
+          "CVEs": {
+            "CVE-2026-112410": {},
+            "CVE-2026-112413": {},
+            "CVE-2026-112414": {},
+            "CVE-2026-112415": {},
+            "CVE-2026-112416": {},
+            "CVE-2026-112421": {}
+          },
+          "ActivelyExploitedCVEs": [],
+          "UniqueCVEsCount": 213,
+          "DaysSincePreviousRelease": 28,
+          "DeviceScope": "universal",
+          "UpdateSummary": {
+            "Priority": "high",
+            "Summary": "Addresses 213 security issues",
+            "Recommendation": "Update to stay secure - security fixes available",
+            "Stats": {
+              "Exploited": 0,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 213
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Tahoe 26.7.1",
+          "ProductName": "macOS",
+          "ProductVersion": "26.7.1",
+          "Build": "25G241",
+          "AllBuilds": [
+            "25G241"
+          ],
+          "ReleaseDate": "2026-09-28T00:00:00Z",
+          "ExpirationDate": "2027-01-24",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149228",
+          "SecurityInfoContext": "macOS 26.7.1 was released on September 28, 2026. This release addressed one security issue. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2026-86950": {
+              "NISTURL": "https://nvd.nist.gov/vuln/detail/CVE-2026-86950",
+              "ActivelyExploited": true,
+              "InKEV": true,
+              "Severity": "Critical"
+            }
+          },
+          "ActivelyExploitedCVEs": [
+            "CVE-2026-86950"
+          ],
+          "UniqueCVEsCount": 1,
+          "DaysSincePreviousRelease": 14,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "26.7.2",
+            "Build": "25G332",
+            "ReleaseDate": "2026-10-26T00:00:00Z",
+            "DaysLater": 28
+          },
+          "UpdateSummary": {
+            "Priority": "critical",
+            "Summary": "Contains 1 actively exploited vulnerability",
+            "Recommendation": "Update immediately - actively exploited vulnerabilities",
+            "Stats": {
+              "Exploited": 1,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 1
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Tahoe 26.7",
+          "ProductName": "macOS",
+          "ProductVersion": "26.7",
+          "Build": "25G229",
+          "AllBuilds": [
+            "25G229"
+          ],
+          "ReleaseDate": "2026-09-14T00:00:00Z",
+          "ExpirationDate": "2026-12-27",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149042",
+          "SecurityInfoContext": "macOS 26.7 was released on September 14, 2026. This release addressed 178 security issues. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2026-65400": {
+              "NISTURL": "https://nvd.nist.gov/vuln/detail/CVE-2026-65400",
+              "ActivelyExploited": true,
+              "InKEV": true,
+              "Severity": "Critical"
+            },
+            "CVE-2019-5598": {},
+            "CVE-2022-3437": {},
+            "CVE-2026-112446": {},
+            "CVE-2026-20683": {},
+            "CVE-2026-28853": {}
+          },
+          "ActivelyExploitedCVEs": [
+            "CVE-2026-65400"
+          ],
+          "UniqueCVEsCount": 178,
+          "DaysSincePreviousRelease": 28,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "26.7.1",
+            "Build": "25G241",
+            "ReleaseDate": "2026-09-28T00:00:00Z",
+            "DaysLater": 14
+          },
+          "UpdateSummary": {
+            "Priority": "critical",
+            "Summary": "Contains 1 actively exploited vulnerability",
+            "Recommendation": "Update immediately - actively exploited vulnerabilities",
+            "Stats": {
+              "Exploited": 1,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 178
+            }
+          }
+        }
+      ],
+      "SupportedModels": [
+        {
+          "Model": "Mac Pro",
+          "URL": "https://support.apple.com/en-ca/HT202888",
+          "Identifiers": {
+            "Mac14,8": "Mac Pro (Rack, 2023)",
+            "MacPro7,1": "Mac Pro (2019)",
+            "MacPro7,1-Rack": "Mac Pro (Rack, 2019)"
+          }
+        }
+      ]
+    },
+    {
+      "OSVersion": "Sequoia 15",
+      "Latest": {
+        "UpdateName": "macOS Sequoia 15.8.2",
+        "ProductName": "macOS",
+        "ProductVersion": "15.8.2",
+        "Build": "24H232",
+        "AllBuilds": [
+          "24H232"
+        ],
+        "ReleaseDate": "2026-10-26T00:00:00Z",
+        "ExpirationDate": "2027-01-28",
+        "ReleaseType": "OS",
+        "SecurityInfo": "https://support.apple.com/en-us/149523",
+        "SecurityInfoContext": "macOS Sequoia has been updated to version 15.8.2, released on October 26, 2026. This update addresses 197 security issues and is the most recent approved version. This update comes 28 days after the previous release.",
+        "SupportedDevices": [
+          "J132AP",
+          "J137AP",
+          "J152FAP"
+        ],
+        "CVEs": {
+          "CVE-2026-112410": {},
+          "CVE-2026-112413": {},
+          "CVE-2026-112414": {},
+          "CVE-2026-112415": {},
+          "CVE-2026-112416": {},
+          "CVE-2026-112421": {}
+        },
+        "ActivelyExploitedCVEs": [],
+        "UniqueCVEsCount": 197,
+        "DaysSincePreviousRelease": 28,
+        "DeviceScope": "universal",
+        "UpdateSummary": {
+          "Priority": "high",
+          "Summary": "Addresses 197 security issues",
+          "Recommendation": "Update to stay secure - security fixes available",
+          "Stats": {
+            "Exploited": 0,
+            "Critical": 0,
+            "High": 0,
+            "Medium": 0,
+            "Low": 0,
+            "Remote": 0,
+            "Total": 197
+          }
+        }
+      },
+      "SecurityReleases": [
+        {
+          "UpdateName": "macOS Sequoia 15.8.2",
+          "ProductName": "macOS",
+          "ProductVersion": "15.8.2",
+          "Build": "24H232",
+          "AllBuilds": [
+            "24H232"
+          ],
+          "ReleaseDate": "2026-10-26T00:00:00Z",
+          "ExpirationDate": "2027-01-28",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149523",
+          "SecurityInfoContext": "macOS has been updated to version 15.8.2, released on October 26, 2026. This update addresses 197 security issues and is the most recent approved version.",
+          "CVEs": {
+            "CVE-2026-112410": {},
+            "CVE-2026-112413": {},
+            "CVE-2026-112414": {},
+            "CVE-2026-112415": {},
+            "CVE-2026-112416": {},
+            "CVE-2026-112421": {}
+          },
+          "ActivelyExploitedCVEs": [],
+          "UniqueCVEsCount": 197,
+          "DaysSincePreviousRelease": 28,
+          "DeviceScope": "universal",
+          "UpdateSummary": {
+            "Priority": "high",
+            "Summary": "Addresses 197 security issues",
+            "Recommendation": "Update to stay secure - security fixes available",
+            "Stats": {
+              "Exploited": 0,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 197
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Sequoia 15.8.1",
+          "ProductName": "macOS",
+          "ProductVersion": "15.8.1",
+          "Build": "24H32",
+          "AllBuilds": [
+            "24H32"
+          ],
+          "ReleaseDate": "2026-09-28T00:00:00Z",
+          "ExpirationDate": "2027-01-24",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149229",
+          "SecurityInfoContext": "macOS 15.8.1 was released on September 28, 2026. This release addressed one security issue. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2026-86950": {
+              "NISTURL": "https://nvd.nist.gov/vuln/detail/CVE-2026-86950",
+              "ActivelyExploited": true,
+              "InKEV": true,
+              "Severity": "Critical"
+            }
+          },
+          "ActivelyExploitedCVEs": [
+            "CVE-2026-86950"
+          ],
+          "UniqueCVEsCount": 1,
+          "DaysSincePreviousRelease": 14,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "15.8.2",
+            "Build": "24H232",
+            "ReleaseDate": "2026-10-26T00:00:00Z",
+            "DaysLater": 28
+          },
+          "UpdateSummary": {
+            "Priority": "critical",
+            "Summary": "Contains 1 actively exploited vulnerability",
+            "Recommendation": "Update immediately - actively exploited vulnerabilities",
+            "Stats": {
+              "Exploited": 1,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 1
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Sequoia 15.8",
+          "ProductName": "macOS",
+          "ProductVersion": "15.8",
+          "Build": "24H23",
+          "AllBuilds": [
+            "24H23"
+          ],
+          "ReleaseDate": "2026-09-14T00:00:00Z",
+          "ExpirationDate": "2026-12-27",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/149043",
+          "SecurityInfoContext": "macOS 15.8 was released on September 14, 2026. This release addressed 180 security issues. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2019-5598": {},
+            "CVE-2022-3437": {},
+            "CVE-2026-112446": {},
+            "CVE-2026-20683": {},
+            "CVE-2026-28850": {},
+            "CVE-2026-28853": {}
+          },
+          "ActivelyExploitedCVEs": [],
+          "UniqueCVEsCount": 180,
+          "DaysSincePreviousRelease": 39,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "15.8.1",
+            "Build": "24H32",
+            "ReleaseDate": "2026-09-28T00:00:00Z",
+            "DaysLater": 14
+          },
+          "UpdateSummary": {
+            "Priority": "high",
+            "Summary": "Addresses 180 security issues",
+            "Recommendation": "Update to stay secure - security fixes available",
+            "Stats": {
+              "Exploited": 0,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 180
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Sequoia 15.7.9",
+          "ProductName": "macOS",
+          "ProductVersion": "15.7.9",
+          "Build": "24G830",
+          "AllBuilds": [
+            "24G830"
+          ],
+          "ReleaseDate": "2026-08-06T00:00:00Z",
+          "ExpirationDate": "2027-01-28",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/148171",
+          "SecurityInfoContext": "macOS 15.7.9 was released on August 06, 2026. This release addressed one security issue. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2026-65400": {
+              "NISTURL": "https://nvd.nist.gov/vuln/detail/CVE-2026-65400",
+              "ActivelyExploited": true,
+              "InKEV": true,
+              "Severity": "Critical"
+            }
+          },
+          "ActivelyExploitedCVEs": [
+            "CVE-2026-65400"
+          ],
+          "UniqueCVEsCount": 1,
+          "DaysSincePreviousRelease": 10,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "15.8",
+            "Build": "24H23",
+            "ReleaseDate": "2026-09-14T00:00:00Z",
+            "DaysLater": 39
+          },
+          "UpdateSummary": {
+            "Priority": "critical",
+            "Summary": "Contains 1 actively exploited vulnerability",
+            "Recommendation": "Update immediately - actively exploited vulnerabilities",
+            "Stats": {
+              "Exploited": 1,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 1
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Sequoia 15.7.8",
+          "ProductName": "macOS",
+          "ProductVersion": "15.7.8",
+          "Build": "24G824",
+          "AllBuilds": [
+            "24G824"
+          ],
+          "ReleaseDate": "2026-07-27T00:00:00Z",
+          "ExpirationDate": "2026-11-04",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/128071",
+          "SecurityInfoContext": "macOS 15.7.8 was released on July 27, 2026. This release addressed 148 security issues. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2025-14017": {},
+            "CVE-2025-14819": {},
+            "CVE-2025-43325": {},
+            "CVE-2026-20672": {},
+            "CVE-2026-23918": {},
+            "CVE-2026-28849": {}
+          },
+          "ActivelyExploitedCVEs": [],
+          "UniqueCVEsCount": 148,
+          "DaysSincePreviousRelease": 77,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "15.7.9",
+            "Build": "24G830",
+            "ReleaseDate": "2026-08-06T00:00:00Z",
+            "DaysLater": 10
+          },
+          "UpdateSummary": {
+            "Priority": "high",
+            "Summary": "Addresses 148 security issues",
+            "Recommendation": "Update to stay secure - security fixes available",
+            "Stats": {
+              "Exploited": 0,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 148
+            }
+          }
+        },
+        {
+          "UpdateName": "macOS Sequoia 15.7.7",
+          "ProductName": "macOS",
+          "ProductVersion": "15.7.7",
+          "Build": "",
+          "AllBuilds": [],
+          "ReleaseDate": "2026-05-11T00:00:00Z",
+          "ReleaseType": "OS",
+          "SecurityInfo": "https://support.apple.com/en-us/127116",
+          "SecurityInfoContext": "macOS 15.7.7 was released on May 11, 2026. This release addressed 47 security issues. Newer updates are now available, so please check to see if they apply to your devices.",
+          "CVEs": {
+            "CVE-2025-43524": {},
+            "CVE-2026-28819": {},
+            "CVE-2026-28840": {},
+            "CVE-2026-28846": {},
+            "CVE-2026-28848": {},
+            "CVE-2026-28878": {}
+          },
+          "ActivelyExploitedCVEs": [],
+          "UniqueCVEsCount": 47,
+          "DaysSincePreviousRelease": 48,
+          "DeviceScope": "universal",
+          "SupersededBy": {
+            "ProductVersion": "15.7.8",
+            "Build": "24G824",
+            "ReleaseDate": "2026-07-27T00:00:00Z",
+            "DaysLater": 77
+          },
+          "UpdateSummary": {
+            "Priority": "high",
+            "Summary": "Addresses 47 security issues",
+            "Recommendation": "Update to stay secure - security fixes available",
+            "Stats": {
+              "Exploited": 0,
+              "Critical": 0,
+              "High": 0,
+              "Medium": 0,
+              "Low": 0,
+              "Remote": 0,
+              "Total": 47
+            }
+          }
+        }
+      ],
+      "SupportedModels": [
+        {
+          "Model": "Mac Pro",
+          "URL": "https://support.apple.com/en-ca/HT202888",
+          "Identifiers": {
+            "Mac14,8": "Mac Pro (Rack, 2023)",
+            "MacPro7,1": "Mac Pro (2019)",
+            "MacPro7,1-Rack": "Mac Pro (Rack, 2019)"
+          }
+        }
+      ]
+    }
+  ],
+  "XProtectPayloads": {
+    "com.apple.XProtectFramework.XProtect": "170",
+    "com.apple.XprotectFramework.PluginService": "74",
+    "ReleaseDate": "2026-10-21T21:24:21Z"
+  }
+}

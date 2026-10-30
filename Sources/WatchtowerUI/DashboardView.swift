@@ -353,7 +353,7 @@ struct DetailPane: View {
     var body: some View {
         if section == .incidents {
             if let incident = incidents?.selectedIncident {
-                IncidentDetail(incident: incident)
+                IncidentDetail(incident: incident, breachRows: incidents?.breachRows(incident) ?? [])
             } else {
                 ContentUnavailableView("No selection", systemImage: "sidebar.right",
                                        description: Text("Select an incident to see its record."))
@@ -387,8 +387,10 @@ struct ItemDetail: View {
     let item: ItemRecord
     @State private var showsDetail = false
     @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
+        let sofa = SofaDetail(item)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 14) {
@@ -400,19 +402,33 @@ struct ItemDetail: View {
                             Text(DisplayPath.abbreviate(path)).font(.callout.monospaced()).foregroundStyle(.secondary)
                                 .textSelection(.enabled)
                         }
-                        StatusBadge(item.state).padding(.top, 4)
+                        HStack(spacing: 6) {
+                            StatusBadge(item.state)
+                            if let badge = sofa?.badge { FeedBadgeView(badge: badge) }
+                        }
+                        .fixedSize()
+                        .padding(.top, 4)
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
-                    if !item.isCatalogApp {
+                    if !item.isCatalogApp && !SofaDetail.usesSoftwareUpdate(item) {
                         Button(UpdatePolicy.buttonTitle(item)) { Task { await updates?.start(item) } }
                             .buttonStyle(.borderedProminent)
                             .disabled(blocked != nil)
                             .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
                     }
                 }
-                if item.source == "apps", item.vendorPageURL != nil || item.attributes?["path"] != nil {
-                    HStack { appActions }
+                if SofaDetail.usesSoftwareUpdate(item)
+                    || (item.source == "apps" && (item.vendorPageURL != nil || item.attributes?["path"] != nil)) {
+                    HStack {
+                        if SofaDetail.usesSoftwareUpdate(item) {
+                            // macOS and Safari update in System Settings (#58). Watchtower never installs them.
+                            Button("Open Software Update", systemImage: "gear") { openURL(SofaDetail.softwareUpdate) }
+                                .buttonStyle(.bordered)
+                                .help("Open the Software Update pane of System Settings.")
+                        }
+                        if item.source == "apps" { appActions }
+                    }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Installed", item.installedVersion ?? "—")
@@ -420,23 +436,26 @@ struct ItemDetail: View {
                     if let from = item.latestFromText { row("Latest from", from) }
                     if let matched = item.matchedBy { row("Matched by", matched) }
                     if let kind = item.kind { row("Kind", kind) }
-                    if let origin = item.origin {
-                        row(origin == "Sparkle feed" ? "Source" : (item.source == "apps" ? "Origin" : "Tap"), origin)
-                    }
+                    // QA decision (#58): `Tap` for Homebrew items, `Source` for all others.
+                    if let origin = item.origin { row(item.source == "homebrew" ? "Tap" : "Source", origin) }
                     if let project = item.project { row("Project", project) }
-                    ForEach(SparkleDetail.otherAttributes(item).filter { !ItemRecord.catalogAttributeKeys.contains($0.key) },
-                            id: \.key) { pair in
+                    ForEach(SparkleDetail.otherAttributes(item).filter {
+                        !ItemRecord.catalogAttributeKeys.contains($0.key) && !SofaDetail.keys.contains($0.key)
+                    }, id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
                 }
                 if let sparkle {
                     SparkleSection(detail: sparkle)
                 }
+                if let sofa, sofa.latest != nil {
+                    SecurityReleasesSection(detail: sofa)
+                }
                 if let note = item.note {
                     // A newer beta is extra information, not an action (#14 Design notes).
                     Text(note).foregroundStyle(sparkle != nil && item.state == .upToDate ? .secondary : .primary)
                 }
-                if let error = sparkle?.failure ?? item.error {
+                if let error = sofa?.failure ?? sparkle?.failure ?? item.error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                     if let detail = item.detail {
                         DisclosureGroup("Details", isExpanded: $showsDetail) {
@@ -487,6 +506,55 @@ struct ItemDetail: View {
         default: item.kind?.capitalized ?? item.source
         }
         return [kind, item.origin].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// `Security releases` rows for macOS and Safari (#58). The Apple page is the primary source.
+struct SecurityReleasesSection: View {
+    let detail: SofaDetail
+    @State private var showsCves = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Security releases").font(.headline)
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                if let latest = detail.latest {
+                    GridRow {
+                        Text("Latest").foregroundStyle(.secondary)
+                        Text(latest).textSelection(.enabled)
+                    }
+                }
+                GridRow(alignment: .top) {
+                    Text("Fixed CVEs").foregroundStyle(.secondary)
+                    if detail.fixedCves.isEmpty {
+                        Text("0")
+                    } else {
+                        DisclosureGroup("\(detail.fixedCves.count)", isExpanded: $showsCves) {
+                            Text(detail.fixedCves.joined(separator: ", ")).font(.callout.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                if !detail.exploited.isEmpty {
+                    GridRow(alignment: .top) {
+                        Text("Actively exploited").foregroundStyle(.secondary)
+                        Label(detail.exploited.joined(separator: ", "), systemImage: "flame.fill")
+                            .foregroundStyle(Tone.red.color)
+                            .textSelection(.enabled)
+                    }
+                }
+                GridRow {
+                    Text("Primary source").foregroundStyle(.secondary)
+                    Link("Apple security releases", destination: SofaDetail.primarySource)
+                }
+                if let data = detail.data {
+                    GridRow {
+                        Text("Data").foregroundStyle(.secondary)
+                        Text(data)
+                    }
+                }
+            }
+        }
     }
 }
 

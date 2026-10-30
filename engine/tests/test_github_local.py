@@ -178,3 +178,65 @@ def test_a_later_refresh_finishes_the_ids_that_the_limit_left(tmp_path):
     second = load(tmp_path, groups, second_fetch, lambda: "2026-10-30T08:00:00Z")
     assert len(second_fetch.calls) == 20  # Only the ids that the first refresh left.
     assert second.state == "complete"
+
+
+# #66: a GHSA record with a MAL- alias can be malware on GitHub. Only the API answers for it.
+
+MALWARE_GHSA = "GHSA-cxm3-wv7p-598c"  # A real case: reviewed in OSV, malware on GitHub.
+
+
+def mal_aliased(ident, cve=None):
+    aliases = ([cve] if cve else []) + ["MAL-2025-41436", "MAL-2025-41437"]
+    return {**reviewed(ident, aliases, withdrawn="2026-07-28T12:42:28Z"),
+            "database_specific": {"github_reviewed": True, "severity": "CRITICAL", "cwe_ids": ["CWE-506"]}}
+
+
+def test_a_ghsa_record_with_a_mal_alias_goes_to_the_api_and_is_malware(tmp_path):
+    write_db(tmp_path, "npm", [mal_aliased(MALWARE_GHSA, "CVE-2025-10894"), reviewed(ghsa(1))])
+    fetch = FakeFetch({("malware", MALWARE_GHSA): reply([{"ghsa_id": MALWARE_GHSA, "type": "malware"}])})
+    data = load(tmp_path, [[MALWARE_GHSA, "CVE-2025-10894"], [ghsa(1)]], fetch, lambda: T1)
+    assert sorted(fetch.asked()) == [("malware", MALWARE_GHSA), ("reviewed", MALWARE_GHSA)]
+    verdict = data.assess([MALWARE_GHSA, "CVE-2025-10894"])
+    assert verdict.malware_id == MALWARE_GHSA and verdict.malware_known
+    assert data.state == "complete"
+
+
+def test_a_cve_whose_local_advisory_has_a_mal_alias_goes_to_the_api(tmp_path):
+    write_db(tmp_path, "npm", [mal_aliased(ghsa(2), "CVE-2025-10894")])
+    fetch = FakeFetch()
+    load(tmp_path, [["PYSEC-2025-1", "CVE-2025-10894"]], fetch, lambda: T1)
+    assert sorted(fetch.asked()) == [("malware", "CVE-2025-10894"), ("reviewed", "CVE-2025-10894")]
+
+
+def test_the_cve_index_keeps_only_summary_fields(tmp_path):
+    entry = reviewed(ghsa(3), ["CVE-2026-00003"])
+    entry.update({"details": "x" * 5000, "affected": [{"package": {"name": "p"}, "ranges": []}],
+                  "references": [{"url": "https://example.com"}] * 20})
+    write_db(tmp_path, "npm", [entry])
+    local = github.LocalAdvisories.open(tmp_path)
+    try:
+        (summary,) = local.by_cve()["CVE-2026-00003"]
+    finally:
+        local.close()
+    assert set(summary) <= {"ghsa_id", "cve_id", "severity", "withdrawn_at", "published_at", "reviewed",
+                            "malware_alias"}
+    assert "details" not in summary and "affected" not in summary
+
+
+def test_the_cve_index_memory_stays_small_for_large_records(tmp_path):
+    import tracemalloc
+    entries = [{**reviewed(ghsa(i), [f"CVE-2026-{i:05d}"]), "details": "d" * 8000,
+                "affected": [{"package": {"name": f"p{i}"}, "versions": [f"1.{v}" for v in range(200)]}]}
+               for i in range(600)]
+    write_db(tmp_path, "npm", entries)
+    local = github.LocalAdvisories.open(tmp_path)
+    try:
+        tracemalloc.start()
+        before = tracemalloc.get_traced_memory()[0]
+        index = local.by_cve()
+        kept = tracemalloc.get_traced_memory()[0] - before
+        tracemalloc.stop()
+    finally:
+        local.close()
+    assert len(index) == 600
+    assert kept < 2 * 1024 * 1024  # Full records would keep about 7 MB here.
