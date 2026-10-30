@@ -184,9 +184,9 @@ def test_refresh_gives_feed_data_to_the_store_and_saves_coverage_with_notes(tmp_
     assert state["refresh"]["status"] == "partial"  # A failed feed is visible in the refresh.
 
 
-def test_the_default_sources_run_kev_github_and_epss_after_osv(tmp_path):
+def test_the_default_sources_run_endoflife_after_sofa_and_kev_github_and_epss_after_osv(tmp_path):
     names = [s.source for s in refresh.default_sources(tmp_path)]
-    assert names == ["homebrew", "apps", "macos", "runtimes", "sofa", "osv", "kev", "github", "epss"]
+    assert names == ["homebrew", "apps", "macos", "runtimes", "sofa", "endoflife", "osv", "kev", "github", "epss"]
 
 
 def test_only_advisory_ids_are_collected_for_github(tmp_path):

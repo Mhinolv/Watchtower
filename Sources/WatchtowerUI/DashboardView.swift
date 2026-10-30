@@ -448,8 +448,10 @@ struct ItemDetail: View {
                     // QA decision (#58): `Tap` for Homebrew items, `Source` for all others.
                     if let origin = item.origin { row(item.source == "homebrew" ? "Tap" : "Source", origin) }
                     if let project = item.project { row("Project", project) }
+                    if let support { supportRows(support) }
                     ForEach(SparkleDetail.otherAttributes(item).filter {
                         !ItemRecord.catalogAttributeKeys.contains($0.key) && !SofaDetail.keys.contains($0.key)
+                            && !SupportStatus.keys.contains($0.key)
                     }, id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
@@ -463,6 +465,9 @@ struct ItemDetail: View {
                 if let note = item.note {
                     // A newer beta is extra information, not an action (#14 Design notes).
                     Text(note).foregroundStyle(sparkle != nil && item.state == .upToDate ? .secondary : .primary)
+                }
+                if let failure = support?.failureText {
+                    Label(failure, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.orange.color)
                 }
                 if let error = sofa?.failure ?? sparkle?.failure ?? item.error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
@@ -483,6 +488,19 @@ struct ItemDetail: View {
     }
 
     var sparkle: SparkleDetail? { SparkleDetail(item) }
+
+    /// The vendor support of macOS (#59). Other items have none here.
+    var support: SupportStatus? { item.source == "macos" ? SupportStatus(item, now: model.currentDate) : nil }
+
+    /// `Support`, `Release line` and `Data` (#59).
+    @ViewBuilder func supportRows(_ support: SupportStatus) -> some View {
+        GridRow {
+            Text("Support").foregroundStyle(.secondary)
+            SupportLabel(status: support)
+        }
+        if let line = support.releaseLine(product: item.name) { row("Release line", line) }
+        if let data = support.dataText { row("Data", data) }
+    }
 
     func row(_ label: String, _ value: String) -> some View {
         GridRow {

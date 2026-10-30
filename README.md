@@ -83,6 +83,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
 | GET `https://sofafeed.macadmins.io/v2/macos_data_feed.json` and `/v2/safari_data_feed.json` | None. Two public bulk feeds (SOFA, MacAdmins). No version, path, bundle id or finding. | SOFA check, each refresh |
+| GET `https://endoflife.date/api/v1/products/<product>/` | The product name only (`macos`, `nodejs`, `python`). No version, path, project, app name or finding. A `Watchtower/<version>` User-Agent. | endoflife.date check (#59), each refresh. One request for each product, not for each install |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
@@ -108,6 +109,14 @@ The engine reads only known fields of the feeds, with format checks and limits. 
 The Apple security releases page (`https://support.apple.com/en-us/100100`) stays the primary source. SOFA is a summary of that page.
 Safari compares within its installed major version. The engine keeps the last copy in `cache/sofa/feeds.json`. If a feed fails, it uses that copy and the coverage is `partial`.
 Watchtower never installs macOS or Safari. The `Open Software Update` button opens System Settings.
+
+The endoflife.date check (#59) shows the vendor support status of macOS and of each runtime in the Runtimes list. The compare runs on this Mac.
+Only the product name leaves this Mac. A path, a project, an app name, a version or a finding never goes into a request. The name must match `[a-z0-9][a-z0-9.-]{0,63}`. Watchtower makes one request for each product, even if you have many installs.
+The engine picks the release line of the installed version (`3.12` for `3.12.11`, `15` for macOS `15.1`) and reads only the line name, four dates and two flags, with format checks and limits (at most 2 MB and 300 lines).
+The states are `Supported`, `Ends soon` (the end date is 90 days away or less), `Security fixes only`, `End of life` and `Not known` (no entry at endoflife.date, or Java, which has no product). The app counts the days again at display time, so an old scan never shows `Supported` after the end date.
+This status is not the update status. It does not change `Update available` or `Vulnerable`, and a copy of a runtime that is out of date but still supported stays `Update available`.
+If the request fails, Watchtower keeps the earlier support data, shows `endoflife.date did not respond. Data from <date>.` and makes the endoflife.date coverage row `partial` (or `failed` if nothing answered). The last good answers stay in `cache/endoflife/products.json` in the data folder (mode `0600`). A product that endoflife.date does not know is not a failure: its items show `Not known`.
+Project dependencies and the support status of apps are not part of this check.
 
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
