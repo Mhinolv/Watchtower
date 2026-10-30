@@ -302,9 +302,14 @@ public struct ProcessCommandRunner: CommandRunner {
         registry.add(box)
         defer { registry.remove(box) }
         return try await withTaskCancellationHandler {
-            try await Task.detached(priority: .userInitiated) {
-                try box.runToEnd(executable, arguments, environment, onStderrLine)
-            }.value
+            // The process run blocks a thread until the process ends (pipe reads, waitUntilExit).
+            // It must not block a Swift concurrency thread: with a small pool (a CI runner) the
+            // tasks that would stop the process could never run (#52). A GCD thread does the wait.
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ProcessResult, Error>) in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(with: Result { try box.runToEnd(executable, arguments, environment, onStderrLine) })
+                }
+            }
         } onCancel: {
             box.terminate()
         }
