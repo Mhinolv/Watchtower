@@ -106,6 +106,19 @@ struct CountCapsule: View {
     }
 }
 
+/// A capsule outline drawn as a filled ring: the outer capsule minus the inner one, filled with the
+/// even-odd rule. A 0.5 pt `strokeBorder` of a capsule drew a vertical hairline at both ends in
+/// offscreen snapshots (#40), so the border is a fill, not a stroke.
+struct CapsuleRing: Shape {
+    var width: CGFloat = 0.5
+
+    func path(in rect: CGRect) -> Path {
+        var path = SwiftUI.Capsule().path(in: rect)
+        path.addPath(SwiftUI.Capsule().path(in: rect.insetBy(dx: width, dy: width)))
+        return path
+    }
+}
+
 /// One filter chip above the item list. The selected chip has the accent tint.
 struct FilterChipButton: View {
     let chip: FilterChip
@@ -122,9 +135,15 @@ struct FilterChipButton: View {
             .foregroundStyle(chip.selected ? Color.watchtowerAccent : .primary)
             .padding(.horizontal, 10)
             .frame(height: 26)
-            .background(chip.selected ? Color.watchtowerAccent.opacity(0.16) : Color.clear, in: SwiftUI.Capsule())
-            .overlay(SwiftUI.Capsule().strokeBorder(chip.selected ? Color.watchtowerAccent.opacity(0.5)
-                                                                   : Color.secondary.opacity(0.35)))
+            // One capsule for fill and border (#40). Unselected: a 0.5 pt border and no fill. Selected: the
+            // accent tint and no border. The border is a filled ring, not a stroke (see `CapsuleRing`).
+            .background {
+                if chip.selected {
+                    SwiftUI.Capsule().fill(Color.watchtowerAccent.opacity(0.16))
+                } else {
+                    CapsuleRing().fill(Color.secondary.opacity(0.45), style: FillStyle(eoFill: true))
+                }
+            }
             .contentShape(SwiftUI.Capsule())
         }
         .buttonStyle(.plain)
