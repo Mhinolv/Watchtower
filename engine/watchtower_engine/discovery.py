@@ -8,11 +8,14 @@ Rules for the list:
 - One row for one real folder. Symlinks and git worktrees of a listed project add no row.
 - A symlink that leads outside the project roots is skipped and reported in `skipped`.
 - A root that cannot be read goes in `root_errors`. The other roots still run.
-- Manifests are looked up in the project folder and one level of folders below it.
+- Manifests are looked up in the project folder and in the folders below it, down to MAX_DEPTH levels (#85).
+  A folder is visited once, shallow folders first, and at most MAX_DIRS folders of a project are visited.
+  The walk skips hidden folders and dependency or build folders (SKIP_DIRS), and never follows a symlink.
 """
 from __future__ import annotations
 
 import os
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -38,11 +41,14 @@ MANIFEST_NAMES = frozenset(
 SKIP_DIRS = frozenset(
     {
         "node_modules", "venv", "env", "build", "dist", "target", "vendor", "Pods",
-        "DerivedData", "__pycache__", "site-packages",
+        "DerivedData", "__pycache__", "site-packages", ".venv", ".build", ".git",
     }
 )
 
-MAX_SUBDIRS = 200
+# How deep a manifest can be inside a project: 0 is the project folder, 1 a folder directly in it.
+MAX_DEPTH = 8
+# The most folders that the walk visits in one project. Shallow folders come first.
+MAX_DIRS = 5000
 
 
 @dataclass
@@ -128,34 +134,38 @@ def _root_error(label: str, exc: OSError) -> RootError:
 
 
 def manifests_in(folder: str | os.PathLike) -> list[str]:
-    """Manifest file names in `folder` and one level below it, sorted.
+    """Manifest file names in `folder` and in the folders below it, sorted, as paths relative to `folder`.
 
-    Names in `folder` are plain (`package.json`). Names below it carry the
-    folder (`engine/pyproject.toml`). Raises OSError if `folder` cannot be listed.
-    A folder below it that cannot be listed is skipped.
+    Names in `folder` are plain (`package.json`). Names below it carry the folders and use `/`
+    (`engine/pyproject.toml`, `crates/core/Cargo.lock`). Raises OSError if `folder` cannot be listed.
+    A folder below it that cannot be listed is skipped. The walk lists names only: it opens no file.
     """
     found: list[str] = []
-    subdirs: list[str] = []
-    with os.scandir(folder) as it:
-        for entry in it:
-            if entry.name in MANIFEST_NAMES and entry.is_file(follow_symlinks=False):
-                found.append(entry.name)
-            elif (
-                not entry.name.startswith(".")
-                and entry.name not in SKIP_DIRS
-                and entry.is_dir(follow_symlinks=False)
-            ):
-                subdirs.append(entry.name)
-    for sub in sorted(subdirs)[:MAX_SUBDIRS]:
+    queue: deque[tuple[str, str, int]] = deque([("", os.fspath(folder), 0)])  # (relative path, path, depth)
+    visited = 0
+    while queue and visited < MAX_DIRS:
+        rel, path, depth = queue.popleft()
         try:
-            with os.scandir(os.path.join(folder, sub)) as it:
-                found.extend(
-                    f"{sub}/{e.name}"
-                    for e in it
-                    if e.name in MANIFEST_NAMES and e.is_file(follow_symlinks=False)
-                )
+            with os.scandir(path) as it:
+                entries = sorted(it, key=lambda e: e.name)
         except OSError:
+            if depth == 0:
+                raise
             continue
+        visited += 1
+        for entry in entries:
+            try:
+                if entry.name in MANIFEST_NAMES and entry.is_file(follow_symlinks=False):
+                    found.append(f"{rel}{entry.name}")
+                elif (
+                    depth < MAX_DEPTH
+                    and not entry.name.startswith(".")
+                    and entry.name not in SKIP_DIRS
+                    and entry.is_dir(follow_symlinks=False)  # A symlink is never followed.
+                ):
+                    queue.append((f"{rel}{entry.name}/", entry.path, depth + 1))
+            except OSError:
+                continue
     return sorted(found)
 
 
