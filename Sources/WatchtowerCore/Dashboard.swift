@@ -13,7 +13,7 @@ public enum Tone: Sendable, Equatable {
 // MARK: - Sidebar
 
 public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
-    case apps, homebrew, projects, findings, backlog, incidents, updateLog
+    case apps, homebrew, projects, findings, backlog, incidents, updateLog, runtimes
 
     public var id: String { rawValue }
 
@@ -26,6 +26,7 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .backlog: "Backlog"
         case .incidents: "Incidents"
         case .updateLog: "Update Log"
+        case .runtimes: "Runtimes"
         }
     }
 
@@ -38,10 +39,11 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .backlog: "archivebox"
         case .incidents: "antenna.radiowaves.left.and.right"
         case .updateLog: "list.bullet.rectangle"
+        case .runtimes: "cpu"
         }
     }
 
-    /// ⌘1 to ⌘6, and ⌘7 for Update Log (Design notes of #5, #6 and #12).
+    /// ⌘1 to ⌘6, ⌘7 for Update Log and ⌘8 for Runtimes (Design notes of #5, #6, #12 and #16).
     public var shortcutDigit: Character {
         switch self {
         case .apps: "1"
@@ -51,6 +53,7 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .backlog: "5"
         case .incidents: "6"
         case .updateLog: "7"
+        case .runtimes: "8"
         }
     }
 
@@ -592,7 +595,10 @@ public final class DashboardModel {
         case .homebrew: all.filter { $0.source == "homebrew" }
         case .findings: []  // Findings are not items. See `visibleFindings`.
         case .projects, .backlog, .incidents, .updateLog: []
+        case .runtimes: all.filter { $0.source == "runtimes" }
         }
+        // The engine orders the installs: group, name, newest version first (#16).
+        if section == .runtimes { return picked }
         return picked.sorted {
             ($0.state.rank, $0.name.lowercased(), $0.key) < ($1.state.rank, $1.name.lowercased(), $1.key)
         }
@@ -615,7 +621,7 @@ public final class DashboardModel {
 
     public func count(_ section: SidebarSection) -> Int {
         switch section {
-        case .apps, .homebrew: items(in: section).count
+        case .apps, .homebrew, .runtimes: items(in: section).count
         case .findings: findingsInScope.filter(\.isOpen).count
         case .projects: activeProjects.count
         case .backlog: backlogProjects.count + backlogFindings.count

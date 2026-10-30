@@ -1,0 +1,9 @@
+{
+  "name": "claude-code",
+  "displayName": "Claude Code for VS Code",
+  "version": "2.1.15",
+  "publisher": "Anthropic",
+  "engines": {
+    "vscode": "^1.94.0"
+  }
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CanonicalName</key>
+	<string>macosx15.5</string>
+	<key>DefaultDeploymentTarget</key>
+	<string>15.5</string>
+	<key>DisplayName</key>
+	<string>macOS 15.5</string>
+	<key>IsBaseSDK</key>
+	<string>YES</string>
+	<key>MaximumDeploymentTarget</key>
+	<string>15.5.99</string>
+	<key>Version</key>
+	<string>15.5</string>
+</dict>
+</plist>
