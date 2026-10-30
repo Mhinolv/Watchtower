@@ -5,12 +5,17 @@ the same with `type=malware`, and `cve_id=<id>` for a finding that has no GHSA i
 The request holds one advisory id and nothing else: no package name, version, path or project.
 The two types are separate requests, because the default list leaves malware out.
 
+Local answers first (#56): the OSV databases in `<data dir>/osv/osv-scalibr/<ecosystem>/all.zip`
+hold the reviewed GHSA records and the malicious-package (MAL) records. If a database has the id,
+the engine uses that record and sends no request for it. Only the other ids go to the API.
+
 Rules:
 - A response is followed through its `Link: rel="next"` page, up to MAX_PAGES. A longer list is
   marked incomplete. The engine follows only links on api.github.com.
 - A rate limit stops all later requests of this refresh. The cached answers stay and keep their age.
 - One refresh sends at most MAX_REQUESTS requests (the public limit is 60 for each hour). An
-  answer that is younger than TTL_HOURS is reused. The rest is marked incomplete.
+  answer that is younger than TTL_HOURS (7 days) is reused, so a later refresh finishes the rest.
+  The rest is marked incomplete.
 - The cache is `<data dir>/cache/github/advisories.json`.
 """
 from __future__ import annotations
@@ -21,6 +26,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +35,7 @@ from typing import Callable, Iterable
 from .. import __version__
 from ..models import CoverageRecord, utc_now
 from ..store import ensure_private_dir, ensure_private_file
+from . import osv_database
 from .homebrew import Fetch, Response
 
 SOURCE = "github"
@@ -39,7 +46,8 @@ TYPES = ("reviewed", "malware")
 PER_PAGE = 100
 MAX_PAGES = 3
 MAX_REQUESTS = 40
-TTL_HOURS = 6
+TTL_HOURS = 7 * 24  # #56: about 600 findings need about 1200 answers, at most 40 for each refresh.
+MAX_ENTRY_BYTES = 1024 * 1024
 TIMEOUT_SECONDS = 30
 MAX_BYTES = 10 * 1024 * 1024
 CACHE_FORMAT = 1
@@ -76,6 +84,7 @@ class Lookup:
     advisories: list[dict] | None = None  # None: never retrieved.
     fetched_at: str | None = None
     incomplete: bool = False
+    local: bool = False  # True: from the local OSV database. Not saved in the cache.
 
 
 @dataclass
@@ -131,6 +140,129 @@ def lookup_targets(advisory_ids: Iterable[str]) -> list[tuple[str, str]]:
     if ghsa:
         return ghsa
     return [("cve_id", i.upper()) for i in ids if re.fullmatch(r"(?i)CVE-\d{4}-\d{4,}", i)]
+
+
+# Local OSV databases (#56)
+
+
+_GHSA = re.compile(r"(?i)GHSA(-[0-9a-z]{4}){3}")
+_CVE = re.compile(r"(?i)CVE-\d{4}-\d{4,}")
+
+
+class LocalAdvisories:
+    """GHSA and MAL records in the local OSV databases. The records are untrusted data: only known
+    fields are read, and an entry that is too large or not valid JSON is skipped."""
+
+    def __init__(self, zips: list[Path], fetched_at: str | None = None):
+        self.fetched_at = fetched_at  # The oldest database in use.
+        self._zips: list[tuple[zipfile.ZipFile, dict[str, str]]] = []
+        self._cve: dict[str, list[dict]] | None = None
+        for path in zips:
+            try:
+                z = zipfile.ZipFile(path)
+                names = {n.lower(): n for n in z.namelist() if n.endswith(".json") and "/" not in n}
+            except (OSError, zipfile.BadZipFile):
+                continue
+            self._zips.append((z, names))
+
+    @classmethod
+    def open(cls, data_dir: Path) -> "LocalAdvisories":
+        root = osv_database.db_root(data_dir)
+        meta = osv_database.read_meta(root)
+        zips, times = [], []
+        for ecosystem in osv_database.ECOSYSTEMS:
+            path = root / osv_database.LAYOUT / ecosystem / "all.zip"
+            if path.is_file():
+                zips.append(path)
+                info = meta.get(ecosystem)
+                if isinstance(info, dict) and isinstance(info.get("fetched_at"), str):
+                    times.append(info["fetched_at"])
+        return cls(zips, min(times) if times else None)
+
+    def close(self) -> None:
+        for z, _ in self._zips:
+            z.close()
+
+    def _read(self, z: zipfile.ZipFile, name: str) -> dict | None:
+        try:
+            if z.getinfo(name).file_size > MAX_ENTRY_BYTES:
+                return None
+            data = json.loads(z.read(name))
+        except Exception:  # A damaged zip member or bad JSON: skip the entry.
+            return None
+        return data if isinstance(data, dict) and isinstance(data.get("id"), str) else None
+
+    def entry(self, ident: str) -> dict | None:
+        """The record with this id (`GHSA-…`, `MAL-…`), from any database, or None."""
+        name = f"{ident}.json".lower()
+        for z, names in self._zips:
+            if name in names:
+                data = self._read(z, names[name])
+                if data and data["id"].lower() == ident.lower():
+                    return data
+        return None
+
+    def by_cve(self) -> dict[str, list[dict]]:
+        """GHSA records by their CVE aliases. Read once, only when a finding has no GHSA id."""
+        if self._cve is None:
+            self._cve = {}
+            for z, names in self._zips:
+                for lower, name in names.items():
+                    if not lower.startswith("ghsa-"):
+                        continue
+                    data = self._read(z, name)
+                    aliases = data.get("aliases") if data else None
+                    for alias in aliases if isinstance(aliases, list) else []:
+                        if isinstance(alias, str) and _CVE.fullmatch(alias):
+                            self._cve.setdefault(alias.upper(), []).append(data)
+        return self._cve
+
+    def malware_aliases(self, advisory_ids: Iterable[str]) -> dict[str, dict]:
+        """MAL records of the findings, by their GHSA aliases (lower case)."""
+        out: dict[str, dict] = {}
+        for ident in advisory_ids:
+            if isinstance(ident, str) and ident.upper().startswith("MAL-"):
+                data = self.entry(ident.strip())
+                aliases = data.get("aliases") if data else None
+                for alias in aliases if isinstance(aliases, list) else []:
+                    if isinstance(alias, str) and _GHSA.fullmatch(alias):
+                        out[alias.lower()] = data
+        return out
+
+    def answers(self, param: str, value: str, malware: dict[str, dict]) -> dict[str, list[dict]] | None:
+        """The `reviewed` and `malware` lists that the API would give for one target. None: not here.
+
+        A GHSA id has one type. A reviewed record is not malware, and a malware id has no reviewed record.
+        """
+        if param == "ghsa_id":
+            mal = malware.get(value.lower())
+            if mal is not None:
+                return {"reviewed": [], "malware": [_local_summary(value, mal, "malware")]}
+            data = self.entry(value)
+            if data is None:
+                return None
+            return {"reviewed": [_local_summary(value, data, "reviewed")] if _reviewed(data) else [], "malware": []}
+        found = [d for d in self.by_cve().get(value.upper(), []) if _reviewed(d)]
+        if not found:
+            return None
+        return {"reviewed": [_local_summary("GHSA-" + d["id"][5:].lower(), d, "reviewed") for d in found],
+                "malware": []}
+
+
+def _reviewed(data: dict) -> bool:
+    specific = data.get("database_specific")
+    return not (isinstance(specific, dict) and specific.get("github_reviewed") is False)
+
+
+def _local_summary(ghsa_id: str, data: dict, kind: str) -> dict:
+    """The same fields as `_summary`, from an OSV record."""
+    text = lambda v: v if isinstance(v, str) else None
+    aliases = data.get("aliases") if isinstance(data.get("aliases"), list) else []
+    specific = data.get("database_specific") if isinstance(data.get("database_specific"), dict) else {}
+    severity = text(specific.get("severity"))
+    return {"ghsa_id": ghsa_id, "cve_id": next((a.upper() for a in aliases if isinstance(a, str) and _CVE.fullmatch(a)), None),
+            "type": kind, "severity": severity.lower() if severity else None,
+            "withdrawn_at": text(data.get("withdrawn")), "published_at": text(data.get("published"))}
 
 
 # Cache
@@ -228,11 +360,24 @@ def load(
     fetch: Fetch = http_fetch,
     now: Callable[[], str] = utc_now,
     max_requests: int = MAX_REQUESTS,
+    local: LocalAdvisories | None = None,
 ) -> GithubData:
-    """Ask GitHub about the advisory ids of each finding, one id and one type at a time."""
+    """Ask GitHub about the advisory ids of each finding, one id and one type at a time.
+
+    The local OSV databases answer first. Only the ids that they do not have go to the API.
+    """
     path = _cache_path(data_dir)
     cache = _read_cache(path)
-    targets = sorted({t for ids in findings_ids for t in lookup_targets(ids)})
+    groups = [list(ids) for ids in findings_ids]
+    targets = sorted({t for ids in groups for t in lookup_targets(ids)})
+    own_local = local is None
+    local = local or LocalAdvisories.open(data_dir)
+    try:
+        malware = local.malware_aliases(i for ids in groups for i in ids)
+        found = {t: local.answers(*t, malware) for t in targets}
+    finally:
+        if own_local:
+            local.close()
     headers = {"User-Agent": f"Watchtower/{__version__}", "Accept": "application/vnd.github+json",
                "X-GitHub-Api-Version": API_VERSION}
     data = GithubData()
@@ -246,6 +391,10 @@ def load(
     for kind in TYPES:
         for param, value in targets:
             k = key(kind, param, value)
+            answer = found.get((param, value))
+            if answer is not None:
+                data.lookups[k] = Lookup(kind, param, value, answer[kind], local.fetched_at, local=True)
+                continue
             old = cache.get(k) if isinstance(cache.get(k), dict) else None
             lookup = Lookup(kind, param, value)
             if old and isinstance(old.get("advisories"), list):
@@ -293,5 +442,5 @@ def load(
     elif incomplete:
         data.state, data.reason = "partial", incomplete
     _write_cache(path, {k: {"fetched_at": l.fetched_at, "advisories": l.advisories, "incomplete": l.incomplete}
-                        for k, l in data.lookups.items() if l.advisories is not None})
+                        for k, l in data.lookups.items() if l.advisories is not None and not l.local})
     return data
