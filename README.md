@@ -24,6 +24,15 @@ The app reads the stored state at launch. Only the Refresh button starts a refre
 `scripts/bundle.sh [out-dir]` builds `Watchtower.app` (default `build/`). The bundle has `AppIcon.icns` from `design/logo/`, the `AccentColor` asset catalog (Watchtower Indigo) and the menu bar template icons.
 The UI follows `design/system.md` and the approved mockups in `design/mockups/`.
 
+### App versions from the cask catalog (#55)
+
+- The Apps check matches each app to the public Homebrew cask catalog. It uses no new call: the catalog is the `cask.json` file above.
+- An installed cask claims its app first. Any other app matches by bundle id (from the cask `uninstall quit` and `zap trash` entries), then by app file name.
+- A cask can list the bundle id of another app. If the app file name also equals a cask's app name, only those casks stay. Casks with an `@` suffix (`slack@beta`) never count as extra matches.
+- One cask gives `Latest`, the source `App · Homebrew catalog`, the `Matched by` evidence and the cask homepage. More than one cask stays `Manual update`. Watchtower does not guess.
+- A newer catalog version shows `Update available`. The update stays manual: `Open Vendor Page` and `Reveal in Finder`. There is no `Update` button.
+- A self-updating cask compares the app's own version, not the Homebrew receipt.
+
 ## Local data
 
 The engine keeps its state in `~/Library/Application Support/Watchtower/watchtower.sqlite3`.
@@ -60,11 +69,13 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | Call | Data sent | When |
 |---|---|---|
 | GET `https://formulae.brew.sh/api/formula.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if formulae are installed |
-| GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed |
+| GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed. Apps check, if any app is found (#55) |
 | GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
 | GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
 | GET `https://registry.npmjs.org/<package>` and `/<package>/<version>` | The package name and a version only. | npm update plan, after the owner clicks `Update…` |
 | `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
+| `mas version` and `mas list --json` | Nothing. Local calls. mas reads the Spotlight index. | Apps inventory, each refresh, only if an app has an App Store receipt |
+| `mas outdated --json <id>` | The App Store ID of one app. mas asks the App Store. | App Store update plan, after the owner clicks `Check for Update…` |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
@@ -123,6 +134,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - uv runs with `UV_PYTHON_DOWNLOADS=never` and without `UV_*` variables of the owner. Watchtower never creates or rebuilds an environment. It refuses a project with no `.venv`, a workspace, a git or path dependency, a package that is not a direct dependency, and a requirement in `pyproject.toml` that does not allow the target.
 - Watchtower does not edit `pyproject.toml`. Before the run it copies `pyproject.toml` and `uv.lock` to `update-backups/attempt-<id>/` in the data folder.
 - Success needs both: `uv.lock` and the installed package in `.venv` show the target. A new lock with the old installed version stays `Not verified`. A changed file other than `uv.lock`, or a replaced environment, is also `Not verified`.
+
+### Mac App Store apps (mas)
+
+- An app with an App Store receipt shows `App Store` as its source. The `Latest` column stays `—`.
+- Pinned `mas`: 7.0.0 (`mas list --json` needs 7.0.0). Watchtower accepts 7.x from 7.0.0. Another version shows `mas <version> is not supported.`
+- The inventory runs `mas version` and `mas list --json` only. It never runs `mas outdated`.
+- `Check for Update…` runs `mas outdated --json <id>` in the plan step. If the app is current, the sheet says `<name> is up to date (<version>).`
+- The one command is `mas update <id>`. App Store updates use no package scripts, so the plan says `Not used by App Store updates.`
+- States from mas output: not signed in (`Sign in to the App Store, then try again.`), needs an administrator (`This update needs an administrator. Use the App Store app.`), Spotlight cannot find apps (`App Store: partial` in Coverage).
+- Success needs the engine to read the installed version again from the app's `Info.plist`. Exit code 0 alone is `Not verified`.
 
 ## Findings
 

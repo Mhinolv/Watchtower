@@ -42,6 +42,10 @@ public enum SampleData {
                  latest: "3.4.0", sourceAt: time),
             item("com.tinyspeck.slackmacgap", "apps", "Slack", .upToDate, kind: "app", installed: "4.41.97",
                  latest: "4.41.97", sourceAt: time),
+            ItemRecord(id: "com.apple.iWork.Keynote", source: "apps", name: "Keynote", state: .unknown, kind: "app",
+                       installedVersion: "11.0", latestVersion: nil, origin: "App Store",
+                       note: "Watchtower checks App Store versions only when you click Check for Update…",
+                       attributes: ["adamId": "409183694", "path": "/Applications/Keynote.app"]),
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
             item("md.obsidian", "apps", "Obsidian", .error, kind: "app", installed: "1.7.4", latest: nil,
                  error: "Version could not be read.", detail: "Info.plist has no CFBundleShortVersionString"),
@@ -159,9 +163,50 @@ public enum SampleData {
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
         case menubarNever = "menubar-never"
+        case appCatalogNewer = "app-catalog-newer"
+        case appSelfUpdating = "app-self-updating"
+        case appAmbiguous = "app-ambiguous"
+        case appNoHomepage = "app-no-homepage"
 
         /// Scenarios that render the menu bar popover, not the window.
         public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
+    }
+
+    /// One app of the #55 snapshots, matched to the Homebrew cask catalog, and its selection key.
+    static func catalogApp(_ scenario: Scenario) -> (ItemRecord, String) {
+        func app(_ id: String, _ name: String, installed: String, latest: String?, state: ItemState,
+                 origin: String, note: String?, attributes: [String: String]) -> (ItemRecord, String) {
+            let item = ItemRecord(id: id, source: "apps", name: name, state: state, kind: "app",
+                                  installedVersion: installed, latestVersion: latest, origin: origin,
+                                  sourceAt: ago(0.1), note: note,
+                                  attributes: attributes.merging(["path": "/Applications/\(name).app"]) { a, _ in a })
+            return (item, item.key)
+        }
+        switch scenario {
+        case .appSelfUpdating:
+            return app("com.t3tools.t3code", "T3 Code", installed: "0.1.3", latest: "0.1.5", state: .updateAvailable,
+                       origin: "Homebrew cask",
+                       note: "This app updates itself. Watchtower compares the app version, not the Homebrew record.",
+                       attributes: ["cask": "t3-code", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask t3-code", "homepage": "https://t3.codes/"])
+        case .appAmbiguous:
+            return app("org.mozilla.firefox", "Firefox", installed: "150.0", latest: nil, state: .manual,
+                       origin: "Manual", note: "More than one cask matches. Watchtower does not guess.",
+                       attributes: [:])
+        case .appNoHomepage:
+            return app("com.example.nohome", "Plain Tool", installed: "1.0", latest: "2.0", state: .updateAvailable,
+                       origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "plain-tool", "matchedBy": "App name",
+                                    "latestFrom": "Homebrew catalog, cask plain-tool"])
+        default:
+            return app("com.cryptic-apps.hopper-web-4", "Hopper Disassembler", installed: "6.5.0", latest: "6.6.1",
+                       state: .updateAvailable, origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "hopper-disassembler", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask hopper-disassembler",
+                                    "homepage": "https://www.hopperapp.com/"])
+        }
     }
 
     @MainActor
@@ -223,6 +268,14 @@ public enum SampleData {
                                                                     failing: ["homebrew", "apps", "macos", "osv"]),
                                        projects: projects, clock: clock)
             model.selection = .apps
+            return model
+        case .appCatalogNewer, .appSelfUpdating, .appAmbiguous, .appNoHomepage:
+            var current = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            let (item, key) = catalogApp(scenario)
+            current.items.append(item)
+            let model = DashboardModel(engine: engine, state: current, projects: projects, clock: clock)
+            model.selection = .apps
+            model.selectedItemKey = key
             return model
         case .chipSelected:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
@@ -508,6 +561,21 @@ extension SampleData {
         case npmVerified = "update-npm-verified"
         case npmLockfileOnly = "update-npm-lockfile-only"
         case npmNotSupported = "update-npm-not-supported"
+        case masChecking = "update-mas-checking"
+        case masPlan = "update-mas-plan"
+        case masCurrent = "update-mas-current"
+        case masSignedOut = "update-mas-signed-out"
+        case masAdmin = "update-mas-admin"
+    }
+
+    /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
+    public static func masPlan(name: String = "Keynote", installed: String? = "11.0", target: String? = "12.0",
+                               refusal: String? = nil) -> UpdatePlan {
+        UpdatePlan(id: "5d0c8e17a2b64f93", itemKey: "apps/com.apple.iWork.Keynote", name: name, kind: "mas",
+                   fullName: "409183694", installedVersion: installed, targetVersion: target,
+                   command: ["/opt/homebrew/bin/mas", "update", "409183694"], majorChange: refusal == nil,
+                   refusal: refusal,
+                   rows: [PlanRow(label: "Scripts", value: "Not used by App Store updates.")])
     }
 
     public static func npmPlan(scripts: Bool = false) -> UpdatePlan {
@@ -563,6 +631,13 @@ extension SampleData {
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
         case .npmLockfileOnly: .result(npmAttempt(installed: "4.17.1"), npmPlan())
+        case .masChecking: .loading("Keynote")
+        case .masPlan: .plan(masPlan())
+        case .masCurrent: .plan(masPlan(name: "Numbers", installed: "5.2", target: nil,
+                                        refusal: "Numbers is up to date (5.2)."))
+        case .masSignedOut: .plan(masPlan(installed: nil, target: nil, refusal: "Sign in to the App Store, then try again."))
+        case .masAdmin: .plan(masPlan(installed: nil, target: nil,
+                                      refusal: "This update needs an administrator. Use the App Store app."))
         case .npmNotSupported:
             .plan(UpdatePlan(id: "0", itemKey: "npm|~/Projects/monorepo|acme-router|-", name: "acme-router",
                              kind: "npm", fullName: "acme-router", installedVersion: nil, targetVersion: nil,
@@ -573,7 +648,7 @@ extension SampleData {
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",
                                          "==> Pouring git--2.47.1.arm64_sequoia.bottle.tar.gz"],
-                                attempts: attempts)
+                                attempts: attempts, checkingStore: scenario == .masChecking)
         if scenario == .log { model.selectedAttemptID = 3 }
         return model
     }

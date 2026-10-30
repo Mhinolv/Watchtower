@@ -358,3 +358,30 @@ public enum EngineJSON {
         var schemaVersion: Int
     }
 }
+
+// MARK: - Apps matched to the Homebrew cask catalog (#55)
+
+extension ItemRecord {
+    /// An app that has a public cask, but Homebrew did not install it. The update stays manual.
+    public var isCatalogApp: Bool { source == "apps" && origin == "Homebrew catalog" }
+
+    /// The cask homepage, if it is a web address. Watchtower opens it only when the owner clicks.
+    public var vendorPageURL: URL? {
+        guard let text = attributes?["homepage"], let url = URL(string: text),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
+        return url
+    }
+
+    /// `Homebrew catalog, cask t3-code. Retrieved Oct 29, 08:02.` Nil without a catalog match.
+    public var latestFromText: String? {
+        guard let from = attributes?["latestFrom"] else { return nil }
+        guard let at = sourceAt else { return "\(from)." }
+        return "\(from). Retrieved \(at.formatted(.dateTime.month(.abbreviated).day().hour().minute()))."
+    }
+
+    /// `Bundle ID` or `App name`: how the cask was matched.
+    public var matchedBy: String? { attributes?["matchedBy"] }
+
+    /// Attribute keys that the detail pane shows in its own rows.
+    public static let catalogAttributeKeys: Set<String> = ["cask", "matchedBy", "latestFrom", "homepage"]
+}
