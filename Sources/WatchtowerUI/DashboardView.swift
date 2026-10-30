@@ -404,18 +404,26 @@ struct ItemDetail: View {
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
-                    Button("Update…") { Task { await updates?.start(item) } }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(blocked != nil)
-                        .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
+                    if !item.isCatalogApp {
+                        Button("Update…") { Task { await updates?.start(item) } }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(blocked != nil)
+                            .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
+                    }
+                }
+                if item.source == "apps", item.vendorPageURL != nil || item.attributes?["path"] != nil {
+                    HStack { appActions }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Installed", item.installedVersion ?? "—")
                     row("Latest", item.latestVersion ?? "—")
+                    if let from = item.latestFromText { row("Latest from", from) }
+                    if let matched = item.matchedBy { row("Matched by", matched) }
                     if let kind = item.kind { row("Kind", kind) }
-                    if let origin = item.origin { row("Tap", origin) }
+                    if let origin = item.origin { row(item.source == "apps" ? "Origin" : "Tap", origin) }
                     if let project = item.project { row("Project", project) }
-                    ForEach((item.attributes ?? [:]).sorted(by: { $0.key < $1.key }), id: \.key) { pair in
+                    ForEach((item.attributes ?? [:]).filter { !ItemRecord.catalogAttributeKeys.contains($0.key) }
+                        .sorted(by: { $0.key < $1.key }), id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
                 }
@@ -444,6 +452,20 @@ struct ItemDetail: View {
         GridRow {
             Text(label).foregroundStyle(.secondary)
             Text(value).textSelection(.enabled)
+        }
+    }
+
+    /// The manual route for an app (#55): the vendor page, if the cask has one, and Finder. Never `Update`.
+    @ViewBuilder var appActions: some View {
+        if let url = item.vendorPageURL {
+            Button("Open Vendor Page", systemImage: "safari") { NSWorkspace.shared.open(url) }
+                .help("Open \(url.host ?? url.absoluteString) in your browser")
+        }
+        if let path = item.attributes?["path"] {
+            Button("Reveal in Finder", systemImage: "folder") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+            }
+            .help("Show the app in Finder")
         }
     }
 

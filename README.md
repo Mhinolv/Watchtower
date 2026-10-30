@@ -24,6 +24,14 @@ The app reads the stored state at launch. Only the Refresh button starts a refre
 `scripts/bundle.sh [out-dir]` builds `Watchtower.app` (default `build/`). The bundle has `AppIcon.icns` from `design/logo/`, the `AccentColor` asset catalog (Watchtower Indigo) and the menu bar template icons.
 The UI follows `design/system.md` and the approved mockups in `design/mockups/`.
 
+### App versions from the cask catalog (#55)
+
+- The Apps check matches each app to the public Homebrew cask catalog. It uses no new call: the catalog is the `cask.json` file above.
+- An installed cask claims its app first. Any other app matches by bundle id (from the cask `uninstall quit` and `zap trash` entries), then by app file name.
+- One cask gives `Latest`, the source `App · Homebrew catalog`, the `Matched by` evidence and the cask homepage. More than one cask stays `Manual update`. Watchtower does not guess.
+- A newer catalog version shows `Update available`. The update stays manual: `Open Vendor Page` and `Reveal in Finder`. There is no `Update` button.
+- A self-updating cask compares the app's own version, not the Homebrew receipt.
+
 ## Local data
 
 The engine keeps its state in `~/Library/Application Support/Watchtower/watchtower.sqlite3`.
@@ -60,7 +68,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | Call | Data sent | When |
 |---|---|---|
 | GET `https://formulae.brew.sh/api/formula.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if formulae are installed |
-| GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed |
+| GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed. Apps check, if any app is found (#55) |
 | GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
 | GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
 | GET `https://registry.npmjs.org/<package>` and `/<package>/<version>` | The package name and a version only. | npm update plan, after the owner clicks `Update…` |

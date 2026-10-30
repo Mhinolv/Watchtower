@@ -154,9 +154,50 @@ public enum SampleData {
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
         case menubarNever = "menubar-never"
+        case appCatalogNewer = "app-catalog-newer"
+        case appSelfUpdating = "app-self-updating"
+        case appAmbiguous = "app-ambiguous"
+        case appNoHomepage = "app-no-homepage"
 
         /// Scenarios that render the menu bar popover, not the window.
         public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
+    }
+
+    /// One app of the #55 snapshots, matched to the Homebrew cask catalog, and its selection key.
+    static func catalogApp(_ scenario: Scenario) -> (ItemRecord, String) {
+        func app(_ id: String, _ name: String, installed: String, latest: String?, state: ItemState,
+                 origin: String, note: String?, attributes: [String: String]) -> (ItemRecord, String) {
+            let item = ItemRecord(id: id, source: "apps", name: name, state: state, kind: "app",
+                                  installedVersion: installed, latestVersion: latest, origin: origin,
+                                  sourceAt: ago(0.1), note: note,
+                                  attributes: attributes.merging(["path": "/Applications/\(name).app"]) { a, _ in a })
+            return (item, item.key)
+        }
+        switch scenario {
+        case .appSelfUpdating:
+            return app("com.t3tools.t3code", "T3 Code", installed: "0.1.3", latest: "0.1.5", state: .updateAvailable,
+                       origin: "Homebrew cask",
+                       note: "This app updates itself. Watchtower compares the app version, not the Homebrew record.",
+                       attributes: ["cask": "t3-code", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask t3-code", "homepage": "https://t3.codes/"])
+        case .appAmbiguous:
+            return app("org.mozilla.firefox", "Firefox", installed: "150.0", latest: nil, state: .manual,
+                       origin: "Manual", note: "More than one cask matches. Watchtower does not guess.",
+                       attributes: [:])
+        case .appNoHomepage:
+            return app("com.example.nohome", "Plain Tool", installed: "1.0", latest: "2.0", state: .updateAvailable,
+                       origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "plain-tool", "matchedBy": "App name",
+                                    "latestFrom": "Homebrew catalog, cask plain-tool"])
+        default:
+            return app("com.cryptic-apps.hopper-web-4", "Hopper Disassembler", installed: "6.5.0", latest: "6.6.1",
+                       state: .updateAvailable, origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "hopper-disassembler", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask hopper-disassembler",
+                                    "homepage": "https://www.hopperapp.com/"])
+        }
     }
 
     @MainActor
@@ -218,6 +259,14 @@ public enum SampleData {
                                                                     failing: ["homebrew", "apps", "macos", "osv"]),
                                        projects: projects, clock: clock)
             model.selection = .apps
+            return model
+        case .appCatalogNewer, .appSelfUpdating, .appAmbiguous, .appNoHomepage:
+            var current = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            let (item, key) = catalogApp(scenario)
+            current.items.append(item)
+            let model = DashboardModel(engine: engine, state: current, projects: projects, clock: clock)
+            model.selection = .apps
+            model.selectedItemKey = key
             return model
         case .chipSelected:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
