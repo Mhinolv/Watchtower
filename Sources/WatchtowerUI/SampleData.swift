@@ -92,6 +92,10 @@ public enum SampleData {
                       nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
                                   "Restart the dev server after the update."],
                       withdrawnAt: days(1)),
+        FindingRecord(id: "SEC-0008", package: "yaml-tools", title: "Regular expression slowdown in the parser",
+                      severity: .low, advisoryIds: ["CVE-2026-20203", "GHSA-bkgg-yaml-0008"], fixedIn: "2.1.2",
+                      status: .backlog, firstSeen: days(9), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [path("api", "tools/package-lock.json", "2.1.0")]),
         FindingRecord(id: "SEC-0006", ecosystem: "PyPI", package: "httpx", title: "Request smuggling in httpx",
                       severity: .high, advisoryIds: ["CVE-2026-31337", "GHSA-uvuv-httpx-0006"], fixedIn: "0.27.2",
                       firstSeen: days(2), lastSeen: ago(2), sourceAt: ago(6),
@@ -133,6 +137,7 @@ public enum SampleData {
         case running
         case settingsInactive = "settings-inactive"
         case backlog
+        case backlogEmpty = "backlog-empty"
         case findings
         case findingOpen = "finding-open"
         case findingDeferred = "finding-deferred"
@@ -194,6 +199,15 @@ public enum SampleData {
                                        projects: projects, clock: clock)
             model.selection = .backlog
             model.selectedItemKey = projects[2].path
+            return model
+        case .backlogEmpty:
+            // Every project is active and no finding is in the backlog.
+            let active = projects.map { var p = $0; p.state = "active"; return p }
+            let findings = SampleData.findings.filter { $0.status != .backlog }
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2), findings: findings),
+                                       projects: active, clock: clock)
+            model.selection = .backlog
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
              .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:

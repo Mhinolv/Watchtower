@@ -221,7 +221,7 @@ private let old = ProjectRecord(name: "old", path: "/Users/me/Projects/old", roo
     #expect(model.items(in: .apps).map(\.name) == ["macOS", "Slack"])
     // A finding only in an inactive project is part of the Backlog. A resolved one has no path.
     #expect(model.findingsInScope.map(\.id) == ["SEC-0001", "SEC-0003"])
-    #expect(SidebarSection.allCases.map { model.count($0) } == [2, 3, 1, 1, 1, 0, 0])
+    #expect(SidebarSection.allCases.map { model.count($0) } == [2, 3, 1, 1, 2, 0, 0])  // Backlog: the inactive project and its finding
     #expect(model.hasOpenFindings)
     model.searchText = "Z"
     #expect(model.visibleItems(in: .homebrew).map(\.name) == ["z"])
@@ -502,7 +502,7 @@ private func findingsModel(_ findings: [FindingRecord], engine: FakeEngine? = ni
     #expect(model.findingFilter == .open)
     #expect(model.visibleFindings.map(\.id) == ["SEC-0002", "SEC-0003", "SEC-0001", "SEC-0004"])
     model.findingFilter = .deferred
-    #expect(model.visibleFindings.map(\.id) == ["SEC-0006", "SEC-0007"])  // Backlog findings sit here
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0006"])  // Backlog findings are in the Backlog section
     model.findingFilter = .resolved
     #expect(model.visibleFindings.map(\.id) == ["SEC-0005"])
     model.findingFilter = .all
@@ -712,4 +712,88 @@ private let kevMark = KevMark(cve: "CVE-1", dateAdded: "2026-10-22", dueDate: "2
     ]
     let model = DashboardModel(engine: FakeEngine(mode: .hang), state: s, projects: [web], clock: { now })
     #expect(model.findingSourceRows.map(\.id) == ["osv", "github"])  // No KEV row: KEV did not run.
+}
+
+// MARK: - Backlog findings (#40)
+
+@MainActor
+@Test func findingsMovedToTheBacklogCountInTheBacklogSection() {
+    let model = findingsModel([
+        finding("SEC-0001", status: .backlog),
+        finding("SEC-0002", status: .deferred, deferredUntil: now.addingTimeInterval(86400)),
+        finding("SEC-0003"),
+    ])
+    // The sidebar count of Backlog has both kinds: one inactive project and one backlog finding.
+    #expect(model.count(.backlog) == 2)
+}
+
+@MainActor
+@Test func theDeferredFilterShowsDeferredFindingsOnlyAndAllStillShowsTheBacklog() {
+    let model = findingsModel([
+        finding("SEC-0001", status: .backlog),
+        finding("SEC-0002", status: .deferred, deferredUntil: now.addingTimeInterval(86400)),
+        finding("SEC-0003"),
+    ])
+    model.findingFilter = .deferred
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0002"])
+    model.findingFilter = .all
+    #expect(model.visibleFindings.map(\.id).sorted() == ["SEC-0001", "SEC-0002", "SEC-0003"])
+    model.findingFilter = .open
+    #expect(model.visibleFindings.map(\.id) == ["SEC-0003"])
+}
+
+@MainActor
+@Test func backlogListsProjectsFirstThenFindingsAndSearchFindsBoth() {
+    let model = findingsModel([
+        finding("SEC-0008", package: "yaml-tools", status: .backlog, title: "Regular expression slowdown"),
+        finding("SEC-0002", package: "lodash", status: .backlog),
+        finding("SEC-0003", status: .resolved, path: nil),
+        finding("SEC-0004"),
+    ])
+    let rows = model.visibleBacklog()
+    #expect(rows.map(\.id) == [old.path, "SEC-0002", "SEC-0008"])  // The project first, then findings by id.
+    #expect(rows.map(\.kind) == ["Project", "Finding", "Finding"])
+    #expect(rows[1].name == "SEC-0002 lodash" && rows[2].secondary == "Regular expression slowdown")
+    #expect(rows[0].secondary == old.displayPath && rows[0].symbol == "folder" && rows[1].symbol == "exclamationmark.shield")
+    #expect(model.count(.backlog) == 3)
+    for (query, ids) in [("old", [old.path]), ("yaml", ["SEC-0008"]), ("expression", ["SEC-0008"]),
+                         ("sec-0002", ["SEC-0002"]), ("none", [])] {
+        model.searchText = query
+        #expect(model.visibleBacklog().map(\.id) == ids, "\(query)")
+    }
+}
+
+@MainActor
+@Test func aFindingOnlyInInactiveProjectsIsInTheBacklogUnlessResolved() {
+    let model = findingsModel([
+        finding("SEC-0001", path: old.path),
+        finding("SEC-0002", status: .deferred, path: old.path),
+        finding("SEC-0003", status: .resolved, path: old.path),
+        finding("SEC-0004"),
+    ])
+    #expect(model.backlogFindings.map(\.id).sorted() == ["SEC-0001", "SEC-0002"])
+    #expect(model.visibleBacklog().count == 3)
+    #expect(model.count(.backlog) == 3 && model.count(.findings) == 1)
+}
+
+@MainActor
+@Test func theBacklogIsEmptyWithNoInactiveProjectAndNoBacklogFinding() {
+    let model = DashboardModel(engine: FakeEngine(mode: .hang),
+                               state: state(.complete, finished: hours(1), lastComplete: hours(1),
+                                            findings: [finding("SEC-0001")]),
+                               projects: [web], clock: { now })
+    #expect(model.visibleBacklog().isEmpty && model.count(.backlog) == 0)
+    #expect(BacklogEntry.emptyTitle == "Backlog is empty")
+    #expect(BacklogEntry.emptyText == "Inactive projects and findings you move here appear in this list.")
+}
+
+@MainActor
+@Test func movingAFindingToTheBacklogMovesItBetweenTheLists() async {
+    let model = findingsModel([finding("SEC-0001")])
+    #expect(model.count(.backlog) == 1 && model.count(.findings) == 1)
+    await model.moveToBacklog(model.state!.findings[0])
+    #expect(model.count(.backlog) == 2 && model.count(.findings) == 0)
+    #expect(model.visibleBacklog().map(\.id) == [old.path, "SEC-0001"])
+    model.selectedItemKey = "SEC-0001"
+    #expect(model.selectedFinding?.id == "SEC-0001")  // The Backlog detail opens the finding.
 }

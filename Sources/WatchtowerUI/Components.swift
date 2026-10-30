@@ -122,9 +122,15 @@ struct FilterChipButton: View {
             .foregroundStyle(chip.selected ? Color.watchtowerAccent : .primary)
             .padding(.horizontal, 10)
             .frame(height: 26)
-            .background(chip.selected ? Color.watchtowerAccent.opacity(0.16) : Color.clear, in: SwiftUI.Capsule())
-            .overlay(SwiftUI.Capsule().strokeBorder(chip.selected ? Color.watchtowerAccent.opacity(0.5)
-                                                                   : Color.secondary.opacity(0.35)))
+            // One capsule for fill and border (#40). Unselected: a 0.5 pt border and no fill. Selected: the
+            // accent tint and no border. A fill plus a stroke on the same edge drew hairlines at the ends.
+            .background {
+                if chip.selected {
+                    SwiftUI.Capsule().fill(Color.watchtowerAccent.opacity(0.16))
+                } else {
+                    SwiftUI.Capsule().strokeBorder(Color.secondary.opacity(0.4), lineWidth: 0.5)
+                }
+            }
             .contentShape(SwiftUI.Capsule())
         }
         .buttonStyle(.plain)

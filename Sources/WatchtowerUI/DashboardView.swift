@@ -155,6 +155,8 @@ struct ListPane: View {
                 }
             } else if section == .findings {
                 FindingTable(model: model)
+            } else if section == .backlog {
+                BacklogTable(model: model)
             } else if section.listsItems {
                 ItemTable(model: model, section: section)
             } else {
@@ -243,6 +245,63 @@ struct ItemTable: View {
     }
 }
 
+/// The Backlog section: inactive projects and findings in one table (Name, Kind, Status).
+struct BacklogTable: View {
+    @Bindable var model: DashboardModel
+
+    var body: some View {
+        let rows = model.visibleBacklog()
+        VStack(alignment: .leading, spacing: 0) {
+            Text(BacklogEntry.headline)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            Divider()
+            if rows.isEmpty {
+                empty.frame(maxHeight: .infinity)
+            } else {
+                Table(rows, selection: $model.selectedItemKey) {
+                    TableColumn("Name") { entry in
+                        HStack(spacing: 8) {
+                            Image(systemName: entry.symbol)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white)
+                                .frame(width: DesignTokens.rowIconSize, height: DesignTokens.rowIconSize)
+                                .background(Tone.gray.color, in: RoundedRectangle(cornerRadius: DesignTokens.rowIconRadius))
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                if case .finding(let f) = entry {
+                                    (Text(f.id).font(.body.monospaced()) + Text(" \(f.package)")).lineLimit(1)
+                                } else {
+                                    Text(entry.name).lineLimit(1)
+                                }
+                                Text(entry.secondary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(entry.kind) \(entry.name). \(entry.secondary). \(entry.statusText)")
+                    }
+                    .width(min: 200, ideal: 260)
+                    TableColumn("Kind") { entry in Text(entry.kind) }
+                        .width(min: 60, ideal: 70)
+                    TableColumn("Status") { entry in Text(entry.statusText).foregroundStyle(.secondary) }
+                        .width(min: 90, ideal: 120)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var empty: some View {
+        if !model.searchText.isEmpty {
+            ContentUnavailableView.search(text: model.searchText)
+        } else {
+            ContentUnavailableView(BacklogEntry.emptyTitle, systemImage: "archivebox",
+                                   description: Text(BacklogEntry.emptyText))
+        }
+    }
+}
+
 struct ProjectTable: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
@@ -305,7 +364,7 @@ struct DetailPane: View {
         } else if section == .updateLog {
             ContentUnavailableView("No selection", systemImage: "sidebar.right",
                                    description: Text("Select an update to see its command and output."))
-        } else if section == .findings {
+        } else if section == .findings || (section == .backlog && model.selectedFinding != nil) {
             if let finding = model.selectedFinding {
                 FindingDetailView(model: model, finding: finding)
             } else {

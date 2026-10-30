@@ -151,8 +151,12 @@ public struct AttentionRow: Equatable, Sendable, Identifiable {
 }
 
 public struct MenuBarSummary: Equatable, Sendable {
+    /// The body of the popover before the first refresh. The header already says `Never refreshed. Click
+    /// Refresh.`, so the body must not repeat it (#40).
+    public static let neverBody = "No scan data yet."
+
     public enum Mode: Equatable, Sendable {
-        /// `Never refreshed. Click Refresh.` and no tiles.
+        /// No tiles. The header says `Never refreshed. Click Refresh.` and the body says `No scan data yet.`
         case never
         /// `Everything is up to date`.
         case allClear
