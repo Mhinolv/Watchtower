@@ -45,6 +45,7 @@ WORKERS = 5  # Requests at the same time.
 MAX_BYTES = 8 * 1024 * 1024  # The answer after gzip. A larger answer is refused.
 CACHE_FORMAT = 2
 ERROR_TEXT = {PYPI: "PyPI did not respond.", CRATES: "crates.io did not respond."}
+TOO_LARGE_TEXT = {r: f"The {r} answer is larger than {MAX_BYTES // (1024 * 1024)} MB. Watchtower did not read it." for r in (PYPI, CRATES)}
 ERROR_NAME = "The name is not a package name."
 NO_STABLE = "No stable release."
 _VERSION = re.compile(r"^\d+(?:\.\d+){0,3}(?:[-+._]?[0-9A-Za-z]+)*$")
@@ -60,6 +61,11 @@ class Latest:
     error: str | None = None  # Set if the request failed, also when an earlier answer is shown.
     pending: bool = False  # True: this call did not ask the registry. Nothing failed.
     note: str | None = None  # `No stable release.`: the registry answered and every release is a pre-release or yanked.
+    too_large: bool = False  # True: the answer was over MAX_BYTES. `error` then holds the too-large text.
+
+
+class TooLarge(ValueError):
+    """The answer of a registry is larger than MAX_BYTES, also after gzip."""
 
 
 def normalize(name: str) -> str:
@@ -163,9 +169,9 @@ def _plain(resp) -> bytes:
         inflate = zlib.decompressobj(16 + zlib.MAX_WBITS)
         body = inflate.decompress(body, MAX_BYTES + 1)
         if inflate.unconsumed_tail:
-            raise ValueError("answer is too large")
+            raise TooLarge("answer is too large")
     if len(body) > MAX_BYTES:
-        raise ValueError("answer is too large")
+        raise TooLarge("answer is too large")
     return body
 
 
@@ -232,7 +238,9 @@ def lookup(registry: str, names: Iterable[str], data_dir: Path, fetch: Fetch = h
     def ask(name: str):
         try:
             return name, _ask(registry, name, fetch, headers), None
-        except Exception:  # Network, HTTP, size or parse failure. The cached answer stays.
+        except TooLarge:  # Not a network failure: the text says so.
+            return name, None, TOO_LARGE_TEXT[registry]
+        except Exception:  # Network, HTTP or parse failure. The cached answer stays.
             return name, None, ERROR_TEXT[registry]
 
     batch = todo[:max(0, max_requests)]
@@ -241,6 +249,7 @@ def lookup(registry: str, names: Iterable[str], data_dir: Path, fetch: Fetch = h
             for name, version, error in pool.map(ask, batch):
                 if error:
                     out[name].pending, out[name].error = False, error
+                    out[name].too_large = error == TOO_LARGE_TEXT[registry]
                 else:
                     entries[normalize(name)] = {"version": version, "fetched_at": current}
                     out[name] = Latest(version, current, note=NO_STABLE if version is None else None)

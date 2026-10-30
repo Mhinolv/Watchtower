@@ -22,6 +22,7 @@
           "update_key": null,
           "update_refusal": "Cargo.toml requires itoa \"=1.0.9\". That does not allow 1.0.18. Change it there first.",
           "latest_pending": false,
+          "latest_too_large": false,
           "latest_note": null
         },
         {
@@ -39,6 +40,7 @@
           "update_key": "cargo/serde@1.0.229|~/Projects/crabby|Cargo.lock",
           "update_refusal": null,
           "latest_pending": false,
+          "latest_too_large": false,
           "latest_note": null
         },
         {
@@ -56,6 +58,7 @@
           "update_key": "cargo/smallvec@1.16.4|~/Projects/crabby|Cargo.lock",
           "update_refusal": null,
           "latest_pending": false,
+          "latest_too_large": false,
           "latest_note": null
         },
         {
@@ -73,7 +76,26 @@
           "update_key": null,
           "update_refusal": null,
           "latest_pending": false,
+          "latest_too_large": false,
           "latest_note": null
+        },
+        {
+          "package": "local",
+          "declared": "../local",
+          "evidence": "path",
+          "installed": null,
+          "installed_label": "locked",
+          "table": null,
+          "latest": null,
+          "latest_error": null,
+          "status": "unknown",
+          "finding_id": null,
+          "severity": null,
+          "update_key": null,
+          "update_refusal": "Git and path dependencies are not supported.",
+          "latest_pending": false,
+          "latest_too_large": false,
+          "latest_note": "Path dependency. Watchtower does not look up a registry version for it."
         }
       ],
       "refusal": null,

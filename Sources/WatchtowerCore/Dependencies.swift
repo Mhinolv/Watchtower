@@ -12,7 +12,8 @@ public struct DependencyLatestSource: Codable, Hashable, Sendable {
     public var registry: String
     /// The oldest answer in use. nil if no answer was ever read.
     public var retrievedAt: Date?
-    /// `PyPI did not respond.` if a request failed. An earlier answer may still show.
+    /// `PyPI did not respond.` if a request failed, or the too-large text if every failed answer was over 8 MB.
+    /// An earlier answer may still show.
     public var error: String?
 
     public init(registry: String, retrievedAt: Date? = nil, error: String? = nil) {
@@ -34,11 +35,14 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
     /// `dev-dependencies` or `build-dependencies`. nil: normal dependencies.
     public var table: String?
     public var latest: String?
-    /// `PyPI did not respond.` if the request for this package failed.
+    /// `PyPI did not respond.` if the request for this package failed, or `The PyPI answer is larger than 8 MB. …`.
     public var latestError: String?
+    /// True if the answer of the registry was over 8 MB. `latestError` then holds the too-large text.
+    public var latestTooLarge: Bool
     /// True if this read did not ask the registry for this package yet. Nothing failed.
     public var latestPending: Bool
     /// `No stable release.` if the registry answered and every release is a pre-release or yanked.
+    /// For a `git` or `path` row: `Path dependency. Watchtower does not look up a registry version for it.`
     public var latestNote: String?
     public var status: ItemState
     /// An open finding on this package in this project. The status is then `vulnerable`.
@@ -53,7 +57,7 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
 
     public init(package: String, declared: String, evidence: String, installed: String?, installedLabel: String,
                 table: String? = nil, latest: String?, latestError: String? = nil, latestPending: Bool = false,
-                latestNote: String? = nil, status: ItemState, findingId: String? = nil, severity: String? = nil,
+                latestTooLarge: Bool = false, latestNote: String? = nil, status: ItemState, findingId: String? = nil, severity: String? = nil,
                 updateKey: String? = nil, updateRefusal: String? = nil) {
         self.package = package
         self.declared = declared
@@ -64,6 +68,7 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         self.latest = latest
         self.latestError = latestError
         self.latestPending = latestPending
+        self.latestTooLarge = latestTooLarge
         self.latestNote = latestNote
         self.status = status
         self.findingId = findingId
@@ -97,14 +102,20 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
 
     public var declaredText: String { declared.isEmpty ? "—" : declared }
 
-    /// The `Latest` cell. A row that was not asked yet says so. A dash never stands for "not asked".
+    /// A git or path row: no registry version applies.
+    public var hasNoRegistry: Bool { evidence == "git" || evidence == "path" }
+
+    /// The `Latest` cell. A row that was not asked yet says so. A dash never stands for "not asked",
+    /// "too large" or "no registry".
     public var latestText: String {
         if let latest { return latest }
         if latestPending { return "Not checked yet" }
+        if latestTooLarge { return "Too large" }
+        if hasNoRegistry { return "No registry" }
         return latestNote == nil ? "—" : "No stable release"
     }
 
-    /// The reason that no latest version shows: `Not checked yet.`, `No stable release.`, or the failure.
+    /// The reason that no latest version shows: `Not checked yet.`, `No stable release.`, the no-registry text, or the failure.
     public var latestReason: String? {
         if latest != nil { return nil }
         if latestPending { return "Not checked yet." }
@@ -127,6 +138,12 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         }
     }
 
+    private var latestSpoken: String {
+        if latestPending { return "not checked yet" }
+        if latestTooLarge { return "answer too large" }
+        return hasNoRegistry ? "not in a registry" : "not known"
+    }
+
     /// VoiceOver: package, installed, latest and status of one row.
     public var accessibilityText: String {
         let state: String = switch status {
@@ -135,7 +152,7 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         case .upToDate: "Up to date"
         default: "Unknown"
         }
-        return "\(package), declared \(declaredText), installed \(installed ?? "not known"), latest \(latest ?? (latestPending ? "not checked yet" : "not known")), \(state)"
+        return "\(package), declared \(declaredText), installed \(installed ?? "not known"), latest \(latest ?? latestSpoken), \(state)"
     }
 }
 
