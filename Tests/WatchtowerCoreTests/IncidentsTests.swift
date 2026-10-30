@@ -245,3 +245,81 @@ private struct FakeClient: IncidentClient {
     #expect(model.count == 1 && !model.isChecking)
     #expect(await client.calls.checks == 0)
 }
+
+// MARK: - Have I Been Pwned (#60)
+
+private func breachRow(_ id: String = "INC-0010", new: Bool? = nil, verified: Bool = true) -> IncidentRecord {
+    IncidentRecord(id: id, source: "hibp", service: "GitHub", title: "GitHub data breach", published: "2024-06-04",
+                   status: verified ? .possible : .unconfirmed, sourceName: "Have I Been Pwned",
+                   url: "https://haveibeenpwned.com/PwnedWebsites#GitHub", firstSeen: hours(4), lastSeen: hours(4),
+                   breach: BreachDetails(breachDate: "2024-06-04", addedDate: "2026-10-27",
+                                         dataClasses: ["Email addresses", "Passwords"], pwnCount: 1_200_000,
+                                         domain: "github.com", verified: verified), isNew: new)
+}
+
+private func hibpSource(_ state: IncidentSourceState = .complete) -> IncidentSource {
+    IncidentSource(source: "hibp", label: "Have I Been Pwned", state: state, lastSuccessAt: hours(30),
+                   error: state == .failed ? "Have I Been Pwned: check failed. The review is not complete." : nil)
+}
+
+@MainActor
+private func model(_ incidents: [IncidentRecord], hibp: IncidentSourceState = .complete) -> IncidentModel {
+    var s = state(incidents)
+    s.sources.append(hibpSource(hibp))
+    return IncidentModel(client: FakeClient(saved: s, checked: s), state: s)
+}
+
+@Test func breachJsonFromTheEngineDecodes() throws {
+    let json = """
+    {"id":"INC-0010","source":"hibp","service":"GitHub","title":"GitHub data breach","summary":"s","published":"2024-06-04",
+     "status":"possible","source_name":"Have I Been Pwned","url":"https://haveibeenpwned.com/PwnedWebsites#GitHub","cves":[],
+     "first_seen":"2026-10-29T08:00:00Z","last_seen":"2026-10-29T08:00:00Z",
+     "breach":{"breach_date":"2024-06-04","added_date":"2026-10-27","data_classes":["Email addresses"],"pwn_count":1200000,
+               "domain":"github.com","verified":true},"is_new":true}
+    """
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    decoder.dateDecodingStrategy = .iso8601
+    let record = try decoder.decode(IncidentRecord.self, from: Data(json.utf8))
+    #expect(record.breach?.pwnCount == 1_200_000 && record.breach?.addedDate == "2026-10-27" && record.isNew == true)
+    // An older engine sends neither key.
+    let old = json.replacingOccurrences(of: "\"breach\":{", with: "\"x\":{").replacingOccurrences(of: ",\"is_new\":true", with: "")
+    #expect(try decoder.decode(IncidentRecord.self, from: Data(old.utf8)).breach == nil)
+}
+
+@Test func theDateColumnShowsTheBreachDateAndWhenHibpAddedIt() {
+    let row = breachRow()
+    #expect(row.dateText(time: utc) == "Jun 4")
+    #expect(row.addedText(time: utc) == "Added to HIBP Oct 27")
+    #expect(incident("INC-0001").addedText(time: utc) == nil)
+}
+
+@MainActor
+@Test func theDetailRowsAreTheBreachFacts() {
+    let m = model([breachRow()])
+    let rows = m.breachRows(breachRow(), time: utc)
+    #expect(rows.map(\.label) == ["Breach date", "Data exposed", "Accounts", "Domain", "Data"])
+    #expect(rows[0].value == "Jun 4, 2024" && rows[1].value == "Email addresses, Passwords")
+    #expect(rows[2].value == "1,200,000" && rows[3].value == "github.com")
+    #expect(rows[4].value.hasPrefix("Have I Been Pwned, retrieved Oct 28,"))
+}
+
+@MainActor
+@Test func theEmptyNoteShowsOnlyAfterACompleteCheckWithNoBreach() {
+    #expect(model([incident("INC-0001")]).hibpEmptyNote
+        == "No breaches listed for GitHub or Google / Gmail. This does not prove that no breach happened.")
+    #expect(model([breachRow()]).hibpEmptyNote == nil)
+    #expect(model([incident("INC-0001")], hibp: .failed).hibpEmptyNote == nil)
+}
+
+@Test func aFailedFetchNamesTheDayOfTheEarlierData() {
+    let row = IncidentSourceRow.make(hibpSource(.failed), checking: false, time: utc)
+    #expect(row.error == "Have I Been Pwned: check failed. Data from Oct 28." && row.tone == .orange)
+    let none = IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .failed)
+    #expect(IncidentSourceRow.make(none, checking: false, time: utc).error == "Have I Been Pwned: check failed.")
+}
+
+@Test func fullDaysReadAsMonthDayYear() {
+    #expect(utc.fullDay("2024-06-04") == "Jun 4, 2024")
+    #expect(utc.fullDay("not a date") == "not a date")
+}

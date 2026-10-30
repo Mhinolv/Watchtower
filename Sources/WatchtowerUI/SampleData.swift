@@ -858,7 +858,27 @@ extension SampleData {
                  .unconfirmed, "News report only", source: "github"),
     ]
 
-    public static func incidentSources(failed: Bool = false) -> [IncidentSource] {
+    /// Two sample breach rows of Have I Been Pwned (#60). The data is made up.
+    public static func hibpIncidents(new: Bool = false) -> [IncidentRecord] {
+        func row(_ n: Int, _ service: String, _ title: String, _ date: String, _ added: String, _ status: IncidentStatus,
+                 _ verified: Bool, _ count: Int, _ domain: String, new: Bool) -> IncidentRecord {
+            IncidentRecord(id: String(format: "INC-%04d", n), source: "hibp", service: service, title: title,
+                           summary: "A sample description from the breach list. Watchtower shows it as plain text.",
+                           published: date, status: status, sourceName: "Have I Been Pwned",
+                           url: "https://haveibeenpwned.com/PwnedWebsites#Sample\(n)", firstSeen: ago(4), lastSeen: ago(4),
+                           breach: BreachDetails(breachDate: date, addedDate: added,
+                                                 dataClasses: ["Email addresses", "Passwords"], pwnCount: count,
+                                                 domain: domain, verified: verified), isNew: new)
+        }
+        return [
+            row(10, "GitHub", "GitHub data breach (sample)", "2024-06-04", "2026-10-27", .possible, true, 1_200_000,
+                "github.com", new: new),
+            row(11, "Google / Gmail", "Google account data breach (sample)", "2026-09-18", "2026-10-25", .unconfirmed,
+                false, 48_500, "accounts.google.com", new: false),
+        ]
+    }
+
+    public static func incidentSources(failed: Bool = false, hibpFailed: Bool = false) -> [IncidentSource] {
         [
             IncidentSource(source: "github", label: "GitHub", state: .complete, lastSuccessAt: ago(4)),
             failed
@@ -866,12 +886,16 @@ extension SampleData {
                                  error: "Google / Gmail: check failed. The review is not complete.", note: "HTTP 503")
                 : IncidentSource(source: "google", label: "Google / Gmail", state: .complete, lastSuccessAt: ago(4)),
             IncidentSource(source: "apple", label: "Apple security", state: .complete, lastSuccessAt: ago(4)),
+            hibpFailed
+                ? IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .failed, lastSuccessAt: days(2),
+                                 error: "Have I Been Pwned: check failed. The review is not complete.", note: "HTTP 503")
+                : IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .complete, lastSuccessAt: ago(4)),
         ]
     }
 
     public static func incidentState(incidents: [IncidentRecord] = incidentList, failed: Bool = false,
-                                     gaps: [IncidentGap] = []) -> IncidentState {
-        IncidentState(incidents: incidents, sources: incidentSources(failed: failed),
+                                     gaps: [IncidentGap] = [], hibpFailed: Bool = false) -> IncidentState {
+        IncidentState(incidents: incidents, sources: incidentSources(failed: failed, hibpFailed: hibpFailed),
                       review: IncidentReview(windowStart: days(7), windowEnd: failed ? ago(28) : ago(4),
                                              lastAttemptState: failed ? "partial" : "complete", lastAttemptAt: ago(4)),
                       gaps: gaps)
@@ -883,6 +907,10 @@ extension SampleData {
         case failed = "incidents-failed"
         case checking = "incidents-checking"
         case empty = "incidents-empty"
+        case hibp = "incidents-hibp"
+        case hibpNew = "incidents-hibp-new"
+        case hibpFailed = "incidents-hibp-failed"
+        case hibpNone = "incidents-hibp-none"
     }
 
     /// The window and the incident model of one scenario. The window shows the `Incidents` section.
@@ -908,6 +936,20 @@ extension SampleData {
             incidents.selectedID = "INC-0001"
         case .empty:
             incidents = IncidentModel(client: engine, state: incidentState(incidents: []))
+        case .hibp:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpNew:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents(new: true) + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpFailed:
+            // The check failed. The earlier breach rows stay.
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList,
+                                                                           hibpFailed: true))
+            incidents.selectedID = "INC-0010"
+        case .hibpNone:
+            incidents = IncidentModel(client: engine, state: incidentState())
+            incidents.selectedID = "INC-0001"
         }
         return (dashboard, incidents)
     }

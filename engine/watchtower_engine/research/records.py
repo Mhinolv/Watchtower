@@ -9,6 +9,8 @@ Rules (owner decisions 2026-10-29 and the Design notes of #12):
   the incidents of the other sources are saved, and the label keeps the end date of the last complete review.
 - A record never leaves the table because a feed stopped listing it. Nothing here resolves a record.
 - A record keeps the strongest status it ever got. A later check does not lower it.
+- A Have I Been Pwned row (#60) has its own status: a verified breach is `possible`, any other is `unconfirmed`.
+  The review window compares with the day HIBP added the breach. The check never sends an email or an account name.
 - An incident does not need a CVE. A quiet feed is not proof that no breach happened.
 - Statuses: `confirmed` (the vendor's own incident record says so: a status page), `possible` (the service
   matches, impact on the owner is not known), `unconfirmed` (no primary source). A blog post or a release page
@@ -87,6 +89,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 def migrate(db: sqlite3.Connection) -> None:
     db.executescript(SCHEMA)
+    have = {r["name"] for r in db.execute("PRAGMA table_info(incidents)")}
+    if "breach" not in have:  # #60: the details of a breach list row, as JSON.
+        db.execute("ALTER TABLE incidents ADD COLUMN breach TEXT")
 
 
 def inc_id(seq: int) -> str:
@@ -243,23 +248,25 @@ def _next_seq(db: sqlite3.Connection) -> int:
 
 def _save_items(db: sqlite3.Connection, source: Source, items: list[Item], window: Window, now: str) -> None:
     for item in items:
-        status = classify(source, item.title, item.summary)
+        status = item.status or classify(source, item.title, item.summary)
         if status is None:
             continue  # Not an incident.
         row = db.execute("SELECT seq, status, cves FROM incidents WHERE source = ? AND guid = ?",
                          (source.key, item.guid)).fetchone()
+        breach = json.dumps(item.breach, sort_keys=True) if item.breach is not None else None
         if row is None:
-            if item.published is not None and item.published < window.start[:10]:
+            day = item.window_date or item.published
+            if day is not None and day < window.start[:10]:
                 continue  # Older than this review. A record that is already saved may still be updated.
             db.execute(
                 "INSERT INTO incidents (seq, source, guid, service, title, summary, published, status, source_name, "
-                "url, cves, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (_next_seq(db), source.key, item.guid, source.service, item.title, item.summary, item.published,
-                 status, source.source_name, item.url, json.dumps(item.cves), now, now))
-        else:  # Keep the text. Raise the status, never lower it. Add CVEs.
+                "url, cves, first_seen, last_seen, breach) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (_next_seq(db), source.key, item.guid, item.service or source.service, item.title, item.summary,
+                 item.published, status, source.source_name, item.url, json.dumps(item.cves), now, now, breach))
+        else:  # Keep the text. Raise the status, never lower it. Add CVEs. A breach row gets its new numbers.
             cves = sorted(set(json.loads(row["cves"])) | set(item.cves))
-            db.execute("UPDATE incidents SET status = ?, cves = ?, last_seen = ? WHERE seq = ?",
-                       (_stronger(row["status"], status), json.dumps(cves), now, row["seq"]))
+            db.execute("UPDATE incidents SET status = ?, cves = ?, last_seen = ?, breach = COALESCE(?, breach) "
+                       "WHERE seq = ?", (_stronger(row["status"], status), json.dumps(cves), now, breach, row["seq"]))
 
 
 # Read
@@ -272,14 +279,20 @@ def last_complete_review(db: sqlite3.Connection) -> sqlite3.Row | None:
 def incident_state(db: sqlite3.Connection, sources: Iterable[Source] = SOURCES, now: str | None = None) -> dict:
     """The incidents, the sources, the last complete review and the gaps, for the app."""
     rows = db.execute("SELECT * FROM incidents").fetchall()
+    attempts = db.execute("SELECT finished_at FROM reviews ORDER BY id DESC LIMIT 2").fetchall()
+    # A breach row is new if the newest check saved it and an earlier check exists (the first check makes every row new).
+    newest = attempts[0]["finished_at"] if len(attempts) == 2 else None
     incidents = [{
         "id": inc_id(r["seq"]), "source": r["source"], "service": r["service"], "title": r["title"],
         "summary": r["summary"], "published": r["published"], "status": r["status"],
         "source_name": r["source_name"], "url": r["url"], "cves": json.loads(r["cves"]),
         "first_seen": r["first_seen"], "last_seen": r["last_seen"],
+        "breach": json.loads(r["breach"]) if r["breach"] else None,
+        "is_new": bool(r["breach"]) and newest is not None and r["first_seen"] == newest,
     } for r in rows]
     incidents.sort(key=lambda i: i["id"])
-    incidents.sort(key=lambda i: i["published"] or "", reverse=True)
+    # Newest first. A breach row sorts by the day HIBP added it, the others by their date.
+    incidents.sort(key=lambda i: ((i["breach"] or {}).get("added_date") or i["published"] or ""), reverse=True)
     saved = {r["source"]: r for r in db.execute("SELECT * FROM incident_sources")}
     source_rows = []
     for s in sources:

@@ -69,7 +69,8 @@ def is_cve(value: str) -> bool:
 def parse(body: bytes, wanted: Iterable[str] | None = None) -> tuple[dict[str, tuple[float, float]], str | None]:
     """The scores of the wanted CVEs and the score date. `wanted` None keeps every row.
 
-    The body is the gzip file, or the plain CSV. Raises ValueError for anything that is not an EPSS file.
+    The body is the gzip file, or the plain CSV. Raises ValueError for anything that is not an EPSS file,
+    and for a gzip stream that is cut before its end: a partial list must not replace a good one.
     """
     if body[:2] == b"\x1f\x8b":
         inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -79,6 +80,8 @@ def parse(body: bytes, wanted: Iterable[str] | None = None) -> tuple[dict[str, t
             raise ValueError(f"not a gzip file: {exc}") from exc
         if len(body) > MAX_BYTES or inflater.unconsumed_tail:
             raise ValueError(f"file is larger than {MAX_BYTES} bytes")
+        if not inflater.eof:  # The stream did not reach its end and its trailer: the download was cut (#69).
+            raise ValueError("gzip file is truncated")
     elif len(body) > MAX_BYTES:
         raise ValueError(f"response is larger than {MAX_BYTES} bytes")
     want = {w.strip().upper() for w in wanted} if wanted is not None else None
