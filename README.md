@@ -67,6 +67,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
+| GET `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | None. A bulk download of the whole public EPSS file (about 3 MB). No CVE list, finding id or inventory data. The URL answers 302 to the file of the day. | EPSS check, each refresh, at most once a day (the cached file is used for 24 hours) |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
@@ -126,6 +127,14 @@ A partial, stale or failed scan never removes a path or resolves a finding. The 
 Two feeds add marks to the findings. CISA KEV marks `Known exploited`. GitHub marks `Malware` and `Withdrawn`.
 A mark comes from the advisory ids of the finding only. The engine never infers exposure from a product name.
 If a feed fails, the old marks stay and the Source section of the finding shows the failure and the age of the data. The engine keeps the last answers in `cache/kev/` and `cache/github/` in the data folder.
+
+### EPSS (exploit chance)
+
+- EPSS (FIRST) gives each CVE a score: the chance of exploit in the next 30 days. Only a bulk download is used: the whole public file, one GET, no per-finding request.
+- The engine keeps the file in `cache/epss/` in the data folder and downloads it again only after one day. The Source row of a finding shows the retrieval time.
+- A finding with a CVE shows the score (`94%`, `2.1%`, `<0.1%`) and the percentile. With several CVEs it shows the highest score. A finding without a CVE shows `EPSS covers CVEs only.`
+- Sort order: malware, known exploited, EPSS high to low, then severity. A finding with no score sorts by severity after the others.
+- Data older than 2 days shows in orange. A failed download makes the EPSS coverage `partial` and keeps the earlier scores.
 
 ## Incidents
 
