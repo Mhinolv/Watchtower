@@ -217,7 +217,7 @@ struct ItemTable: View {
             .contextMenu(forSelectionType: String.self) { keys in
                 if keys.count == 1, let key = keys.first,
                    let item = model.state?.items.first(where: { $0.key == key }) {
-                    Button("Update…") { Task { await updates?.start(item) } }
+                    Button(UpdatePolicy.buttonTitle(item)) { Task { await updates?.start(item) } }
                         .disabled(updates == nil || UpdatePolicy.blockReason(item) != nil)
                 }
             }
@@ -404,7 +404,7 @@ struct ItemDetail: View {
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
-                    Button("Update…") { Task { await updates?.start(item) } }
+                    Button(UpdatePolicy.buttonTitle(item)) { Task { await updates?.start(item) } }
                         .buttonStyle(.borderedProminent)
                         .disabled(blocked != nil)
                         .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")

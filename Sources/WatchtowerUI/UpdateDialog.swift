@@ -18,7 +18,7 @@ public struct UpdateDialog: View {
             case .loading(let name):
                 VStack(spacing: 12) {
                     ProgressView()
-                    Text("Planning the update of \(name)…")
+                    Text(model.checkingStore ? "Checking the App Store…" : "Planning the update of \(name)…")
                 }
                 .frame(maxWidth: .infinity, minHeight: 160)
             case .plan(let plan), .confirmMajor(let plan):
@@ -70,12 +70,16 @@ struct PlanStep: View {
         }
     }
 
+    /// An App Store app with no newer version: `Keynote is up to date (5.2).` and Done (#13).
+    var upToDate: Bool { plan.kind == "mas" && (plan.refusal ?? "").contains("is up to date") }
+
     /// The engine refused before it had a target: title, reason, Cancel. Update stays off.
     func notSupported(_ refusal: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "hand.raised").font(.system(size: 22)).foregroundStyle(Tone.orange.color)
+                Image(systemName: upToDate ? "checkmark.circle" : "hand.raised").font(.system(size: 22))
+                    .foregroundStyle(upToDate ? Tone.green.color : Tone.orange.color)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(refusal).font(.system(size: 14, weight: .semibold))
                         .fixedSize(horizontal: false, vertical: true)
@@ -87,10 +91,17 @@ struct PlanStep: View {
             .accessibilityElement(children: .combine)
             HStack {
                 Spacer()
-                Button("Cancel") { model.close() }
-                    .keyboardShortcut(.cancelAction)
-                    .focused($cancelFocused)
-                Button("Update") {}.disabled(true).help(refusal)
+                if upToDate {
+                    Button("Done") { model.close() }
+                        .keyboardShortcut(.defaultAction)
+                        .keyboardShortcut(.cancelAction)
+                        .focused($cancelFocused)
+                } else {
+                    Button("Cancel") { model.close() }
+                        .keyboardShortcut(.cancelAction)
+                        .focused($cancelFocused)
+                    Button("Update") {}.disabled(true).help(refusal)
+                }
             }
         }
         .onAppear { cancelFocused = true }

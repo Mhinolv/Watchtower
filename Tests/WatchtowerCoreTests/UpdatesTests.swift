@@ -402,3 +402,40 @@ private let uvPath = FindingPath(project: "tool", projectPath: "~/Real/tool", lo
     let asked = await client.record.planKeys
     #expect(asked == ["uv/httpx@0.27.2|~/Real/tool|uv.lock"])
 }
+
+// MARK: - App Store apps through mas (#13)
+
+private let keynote = ItemRecord(id: "com.apple.iWork.Keynote", source: "apps", name: "Keynote", state: .unknown,
+                                 kind: "app", installedVersion: "11.0", origin: "App Store",
+                                 attributes: ["adamId": "409183694", "path": "/Applications/Keynote.app"])
+
+@Test func appStoreAppsOpenThePlanFromCheckForUpdate() {
+    #expect(keynote.isAppStoreApp)
+    #expect(UpdatePolicy.buttonTitle(keynote) == "Check for Update…")
+    #expect(UpdatePolicy.buttonTitle(gitItem) == "Update…")
+    #expect(UpdatePolicy.blockReason(keynote) == nil)
+}
+
+@Test func appStoreStatesTurnTheButtonOffWithTheEngineText() {
+    var noMas = keynote
+    noMas.state = .manual
+    noMas.note = "Install mas with Homebrew to update App Store apps here."
+    #expect(UpdatePolicy.blockReason(noMas) == "Install mas with Homebrew to update App Store apps here.")
+    var unsupported = keynote
+    unsupported.state = .error
+    unsupported.error = "mas 1.6.0 is not supported. Watchtower needs mas 7.0.0 or a newer 7.x."
+    #expect(UpdatePolicy.blockReason(unsupported) == unsupported.error)
+    var unlisted = keynote
+    unlisted.attributes = ["path": "/Applications/Keynote.app"]
+    unlisted.note = "mas does not list this app. Spotlight may not have indexed it."
+    #expect(UpdatePolicy.blockReason(unlisted) == unlisted.note)
+}
+
+@MainActor
+@Test func appStoreCheckShowsTheCheckingStepAndOtherUpdatesDoNot() async {
+    let model = UpdateModel(client: FakeUpdates(plans: [plan()]))
+    await model.start(keynote)
+    #expect(model.checkingStore)
+    await model.start(gitItem)
+    #expect(!model.checkingStore)
+}

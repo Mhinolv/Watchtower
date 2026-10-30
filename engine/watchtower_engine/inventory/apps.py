@@ -17,6 +17,7 @@ from typing import Callable
 from ..discovery import display_path
 from ..feeds.homebrew import Fetch, http_fetch
 from ..models import CoverageRecord, ItemRecord, utc_now
+from . import mas as mas_inventory
 from .homebrew import SourceResult
 from .plist import read_plist, text
 
@@ -69,6 +70,7 @@ class Bundle:
     build: str | None = None
     architecture: str | None = None
     electron: str | None = None
+    store_receipt: bool = False  # The bundle has a Mac App Store receipt file.
     error: str | None = None  # Set if Info.plist could not be read.
     detail: str | None = None
 
@@ -172,6 +174,7 @@ def electron_runtimes(version: str) -> tuple[str, str] | None:
 
 def read_bundle(path: Path) -> Bundle:
     bundle = Bundle(path=path, name=path.name[: -len(".app")])
+    bundle.store_receipt = (path / "Contents" / "_MASReceipt" / "receipt").is_file()  # Never opened.
     plist = _info_plist(path)
     if plist is None:
         bundle.error, bundle.detail = ERROR_PLIST, "No Info.plist in the bundle."
@@ -228,8 +231,13 @@ def build_items(
     bundles: list[Bundle],
     casks: list[dict] | None = None,
     cask_items: list[ItemRecord] | None = None,
+    mas: mas_inventory.MasInventory | None = None,
 ) -> list[ItemRecord]:
-    """One item for each bundle. `casks` is the `casks` list of `brew info --json=v2 --installed`."""
+    """One item for each bundle. `casks` is the `casks` list of `brew info --json=v2 --installed`.
+
+    `mas` is the `mas list --json` answer. An app with a Mac App Store receipt that no cask claims
+    is an App Store app (#13).
+    """
     claimed = claimants(casks or [])
     cask_by_token = {i.name: i for i in cask_items or [] if i.kind == "cask"}
     copies_by_file: dict[str, int] = {}
@@ -281,6 +289,9 @@ def build_items(
         elif tokens:
             item.detail = f"Cask {tokens[0]} matches more than one copy of this app."
 
+        if b.store_receipt and item.origin == ORIGIN_MANUAL:
+            mas_inventory.label_item(item, mas, b.bundle_id)
+
         group = by_id.get(b.bundle_id.lower(), []) if b.bundle_id else []
         if len(group) > 1:
             item.id = f"{b.bundle_id}@{b.path}"
@@ -306,6 +317,7 @@ def collect(
     cask_items: list[ItemRecord] | None = None,
     casks_error: str | None = None,
     casks_detail: str | None = None,
+    mas_reader: Callable[[], mas_inventory.MasInventory] | None = None,
 ) -> SourceResult:
     """Read the bundles and build the items.
 
@@ -314,7 +326,9 @@ def collect(
     """
     paths, root_errors = find_bundles(roots)
     bundles = [read_bundle(p) for p in paths]
-    items = build_items(bundles, casks, cask_items)
+    # mas runs only if an app has a receipt. It lists the apps and never checks for updates.
+    mas = mas_reader() if mas_reader and any(b.store_receipt for b in bundles) else None
+    items = build_items(bundles, casks, cask_items, mas)
 
     problems, details = [], []
     for label, exc in root_errors:
@@ -328,6 +342,11 @@ def collect(
         problems.append(casks_error)
         if casks_detail:
             details.append(casks_detail)
+    store_problem = mas_inventory.coverage_problem(mas)
+    if store_problem:
+        problems.append(store_problem[0])
+        if store_problem[1]:
+            details.append(store_problem[1])
 
     if not problems:
         coverage = CoverageRecord(SOURCE, LABEL, "complete")
@@ -351,9 +370,12 @@ def collect_live(
     """
     from . import homebrew
 
+    def mas_reader() -> mas_inventory.MasInventory:
+        return mas_inventory.read_inventory(mas_inventory.find_mas(), run)
+
     brew = brew or homebrew.find_brew()
     if brew is None:
-        return collect(roots)
+        return collect(roots, mas_reader=mas_reader)
     answers: dict[tuple, object] = {}
 
     def run_once(args, **kwargs):
@@ -365,7 +387,7 @@ def collect_live(
     try:
         installed = homebrew.read_installed(brew, run_once)
     except Exception as exc:
-        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc))
+        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc), mas_reader=mas_reader)
     casks = [c for c in installed.get("casks") or [] if c.get("installed")]
     cask_items = homebrew.collect(data_dir, brew=brew, run=run_once, fetch=fetch, now=now).items if casks else []
-    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"])
+    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"], mas_reader=mas_reader)
