@@ -152,7 +152,7 @@ def test_plan_shows_command_rows_and_three_other_packages(store, tmp_path):
 
 
 def test_planning_never_changes_the_project(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     before = {f: (project / f).read_bytes() for f in ("package.json", "package-lock.json")}
     fake = FakeNpm(lock("4.19.2"))
     plan_for(store, project, npm_run=fake)
@@ -162,7 +162,7 @@ def test_planning_never_changes_the_project(store, tmp_path):
 
 
 def test_registry_gets_only_the_package_name(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     registry = FakeRegistry()
     plan_for(store, project, registry=registry)
     assert registry.calls == ["https://registry.npmjs.org/express"]
@@ -170,13 +170,13 @@ def test_registry_gets_only_the_package_name(store, tmp_path):
 
 
 def test_dev_dependency_keeps_its_section_and_exact_spec_stays_exact(store, tmp_path):
-    project = make_project(tmp_path / "web", spec="4.17.1", section="devDependencies")
+    project = make_project(tmp_path / "home" / "Projects" / "web", spec="4.17.1", section="devDependencies")
     p = plan_for(store, project)
     assert p.command[2:4] == ["express@4.19.2", "--save-dev"]
 
 
 def test_major_version_needs_its_own_confirmation(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     registry = FakeRegistry(versions=("4.17.1", "4.18.2", "5.1.0"))
     p = plan_for(store, project, registry=registry, new_lock=lock("5.1.0"), fixed="5.0.0")
     assert (p.target_version, p.major_change) == ("5.1.0", True)
@@ -213,7 +213,7 @@ def scripts_lock():
 
 
 def test_install_scripts_need_a_second_confirmation(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     registry = FakeRegistry(scripts={("esbuild", "0.21.5"): ["postinstall"]})
     p = plan_for(store, project, registry=registry, new_lock=scripts_lock())
     assert p.scripts == ["esbuild needs its postinstall script"]
@@ -231,7 +231,7 @@ def test_install_scripts_need_a_second_confirmation(store, tmp_path):
 
 
 def test_failed_scripts_are_reported(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     registry = FakeRegistry(scripts={("esbuild", "0.21.5"): ["install"]})
     p = plan_for(store, project, registry=registry, new_lock=scripts_lock())
     a, _ = run_for(store, project, p, FakeInstall(project, rebuild_code=1), registry=registry,
@@ -240,14 +240,14 @@ def test_failed_scripts_are_reported(store, tmp_path):
 
 
 def test_unknown_scripts_refuse_the_plan(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     registry = FakeRegistry(scripts={("esbuild", "0.21.5"): None})
     p = plan_for(store, project, registry=registry, new_lock=scripts_lock())
     assert p.refusal == "This package needs scripts that Watchtower cannot check."
 
 
 def test_unchanged_package_with_scripts_needs_no_confirmation(store, tmp_path):
-    project = make_project(tmp_path / "web", lockdata=lock(esbuild="0.21.5"))
+    project = make_project(tmp_path / "home" / "Projects" / "web", lockdata=lock(esbuild="0.21.5"))
     p = plan_for(store, project, new_lock=scripts_lock())
     assert p.scripts == [] and p.refusal is None
 
@@ -266,28 +266,28 @@ def test_unchanged_package_with_scripts_needs_no_confirmation(store, tmp_path):
     ({"lockdata": {"lockfileVersion": 1, "dependencies": {}}}, npm.REFUSE_LOCK_VERSION),
 ])
 def test_plan_refusals(store, tmp_path, kwargs, refusal):
-    project = make_project(tmp_path / "web", **kwargs)
+    project = make_project(tmp_path / "home" / "Projects" / "web", **kwargs)
     assert plan_for(store, project).refusal == refusal
 
 
 def test_transitive_package_is_refused(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     p = plan_update(store, npm.make_key(str(project), "cookie"), npm=NPM, run=FakeNpm(lock()), get=FakeRegistry())
     assert p.refusal == "Watchtower updates direct dependencies only. cookie comes in through another package."
 
 
 def test_registry_down_and_no_newer_version(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     assert plan_for(store, project, registry=FakeRegistry(down=True)).refusal == npm.REFUSE_REGISTRY
     old = FakeRegistry(versions=("4.17.1",), latest="4.17.1")
     assert plan_for(store, project, registry=old).refusal == "npm has no newer version of express."
-    missing = tmp_path / "empty"
-    missing.mkdir()
+    missing = tmp_path / "home" / "Projects" / "empty"
+    missing.mkdir(parents=True)
     assert plan_for(store, missing).refusal == npm.REFUSE_NO_PROJECT
 
 
 def test_lock_resolution_failure_refuses(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     assert plan_for(store, project, npm_run=FakeNpm(lock(), code=1)).refusal == npm.REFUSE_RESOLVE
     # npm resolved another version than the plan says.
     assert plan_for(store, project, new_lock=lock("4.18.2")).refusal == npm.REFUSE_RESOLVE
@@ -297,7 +297,7 @@ def test_lock_resolution_failure_refuses(store, tmp_path):
 
 
 def test_verified_update_checks_lockfile_and_node_modules(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     p = plan_for(store, project)
     installer = FakeInstall(project)
     a, _ = run_for(store, project, p, installer)
@@ -311,7 +311,7 @@ def test_verified_update_checks_lockfile_and_node_modules(store, tmp_path):
 
 
 def test_lockfile_only_is_not_verified(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     p = plan_for(store, project)
     a, _ = run_for(store, project, p, FakeInstall(project, lock_only=True))
     assert a.status == "not_verified" and a.exit_code == 0
@@ -320,7 +320,7 @@ def test_lockfile_only_is_not_verified(store, tmp_path):
 
 
 def test_failed_install_restores_the_project_files(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     before = {f: (project / f).read_bytes() for f in ("package.json", "package-lock.json")}
     p = plan_for(store, project)
     a, _ = run_for(store, project, p, FakeInstall(project, code=1))
@@ -330,7 +330,7 @@ def test_failed_install_restores_the_project_files(store, tmp_path):
 
 
 def test_edit_after_the_plan_changes_the_plan(store, tmp_path):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     p = plan_for(store, project)
     pj = json.loads((project / "package.json").read_text())
     pj["scripts"]["lint"] = "eslint ."  # the owner edits the project after the plan
@@ -358,7 +358,7 @@ def test_old_log_table_gets_the_result_rows_column(store, tmp_path):
 
 
 def test_cli_plan_for_an_npm_key(tmp_path, monkeypatch, capsys):
-    project = make_project(tmp_path / "web")
+    project = make_project(tmp_path / "home" / "Projects" / "web")
     real = updater.plan_update
     monkeypatch.setattr(updater, "plan_update", lambda store, item, *a, **k: real(
         store, item, npm=NPM, run=FakeNpm(lock("4.19.2")), get=FakeRegistry()))
@@ -366,3 +366,65 @@ def test_cli_plan_for_an_npm_key(tmp_path, monkeypatch, capsys):
     plan = json.loads(capsys.readouterr().out)["plan"]
     other = next(r for r in plan["rows"] if r["label"] == "Other packages")
     assert plan["kind"] == "npm" and plan["target_version"] == "4.19.2" and len(other["items"]) == 3
+
+
+# Bug #44: the project folder must be inside the scan roots, as for uv.
+
+OUTSIDE = "Watchtower cannot find this npm project in the project folders."
+
+
+def test_project_outside_the_scan_roots_is_refused(store, tmp_path):
+    project = make_project(tmp_path / "elsewhere" / "web")  # not under ~/Projects, ~/Real or ~/Applications
+    fake = FakeNpm(lock("4.19.2"))
+    registry = FakeRegistry()
+    p = plan_for(store, project, registry=registry, npm_run=fake)
+    assert p.refusal == OUTSIDE
+    assert str(project) not in p.refusal and "elsewhere" not in p.refusal  # never show the outside path
+    assert fake.calls == [] and registry.calls == []  # nothing ran, nothing was fetched
+
+
+def test_symlink_from_a_root_to_an_outside_project_is_refused(store, tmp_path):
+    outside = make_project(tmp_path / "elsewhere" / "web")
+    link = tmp_path / "home" / "Projects" / "web"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(outside)
+    assert plan_for(store, link).refusal == OUTSIDE
+
+
+def test_outside_project_cannot_run_either(store, tmp_path):
+    project = make_project(tmp_path / "elsewhere" / "web")
+    installer = FakeInstall(project)
+    a, _ = run_for(store, project, plan_for(store, project), installer)
+    assert a.status == "refused" and a.error == OUTSIDE and installer.calls == []
+
+
+def test_block_reason_matches_the_plan(tmp_path):
+    make_project(tmp_path / "home" / "Projects" / "web")
+    make_project(tmp_path / "elsewhere" / "web")
+    assert npm.block_reason("~/Projects/web", "package-lock.json") is None
+    assert npm.block_reason(str(tmp_path / "elsewhere" / "web"), "package-lock.json") == OUTSIDE
+    assert npm.block_reason(str(tmp_path / "elsewhere" / "web"), "uv.lock") is None  # not an npm lockfile
+
+
+def test_findings_carry_the_npm_reason_that_update_is_off(tmp_path):
+    from watchtower_engine.models import CoverageRecord as C
+    from watchtower_engine.scanners.osv import Lockfile, Match, OsvResult, ProjectScan
+
+    from contract import Clock
+
+    make_project(tmp_path / "home" / "Projects" / "web")
+    outside = str(make_project(tmp_path / "elsewhere" / "api"))
+    adv = {"ids": ["GHSA-1"], "title": "t", "severity": "high", "fixed_in": ["4.19.2"]}
+    inside = Match("web", "~/Projects/web", "package-lock.json", "express", "npm", "4.17.1", None, ["GHSA-1"], [], [adv])
+    away = Match("api", outside, "package-lock.json", "lodash", "npm", "4.17.20", None, ["GHSA-2"], [],
+                 [{"ids": ["GHSA-2"], "title": "t", "severity": "low", "fixed_in": []}])
+    scan = OsvResult(C("osv", "OSV", "complete"),
+                     [ProjectScan("web", "~/Projects/web", [Lockfile("package-lock.json", "npm", "scanned")]),
+                      ProjectScan("api", outside, [Lockfile("package-lock.json", "npm", "scanned")])],
+                     [inside, away], [])
+    with Store(tmp_path / "data2", clock=Clock(*[f"2026-10-29T10:{m:02d}:00Z" for m in range(20)])) as s:
+        r = s.begin_refresh()
+        s.finish_refresh(r.id, "complete", coverage=[scan.coverage], scan=scan)
+        state = s.state()
+    blocks = {f["package"]: f["paths"][0]["update_block"] for f in state["findings"]}
+    assert blocks == {"express": None, "lodash": OUTSIDE}
