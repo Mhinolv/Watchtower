@@ -12,6 +12,9 @@ FIX = Path(__file__).parent / "fixtures" / "github"
 MALWARE = json.loads((FIX / "malware.json").read_text())
 REVIEWED = json.loads((FIX / "reviewed.json").read_text())
 T1, T2, T3 = "2026-10-29T08:00:00Z", "2026-10-29T10:00:00Z", "2026-11-06T08:00:00Z"  # T3: past the 7-day TTL.
+NLTK_LIVE = json.loads((FIX / "reviewed-nltk-live.json").read_text())
+NLTK_WITHDRAWN = json.loads((FIX / "reviewed-nltk-withdrawn.json").read_text())
+NLTK = ["GHSA-5wp5-5229-5g6q", "GHSA-gf32-cmjh-8m9v", "CVE-2026-12259"]  # Real: one live id and a withdrawn duplicate.
 LODASH = ["GHSA-35jh-r3h4-6jhm", "CVE-2021-23337"]
 MAL = ["GHSA-mal1-ware-0001"]
 
@@ -286,3 +289,57 @@ def test_a_corrupt_cache_is_ignored(tmp_path):
         fetch = FakeFetch()
         assert load(tmp_path, [LODASH], fetch, lambda: T1).state == "complete"
         assert len(fetch.calls) == 2
+
+
+# Withdrawn only if every id of the finding is withdrawn (#65)
+
+
+def nltk_fetch(extra=None):
+    answers = {("reviewed", "GHSA-5wp5-5229-5g6q"): reply(NLTK_LIVE),
+               ("reviewed", "GHSA-gf32-cmjh-8m9v"): reply(NLTK_WITHDRAWN)}
+    answers.update(extra or {})
+    return FakeFetch(answers)
+
+
+def test_the_real_answers_have_one_live_and_one_withdrawn_id():
+    assert [a["withdrawn_at"] for a in NLTK_LIVE] == [None]
+    assert [a["withdrawn_at"] for a in NLTK_WITHDRAWN] == ["2026-09-09T16:33:54Z"]
+
+
+def test_a_live_advisory_with_a_withdrawn_duplicate_is_not_withdrawn(tmp_path):
+    data = load(tmp_path, [NLTK], nltk_fetch(), lambda: T1)
+    verdict = data.assess(NLTK)
+    assert verdict.withdrawn_at is None and verdict.withdrawn_known
+
+
+def test_a_finding_with_every_id_withdrawn_keeps_the_mark_and_the_latest_date(tmp_path):
+    second = [{**NLTK_WITHDRAWN[0], "ghsa_id": "GHSA-aaaa-bbbb-cccc", "withdrawn_at": "2026-09-12T00:00:00Z"}]
+    ids = ["GHSA-gf32-cmjh-8m9v", "GHSA-aaaa-bbbb-cccc"]
+    fetch = FakeFetch({("reviewed", "GHSA-gf32-cmjh-8m9v"): reply(NLTK_WITHDRAWN),
+                       ("reviewed", "GHSA-aaaa-bbbb-cccc"): reply(second)})
+    verdict = load(tmp_path, [ids], fetch, lambda: T1).assess(ids)
+    assert (verdict.withdrawn_at, verdict.withdrawn_known) == ("2026-09-12T00:00:00Z", True)
+    only = load(tmp_path, [["GHSA-gf32-cmjh-8m9v"]], nltk_fetch(), lambda: T1).assess(["GHSA-gf32-cmjh-8m9v"])
+    assert only.withdrawn_at == "2026-09-09T16:33:54Z"
+
+
+def test_one_live_id_proves_the_finding_is_not_withdrawn_even_if_another_answer_is_missing(tmp_path):
+    fetch = nltk_fetch({("reviewed", "GHSA-gf32-cmjh-8m9v"): rate_limited()})
+    verdict = load(tmp_path, [NLTK], fetch, lambda: T1).assess(NLTK)
+    assert verdict.withdrawn_at is None and verdict.withdrawn_known  # An old wrong mark can be cleared.
+
+
+def test_a_withdrawn_id_alone_does_not_make_the_finding_withdrawn_while_another_answer_is_missing(tmp_path):
+    ids = ["GHSA-gf32-cmjh-8m9v", "GHSA-zzzz-zzzz-zzzz"]  # The withdrawn id is asked first, then the limit hits.
+    fetch = nltk_fetch({("reviewed", "GHSA-zzzz-zzzz-zzzz"): rate_limited()})
+    data = load(tmp_path, [ids], fetch, lambda: T1)
+    assert fetch.asked() == [("reviewed", "GHSA-gf32-cmjh-8m9v"), ("reviewed", "GHSA-zzzz-zzzz-zzzz")]
+    verdict = data.assess(ids)
+    assert verdict.withdrawn_at is None and not verdict.withdrawn_known  # Unknown: an old mark stays.
+
+
+def test_a_cve_lookup_with_one_live_advisory_among_withdrawn_ones_is_not_withdrawn(tmp_path):
+    answer = reply([*NLTK_WITHDRAWN, *NLTK_LIVE])
+    data = load(tmp_path, [["CVE-2026-63310"]], FakeFetch({("reviewed", "CVE-2026-63310"): answer}), lambda: T1)
+    verdict = data.assess(["CVE-2026-63310"])
+    assert verdict.withdrawn_at is None and verdict.withdrawn_known

@@ -89,7 +89,9 @@ class Lookup:
 
 @dataclass
 class Assessment:
-    """What GitHub says about one finding. `*_known` is False if an answer is missing."""
+    """What GitHub says about one finding. `*_known` is False if an answer is missing.
+
+    `withdrawn_at` is set only if every advisory id of the finding is withdrawn."""
 
     malware_id: str | None = None
     malware_known: bool = False
@@ -121,8 +123,14 @@ class GithubData:
                 live = [a["ghsa_id"] for a in found if not a.get("withdrawn_at")]
                 result.malware_id, result.malware_known = (live[0] if live else None), known
             else:
-                dates = [a["withdrawn_at"] for a in found if a.get("withdrawn_at")]
-                result.withdrawn_at, result.withdrawn_known = (max(dates) if dates else None), known
+                # Withdrawn only if every id of the finding is withdrawn (#65). A live duplicate of a
+                # withdrawn advisory leaves the finding live. One live advisory proves "not withdrawn",
+                # even if the answer for another id is missing.
+                per_id = [[adv for adv in (a.advisories or [])] for a in answers if a]
+                live = any(not adv.get("withdrawn_at") for advs in per_id for adv in advs)
+                every = known and all(advs and all(adv.get("withdrawn_at") for adv in advs) for advs in per_id)
+                result.withdrawn_at = max(adv["withdrawn_at"] for advs in per_id for adv in advs) if every else None
+                result.withdrawn_known = known or live
         return result
 
 
