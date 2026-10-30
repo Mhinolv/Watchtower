@@ -13,7 +13,7 @@ public enum Tone: Sendable, Equatable {
 // MARK: - Sidebar
 
 public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
-    case apps, homebrew, projects, findings, backlog, updateLog
+    case apps, homebrew, projects, findings, backlog, incidents, updateLog
 
     public var id: String { rawValue }
 
@@ -24,6 +24,7 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .projects: "Projects"
         case .findings: "Findings"
         case .backlog: "Backlog"
+        case .incidents: "Incidents"
         case .updateLog: "Update Log"
         }
     }
@@ -35,11 +36,12 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .projects: "folder"
         case .findings: "exclamationmark.shield"
         case .backlog: "archivebox"
+        case .incidents: "antenna.radiowaves.left.and.right"
         case .updateLog: "list.bullet.rectangle"
         }
     }
 
-    /// ⌘1 to ⌘5, and ⌘7 for Update Log (Design notes of #5 and #6).
+    /// ⌘1 to ⌘6, and ⌘7 for Update Log (Design notes of #5, #6 and #12).
     public var shortcutDigit: Character {
         switch self {
         case .apps: "1"
@@ -47,6 +49,7 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Sendable {
         case .projects: "3"
         case .findings: "4"
         case .backlog: "5"
+        case .incidents: "6"
         case .updateLog: "7"
         }
     }
@@ -505,7 +508,7 @@ public final class DashboardModel {
         case .apps: all.filter { $0.source == "apps" || $0.source == "macos" }
         case .homebrew: all.filter { $0.source == "homebrew" }
         case .findings: []  // Findings are not items. See `visibleFindings`.
-        case .projects, .backlog, .updateLog: []
+        case .projects, .backlog, .incidents, .updateLog: []
         }
         return picked.sorted {
             ($0.state.rank, $0.name.lowercased(), $0.key) < ($1.state.rank, $1.name.lowercased(), $1.key)
@@ -533,7 +536,7 @@ public final class DashboardModel {
         case .findings: findingsInScope.filter(\.isOpen).count
         case .projects: activeProjects.count
         case .backlog: backlogProjects.count
-        case .updateLog: 0  // The update log count comes from UpdateModel.
+        case .incidents, .updateLog: 0  // The counts come from IncidentModel and UpdateModel.
         }
     }
 

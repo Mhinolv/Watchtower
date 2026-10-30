@@ -1,0 +1,22 @@
+[
+  {
+    "id": "gw-0001",
+    "begin": "2026-10-26T10:00:00+00:00",
+    "end": null,
+    "external_desc": "Phishing campaign targets Workspace sign-in",
+    "service_name": "Google Workspace",
+    "most_recent_update": {"text": "Google is watching a phishing campaign that imitates the sign-in page."},
+    "uri": "incidents/gw-0001"
+  },
+  {
+    "id": "gw-0002",
+    "begin": "2026-10-27T08:00:00+00:00",
+    "external_desc": "Gmail users may see delays in mail delivery",
+    "service_name": "Gmail",
+    "most_recent_update": {"text": "We are investigating the delays."}
+  },
+  "junk",
+  {"id": "gw-0003", "external_desc": "", "begin": "2026-10-27T08:00:00+00:00"},
+  {"id": "gw-0004", "begin": "not a date", "external_desc": "Unauthorized access to a test account was found and fixed",
+   "most_recent_update": {"text": "We identified the cause."}}
+]

@@ -6,17 +6,20 @@ import WatchtowerUI
 struct WatchtowerApp: App {
     @State private var model = DashboardModel(engine: Engine())
     @State private var updates = UpdateModel(client: Engine())
+    @State private var incidents = IncidentModel(client: Engine())
 
     var body: some Scene {
         Window("Watchtower", id: "main") {
             DashboardView(model: model)
                 .environment(updates)
+                .environment(incidents)
                 .frame(minWidth: 900, minHeight: 520)
                 .task {
                     updates.onFinished = { Task { await model.load() } }
                     updates.onViewLog = { model.selection = .updateLog }
                     await model.load()
                     await updates.loadLog()
+                    await incidents.load()
                 }
         }
         .commands {

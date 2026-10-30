@@ -462,3 +462,90 @@ struct UpdateDialog_Previews: PreviewProvider {
         }
     }
 }
+
+// MARK: - Incident samples (#12)
+
+extension PreviewEngine: IncidentClient {
+    public func incidents() async throws -> IncidentState { SampleData.incidentState() }
+
+    public func checkSources(progress: @escaping @Sendable (RefreshProgress) -> Void) async throws -> IncidentState {
+        SampleData.incidentState()
+    }
+}
+
+extension SampleData {
+    private static func incident(_ n: Int, _ service: String, _ title: String, _ published: String,
+                                 _ status: IncidentStatus, _ sourceName: String, source: String,
+                                 cves: [String] = []) -> IncidentRecord {
+        IncidentRecord(id: String(format: "INC-%04d", n), source: source, service: service, title: title,
+                       summary: "A short text from the source. Watchtower shows it as plain text.",
+                       published: published, status: status, sourceName: sourceName,
+                       url: "https://github.blog/security/sample-\(n)", cves: cves, firstSeen: ago(4), lastSeen: ago(4))
+    }
+
+    /// The four incidents of the approved mockup: three statuses, and one without a CVE.
+    public static let incidentList: [IncidentRecord] = [
+        incident(1, "GitHub", "Third-party app tokens reset after a security event (sample)", "2026-10-27",
+                 .confirmed, "GitHub status page", source: "github"),
+        incident(2, "Google / Gmail", "Phishing campaign targets Workspace sign-in (sample)", "2026-10-26",
+                 .possible, "Google Workspace status", source: "google"),
+        incident(3, "Apple security", "Update fixes a kernel flaw under attack (sample)", "2026-10-24",
+                 .confirmed, "Apple security releases", source: "apple", cves: ["CVE-2026-4242"]),
+        incident(4, "GitHub", "Report of leaked access tokens on a forum (sample)", "2026-10-23",
+                 .unconfirmed, "News report only", source: "github"),
+    ]
+
+    public static func incidentSources(failed: Bool = false) -> [IncidentSource] {
+        [
+            IncidentSource(source: "github", label: "GitHub", state: .complete, lastSuccessAt: ago(4)),
+            failed
+                ? IncidentSource(source: "google", label: "Google / Gmail", state: .failed, lastSuccessAt: ago(28),
+                                 error: "Google / Gmail: check failed. The review is not complete.", note: "HTTP 503")
+                : IncidentSource(source: "google", label: "Google / Gmail", state: .complete, lastSuccessAt: ago(4)),
+            IncidentSource(source: "apple", label: "Apple security", state: .complete, lastSuccessAt: ago(4)),
+        ]
+    }
+
+    public static func incidentState(incidents: [IncidentRecord] = incidentList, failed: Bool = false,
+                                     gaps: [IncidentGap] = []) -> IncidentState {
+        IncidentState(incidents: incidents, sources: incidentSources(failed: failed),
+                      review: IncidentReview(windowStart: days(7), windowEnd: failed ? ago(28) : ago(4),
+                                             lastAttemptState: failed ? "partial" : "complete", lastAttemptAt: ago(4)),
+                      gaps: gaps)
+    }
+
+    public enum IncidentScenario: String, CaseIterable, Sendable {
+        case incidents
+        case missed = "incidents-missed"
+        case failed = "incidents-failed"
+        case checking = "incidents-checking"
+        case empty = "incidents-empty"
+    }
+
+    /// The window and the incident model of one scenario. The window shows the `Incidents` section.
+    @MainActor
+    public static func incidentScenario(_ scenario: IncidentScenario) -> (DashboardModel, IncidentModel) {
+        let dashboard = model(.complete)
+        dashboard.selection = .incidents
+        let engine = PreviewEngine()
+        let incidents: IncidentModel
+        switch scenario {
+        case .incidents:
+            incidents = IncidentModel(client: engine, state: incidentState())
+            incidents.selectedID = "INC-0001"
+        case .missed:
+            incidents = IncidentModel(client: engine, state: incidentState(gaps: [IncidentGap(start: "2026-10-20", end: "2026-10-21")]))
+            incidents.selectedID = "INC-0001"
+        case .failed:
+            incidents = IncidentModel(client: engine, state: incidentState(failed: true))
+            incidents.selectedID = "INC-0001"
+        case .checking:
+            incidents = IncidentModel(client: engine, state: incidentState(), isChecking: true,
+                                      progress: RefreshProgress(done: 1, total: 3, source: "Google / Gmail"))
+            incidents.selectedID = "INC-0001"
+        case .empty:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: []))
+        }
+        return (dashboard, incidents)
+    }
+}
