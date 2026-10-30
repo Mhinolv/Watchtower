@@ -196,6 +196,9 @@ public enum SampleData {
         case runtimes
         case runtimesUnreadable = "runtimes-unreadable"
         case runtimesRootError = "runtimes-root-error"
+        case supportList = "support-list"
+        case supportMacos = "support-macos"
+        case supportApiError = "support-api-error"
         case appCatalogNewer = "app-catalog-newer"
         case appSelfUpdating = "app-self-updating"
         case appAmbiguous = "app-ambiguous"
@@ -289,10 +292,54 @@ public enum SampleData {
         return out
     }
 
+    /// The support attributes of #59 for the runtime sample: every state of the list. `now` is Oct 29, 2026.
+    static func supportRuntimeItems(failed: Bool = false) -> [ItemRecord] {
+        let rows: [String: [String: String]] = [
+            "Node.js 22.9.0": ["eolState": "security_only", "eolCycle": "22", "eolEnd": "2027-04-30"],
+            "Node.js 20.17.0": ["eolState": "end_of_life", "eolCycle": "20", "eolEnd": "2026-04-30"],
+            "Node.js 18.20.4": ["eolState": "end_of_life", "eolCycle": "18", "eolEnd": "2025-04-30"],
+            "Python 3.12.4": ["eolState": "supported", "eolCycle": "3.12", "eolEnd": "2028-10-31"],
+        ]
+        var out = runtimeItems().map { record -> ItemRecord in
+            var record = record
+            guard record.kind == "runtime", let extra = rows["\(record.name) \(record.installedVersion ?? "")"] else { return record }
+            record.attributes = (record.attributes ?? [:]).merging(extra) { a, _ in a }
+            record.attributes?["eolChecked"] = isoText(ago(failed ? 30 : 1))
+            if failed && record.name == "Python" { record.attributes?["eolError"] = SupportStatus.failedText }
+            return record
+        }
+        func add(_ name: String, _ version: String, _ path: String, _ attributes: [String: String]) {
+            var record = ItemRecord(id: "runtime:asdf:~/\(path)", source: "runtimes", name: name, state: .manual, kind: "runtime",
+                                    installedVersion: version, seenAt: ago(0.1), origin: "asdf")
+            record.attributes = ["path": NSHomeDirectory() + "/" + path, "family": name.lowercased(), "copies": "1",
+                                 "group": "Runtimes"].merging(attributes) { a, _ in a }
+            out.append(record)
+        }
+        add("Ruby", "3.3.6", ".asdf/installs/ruby/3.3.6",
+            ["eolProduct": "ruby", "eolState": "ends_soon", "eolCycle": "3.3", "eolEnd": "2026-12-13",
+             "eolChecked": isoText(ago(1))])
+        add("Java", "21.0.4", ".sdkman/candidates/java/21.0.4", ["eolState": "unknown"])
+        return out
+    }
+
+    private static func isoText(_ date: Date) -> String { ISO8601DateFormatter().string(from: date) }
+
     @MainActor
     static func runtimeState(_ scenario: Scenario) -> EngineState {
-        var sample = state(status: scenario == .runtimes ? .complete : .partial, finished: ago(2), lastComplete: ago(2))
-        sample.items = runtimeItems(unreadable: scenario == .runtimesUnreadable)
+        let support = [Scenario.supportList, .supportApiError].contains(scenario)
+        var sample = state(status: scenario == .runtimes || scenario == .supportList ? .complete : .partial, finished: ago(2),
+                           lastComplete: ago(2))
+        sample.items = support ? supportRuntimeItems(failed: scenario == .supportApiError)
+                               : runtimeItems(unreadable: scenario == .runtimesUnreadable)
+        if scenario == .supportApiError {
+            sample.coverage.append(CoverageRecord(source: "endoflife", label: "endoflife.date", state: .partial,
+                                                  lastSuccessAt: ago(30),
+                                                  error: "endoflife.date did not respond. Watchtower used the last copy.",
+                                                  sourceAt: ago(30)))
+        } else if scenario == .supportList {
+            sample.coverage.append(CoverageRecord(source: "endoflife", label: "endoflife.date", state: .complete,
+                                                  lastSuccessAt: ago(1), sourceAt: ago(1)))
+        }
         var coverage = CoverageRecord(source: "runtimes", label: "Runtimes", state: .complete, lastSuccessAt: ago(2))
         if scenario == .runtimesRootError {
             coverage.state = .partial
@@ -377,11 +424,27 @@ public enum SampleData {
             model.selection = .apps
             model.selectedItemKey = key
             return model
-        case .runtimes, .runtimesUnreadable, .runtimesRootError:
+        case .runtimes, .runtimesUnreadable, .runtimesRootError, .supportList, .supportApiError:
             let model = DashboardModel(engine: engine, state: runtimeState(scenario), projects: projects, clock: clock)
             model.selection = .runtimes
-            model.selectedItemKey = scenario == .runtimesRootError ? "runtimes/runtime:pyenv:~/.pyenv/versions/3.12.4"
-                                                                    : "runtimes/runtime:nvm:~/.nvm/versions/node/v20.17.0"
+            model.selectedItemKey = scenario == .runtimesRootError || scenario == .supportApiError
+                ? "runtimes/runtime:pyenv:~/.pyenv/versions/3.12.4" : "runtimes/runtime:nvm:~/.nvm/versions/node/v20.17.0"
+            return model
+        case .supportMacos:
+            // macOS is in security-only support (#59). The earlier SOFA detail stays out of this sample.
+            var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            sample.items = sample.items.map { record in
+                guard record.id == "macos" else { return record }
+                var record = record
+                record.attributes = ["eolState": "security_only", "eolCycle": "15", "eolEnd": "2027-09-30",
+                                     "eolChecked": isoText(ago(1))]
+                return record
+            }
+            sample.coverage.append(CoverageRecord(source: "endoflife", label: "endoflife.date", state: .complete,
+                                                  lastSuccessAt: ago(1), sourceAt: ago(1)))
+            let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+            model.selection = .apps
+            model.selectedItemKey = "macos/macos"
             return model
         case .chipSelected:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),

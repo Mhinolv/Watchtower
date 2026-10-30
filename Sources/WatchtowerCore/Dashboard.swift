@@ -739,6 +739,9 @@ public final class DashboardModel {
         }
     }
 
+    /// Now, by the clock of the model. The support text counts the days to an end date from it (#59).
+    public var currentDate: Date { clock() }
+
     /// `Homebrew data: 3 h old`, from the source time of the item.
     public func sourceAgeText(for item: ItemRecord) -> String? {
         guard let at = item.sourceAt ?? item.seenAt else { return nil }
