@@ -11,7 +11,8 @@ import os
 import tempfile
 from pathlib import Path
 
-from .discovery import PROJECT_ROOTS, Discovery, Project, discover
+from .discovery import PROJECT_ROOTS, Discovery, Project, discover, display_path
+from .models import CoverageRecord
 from .store import FILE_MODE, StoreError, default_data_dir, ensure_private_dir
 
 FILE_NAME = "projects.json"
@@ -80,6 +81,22 @@ class Scope:
             except OSError:
                 pass
             raise
+
+
+SOURCE = "projects"
+LABEL = "Projects"
+# The error field is one short line (owner_error). The detail has each project path and the limit.
+ERROR_CUT = "Discovery stopped early in {names}. Deeper manifests are not listed."
+
+
+def discovery_coverage(found: Discovery) -> CoverageRecord:
+    """The Projects coverage (#88): `partial` if the walk of an active project stopped at the folder limit."""
+    cut = [p for p in found.projects if p.cut and p.state == "active"]
+    if not cut:
+        return CoverageRecord(SOURCE, LABEL, "complete")
+    detail = "\n".join(f"{display_path(p.path)}: stopped after {p.cut_after} folders" for p in cut)
+    return CoverageRecord(SOURCE, LABEL, "partial", detail=detail,
+                          error=ERROR_CUT.format(names=", ".join(p.name for p in cut)))
 
 
 def list_projects(data_dir=None, roots: tuple[str, ...] = PROJECT_ROOTS) -> Discovery:

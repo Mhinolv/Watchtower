@@ -112,6 +112,8 @@ The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/re
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
 It scans `package-lock.json`, `uv.lock` and `Cargo.lock` (crates.io, #15) only. A database older than 7 days makes the OSV coverage `stale`.
+Project discovery looks for manifests down to 8 folder levels and visits at most 5000 folders in one project, shallow folders first.
+If a project hits that limit, its deeper manifests are not listed. The `Projects` coverage row is then `partial` and names the project (#88).
 
 ## Updates
 
