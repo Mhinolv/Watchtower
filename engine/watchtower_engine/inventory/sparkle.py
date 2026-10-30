@@ -20,6 +20,7 @@ import os
 import functools
 import platform
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -38,6 +39,7 @@ SOURCE = "sparkle"
 LABEL = "Sparkle feeds"
 SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 TIMEOUT_SECONDS = 20
+HOST_DEADLINE_SECONDS = 30  # All connect tries for one host share this deadline (#83).
 MAX_BYTES = 5 * 1024 * 1024
 MAX_ITEMS = 500
 ORIGIN = "Sparkle feed"
@@ -160,11 +162,17 @@ def checked_addresses(host: str, port: int, resolve: Resolver) -> list[str]:
     return ordered[:MAX_ADDRESSES]
 
 
+# The clock for the host deadline. Tests replace it with a fake clock.
+_now = time.monotonic
+
+
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """Connect to a checked address. TLS still checks the certificate against the host name.
 
     The checked addresses are tried in order until one connects (#77). Only a failed connect moves on to the
     next address. A TLS failure on a connected address is not retried: the host name check stays strict.
+    All tries share one deadline of HOST_DEADLINE_SECONDS (#83). Each try waits at most the per-try timeout
+    and never longer than the time that is left. No try starts after the deadline.
     """
 
     def __init__(self, host, *, addresses: list[str], **kwargs):
@@ -173,9 +181,16 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
 
     def connect(self):
         error: OSError | None = None
+        deadline = _now() + HOST_DEADLINE_SECONDS
+        per_try = self.timeout if isinstance(self.timeout, (int, float)) else TIMEOUT_SECONDS
         for address in self._addresses:
+            left = deadline - _now()
+            if left <= 0:
+                error = TimeoutError(f"{self.host}: no address connected in {HOST_DEADLINE_SECONDS} s"
+                                     + (f" (last: {error})" if error else ""))
+                break
             try:
-                sock = socket.create_connection((address, self.port), self.timeout, self.source_address)
+                sock = socket.create_connection((address, self.port), min(per_try, left), self.source_address)
             except OSError as exc:
                 error = exc
                 continue
