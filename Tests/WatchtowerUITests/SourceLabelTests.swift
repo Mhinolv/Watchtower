@@ -27,6 +27,9 @@ private func table(items: [ItemRecord]) -> ItemTable {
     #expect(label("cask", source: "homebrew") == "Cask")
     #expect(label("cask", source: "homebrew", origin: "acme/casks") == "Cask · acme/casks")
     #expect(label("formula", source: "homebrew", origin: "acme/tools") == "Formula · acme/tools")
+    #expect(label("app", origin: "Homebrew catalog") == "App · Homebrew catalog")  // #55
+    #expect(label("app", origin: "Homebrew cask") == "App · Homebrew cask")
+    #expect(label("app", origin: "App Store") == "App Store")  // #13
 }
 
 @MainActor

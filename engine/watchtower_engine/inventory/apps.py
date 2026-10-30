@@ -8,6 +8,7 @@ file name and exactly one copy of that file exists. Any doubt leaves the app unl
 from __future__ import annotations
 
 import os
+import re
 import struct
 import subprocess
 from dataclasses import dataclass, field
@@ -15,9 +16,10 @@ from pathlib import Path
 from typing import Callable
 
 from ..discovery import display_path
-from ..feeds.homebrew import Fetch, http_fetch
+from ..feeds.homebrew import Catalog, Fetch, http_fetch, load_catalog
 from ..models import CoverageRecord, ItemRecord, utc_now
-from .homebrew import SourceResult
+from . import mas as mas_inventory
+from .homebrew import NOTE_SELF_UPDATE, SourceResult, version_key
 from .plist import read_plist, text
 
 SOURCE = "apps"
@@ -27,6 +29,7 @@ MAX_BUNDLES = 3000
 
 ORIGIN_CASK = "Homebrew cask"
 ORIGIN_MANUAL = "Manual"
+ORIGIN_CATALOG = "Homebrew catalog"  # The app has a public cask, but Homebrew did not install it (#55).
 
 # Owner-facing text. The Design notes of #4 fix these strings.
 NOTE_LINKED = "Linked to cask {token}."
@@ -37,6 +40,14 @@ ERROR_PLIST = "Info.plist could not be read."
 ERROR_ROOT = "Watchtower cannot read {root}."
 ERROR_BUNDLES = "{count} apps could not be read."
 ERROR_CASKS = "Homebrew casks did not load. Apps show as manual."
+ERROR_CATALOG = "Homebrew catalog did not load."
+
+# Owner-facing text of #55. The Design notes of #55 fix these strings.
+NOTE_CATALOG_NEWER = "Homebrew did not install this app. Update it from the vendor."
+NOTE_APP_NEWER = "The app is newer than the Homebrew catalog ({latest})."
+NOTE_FORMATS = "Version formats differ: {installed} and {latest}."
+NOTE_AMBIGUOUS = "More than one cask matches. Watchtower does not guess."
+NOTE_SELF_UPDATES = "This app updates itself. Watchtower compares the app version, not the Homebrew record."
 
 ELECTRON_PLIST = "Contents/Frameworks/Electron Framework.framework/Resources/Info.plist"
 
@@ -69,6 +80,9 @@ class Bundle:
     build: str | None = None
     architecture: str | None = None
     electron: str | None = None
+    store_receipt: bool = False  # The bundle has a Mac App Store receipt file.
+    feed_url: str | None = None  # SUFeedURL: the app's Sparkle appcast (#14).
+    bundle_version: str | None = None  # CFBundleVersion as it is, for the Sparkle compare.
     error: str | None = None  # Set if Info.plist could not be read.
     detail: str | None = None
 
@@ -172,6 +186,7 @@ def electron_runtimes(version: str) -> tuple[str, str] | None:
 
 def read_bundle(path: Path) -> Bundle:
     bundle = Bundle(path=path, name=path.name[: -len(".app")])
+    bundle.store_receipt = (path / "Contents" / "_MASReceipt" / "receipt").is_file()  # Never opened.
     plist = _info_plist(path)
     if plist is None:
         bundle.error, bundle.detail = ERROR_PLIST, "No Info.plist in the bundle."
@@ -185,7 +200,9 @@ def read_bundle(path: Path) -> Bundle:
     bundle.bundle_id = text(info.get("CFBundleIdentifier"))
     bundle.version = text(info.get("CFBundleShortVersionString")) or text(info.get("CFBundleVersion"))
     build = text(info.get("CFBundleVersion"))
+    bundle.bundle_version = build or bundle.version
     bundle.build = build if build != bundle.version else None
+    bundle.feed_url = text(info.get("SUFeedURL"))
     executable = text(info.get("CFBundleExecutable"))
     if executable and plist.parent.name == "Contents":
         bundle.architecture = mach_o_architectures(plist.parent / "MacOS" / executable)
@@ -221,6 +238,116 @@ def claimants(casks: list[dict]) -> dict[str, list[str]]:
     return {name: sorted(tokens) for name, tokens in claimed.items()}
 
 
+# Versions
+
+
+def _marketing(version: str | None) -> str | None:
+    """The version without a cask build part: `1.3,200` is `1.3`. `latest` has no version."""
+    text = (version or "").split(",")[0].split("+")[0].strip()  # `1.3,200` and `2.0.2+b72db03fb` are `1.3`, `2.0.2`.
+    text = re.sub(r"^[vV](?=\d)", "", text)
+    return text if re.search(r"\d", text) else None
+
+
+def compare_versions(installed: str | None, latest: str | None) -> str:
+    """`newer` (the catalog is newer), `same`, `older` (the app is newer) or `unknown`.
+
+    Versions with letters in them, or a calendar version (first number of 1000 or more) against a
+    plain one, are not comparable. Watchtower does not guess.
+    """
+    a, b = _marketing(installed), _marketing(latest)
+    if a is None or b is None:
+        return "unknown"
+    if a == b:
+        return "same"
+    if re.search(r"[A-Za-z]", a + b):
+        return "unknown"
+    if (int(re.search(r"\d+", a).group()) >= 1000) != (int(re.search(r"\d+", b).group()) >= 1000):
+        return "unknown"
+
+    def key(version: str) -> tuple:
+        parts = list(version_key(version))
+        while parts and parts[-1] == (1, 0):
+            parts.pop()
+        return tuple(parts)
+
+    ka, kb = key(a), key(b)
+    return "same" if ka == kb else "newer" if kb > ka else "older"
+
+
+def apply_comparison(item: ItemRecord, installed: str | None, latest: str | None, *,
+                     not_installed_by_brew: bool, self_updating: bool) -> None:
+    """Set the state and the note from the table in the Design notes of #55."""
+    result = compare_versions(installed, latest)
+    notes: list[str] = []
+    if result == "newer":
+        item.state = "update_available"
+        if not_installed_by_brew:
+            notes.append(NOTE_CATALOG_NEWER)
+    elif result == "unknown":
+        item.state = "unknown"
+        notes.append(NOTE_FORMATS.format(installed=installed, latest=latest))
+    else:
+        item.state = "up_to_date"
+        if result == "older":
+            notes.append(NOTE_APP_NEWER.format(latest=_marketing(latest)))
+    if self_updating:
+        notes.append(NOTE_SELF_UPDATES)
+    item.note = " ".join(notes) or None
+
+
+# Catalog match
+
+
+def _without_variants(rows: list[dict]) -> list[dict]:
+    """Prefer the casks with no `@` suffix. `slack@beta` is a channel of `slack`, not another app.
+
+    If none is left, the variants stay: Watchtower does not pick one.
+    """
+    stable = [r for r in rows if "@" not in r["name"]]
+    return stable or rows
+
+
+def match_catalog(bundle: "Bundle", catalog: Catalog, copies: int) -> tuple[str, list[dict]] | None:
+    """The public casks for an app, with the evidence.
+
+    A bundle id match wins over a name match. Casks list ids of other apps too (a cask that quits Chrome
+    first, a zap path of an old app), so if the app file name also equals a cask's `app` name, only those
+    casks stay. Then the `@` variants drop out. The file name alone matches for one copy only.
+    """
+    by_name = catalog.casks_for_app_name(bundle.filename) if copies == 1 else []
+    if bundle.bundle_id:
+        by_id = catalog.casks_for_bundle_id(bundle.bundle_id)
+        if by_id:
+            named = [r for r in by_id if r in by_name]
+            return "Bundle ID", _without_variants(named or by_id)
+    if by_name:
+        return "App name", _without_variants(by_name)
+    return None
+
+
+def apply_catalog_match(item: ItemRecord, bundle: "Bundle", match: tuple[str, list[dict]], catalog: Catalog) -> None:
+    """Show the cask version as Latest. The update stays manual: Homebrew did not install the app."""
+    matched_by, rows = match
+    if len(rows) > 1:
+        item.state, item.note = "manual", NOTE_AMBIGUOUS
+        item.detail = "Casks that match: " + ", ".join(sorted(r["name"] for r in rows)) + "."
+        return
+    row = rows[0]
+    latest = _marketing(row.get("version"))
+    item.origin = ORIGIN_CATALOG
+    item.latest_version = latest
+    item.source_at = catalog.fetched_at
+    item.attributes = {**(item.attributes or {}), "cask": row["name"], "matchedBy": matched_by,
+                       "latestFrom": f"Homebrew catalog, cask {row['name']}"}
+    if row.get("homepage"):
+        item.attributes["homepage"] = row["homepage"]
+    if not catalog.fresh:
+        # Old data keeps its badge. The UI adds "Version data is from <source_at>."
+        item.error, item.detail = catalog.error, catalog.detail
+    apply_comparison(item, bundle.version, row.get("version"), not_installed_by_brew=True,
+                     self_updating=bool(row.get("auto_updates")))
+
+
 # Items
 
 
@@ -228,8 +355,17 @@ def build_items(
     bundles: list[Bundle],
     casks: list[dict] | None = None,
     cask_items: list[ItemRecord] | None = None,
+    mas: mas_inventory.MasInventory | None = None,
+    catalog: Catalog | None = None,
 ) -> list[ItemRecord]:
-    """One item for each bundle. `casks` is the `casks` list of `brew info --json=v2 --installed`."""
+    """One item for each bundle. `casks` is the `casks` list of `brew info --json=v2 --installed`.
+
+    `mas` is the `mas list --json` answer. An app with a Mac App Store receipt that no cask claims
+    is an App Store app (#13).
+
+    `catalog` is the public cask catalog. An app that no installed cask claims can match a catalog
+    cask by bundle id or app file name (#55).
+    """
     claimed = claimants(casks or [])
     cask_by_token = {i.name: i for i in cask_items or [] if i.kind == "cask"}
     copies_by_file: dict[str, int] = {}
@@ -276,10 +412,21 @@ def build_items(
                 item.state, item.latest_version, item.source_at = cask.state, cask.latest_version, cask.source_at
                 if cask.state == "error":
                     item.error = cask.error
+                if cask.state == "unknown" and cask.note == NOTE_SELF_UPDATE and cask.latest_version and b.version:
+                    # The cask updates itself, so the Homebrew receipt can be old. Compare the app (#55).
+                    apply_comparison(item, b.version, cask.latest_version, not_installed_by_brew=False,
+                                     self_updating=True)
         elif len(tokens) > 1:
             item.detail = "Casks that claim this app: " + ", ".join(tokens) + "."
         elif tokens:
             item.detail = f"Cask {tokens[0]} matches more than one copy of this app."
+        elif catalog is not None and catalog.loaded and not b.error and b.version and not b.store_receipt:
+            match = match_catalog(b, catalog, copies_by_file[b.filename])
+            if match:
+                apply_catalog_match(item, b, match, catalog)
+
+        if b.store_receipt and item.origin == ORIGIN_MANUAL:
+            mas_inventory.label_item(item, mas, b.bundle_id)
 
         group = by_id.get(b.bundle_id.lower(), []) if b.bundle_id else []
         if len(group) > 1:
@@ -306,6 +453,9 @@ def collect(
     cask_items: list[ItemRecord] | None = None,
     casks_error: str | None = None,
     casks_detail: str | None = None,
+    mas_reader: Callable[[], mas_inventory.MasInventory] | None = None,
+    sparkle_check: Callable | None = None,
+    catalog_loader: Callable[[], Catalog] | None = None,
 ) -> SourceResult:
     """Read the bundles and build the items.
 
@@ -314,7 +464,11 @@ def collect(
     """
     paths, root_errors = find_bundles(roots)
     bundles = [read_bundle(p) for p in paths]
-    items = build_items(bundles, casks, cask_items)
+    # mas runs only if an app has a receipt. It lists the apps and never checks for updates.
+    mas = mas_reader() if mas_reader and any(b.store_receipt for b in bundles) else None
+    catalog = catalog_loader() if catalog_loader and bundles else None
+    items = build_items(bundles, casks, cask_items, mas, catalog)
+    sparkle_coverage = sparkle_check(sparkle_targets(bundles, items)).coverage if sparkle_check else None
 
     problems, details = [], []
     for label, exc in root_errors:
@@ -328,13 +482,41 @@ def collect(
         problems.append(casks_error)
         if casks_detail:
             details.append(casks_detail)
+    if catalog is not None and not catalog.fresh:
+        problems.append(ERROR_CATALOG)
+        if catalog.detail:
+            details.append(catalog.detail)
+    store_problem = mas_inventory.coverage_problem(mas)
+    if store_problem:
+        problems.append(store_problem[0])
+        if store_problem[1]:
+            details.append(store_problem[1])
 
     if not problems:
         coverage = CoverageRecord(SOURCE, LABEL, "complete")
     else:
         state = "failed" if root_errors and not bundles else "partial"
         coverage = CoverageRecord(SOURCE, LABEL, state, error=" ".join(problems), detail="\n".join(details))
-    return SourceResult(coverage, items)
+    result = SourceResult(coverage, items)
+    if sparkle_coverage is not None:
+        result.extra_coverage = [sparkle_coverage]  # The refresh saves it as its own source.
+    return result
+
+
+def sparkle_targets(bundles: list[Bundle], items: list[ItemRecord]):
+    """App items with a Sparkle feed and no usable Homebrew answer (manual or unknown)."""
+    from .sparkle import Target
+
+    by_path = {str(b.path): b for b in bundles}
+    targets = []
+    for item in items:
+        b = by_path.get((item.attributes or {}).get("path", ""))
+        if b is None or not b.feed_url or b.error:
+            continue
+        if item.origin == ORIGIN_CASK and item.state not in ("unknown",):
+            continue  # Homebrew already gives a version for this app.
+        targets.append(Target(item, b.feed_url, b.bundle_version))
+    return targets
 
 
 def collect_live(
@@ -344,6 +526,7 @@ def collect_live(
     run: Callable = subprocess.run,
     fetch: Fetch = http_fetch,
     now: Callable[[], str] = utc_now,
+    sparkle_check: Callable | None = None,
 ) -> SourceResult:
     """Read the apps and link them to the Homebrew casks.
 
@@ -351,9 +534,15 @@ def collect_live(
     """
     from . import homebrew
 
+    def catalog_loader() -> Catalog:
+        return load_catalog("cask", data_dir, fetch, now)
+
+    def mas_reader() -> mas_inventory.MasInventory:
+        return mas_inventory.read_inventory(mas_inventory.find_mas(), run)
+
     brew = brew or homebrew.find_brew()
     if brew is None:
-        return collect(roots)
+        return collect(roots, mas_reader=mas_reader, sparkle_check=sparkle_check, catalog_loader=catalog_loader)
     answers: dict[tuple, object] = {}
 
     def run_once(args, **kwargs):
@@ -365,7 +554,9 @@ def collect_live(
     try:
         installed = homebrew.read_installed(brew, run_once)
     except Exception as exc:
-        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc))
+        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc), mas_reader=mas_reader,
+                       sparkle_check=sparkle_check, catalog_loader=catalog_loader)
     casks = [c for c in installed.get("casks") or [] if c.get("installed")]
     cask_items = homebrew.collect(data_dir, brew=brew, run=run_once, fetch=fetch, now=now).items if casks else []
-    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"])
+    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"], mas_reader=mas_reader,
+                   sparkle_check=sparkle_check, catalog_loader=catalog_loader)

@@ -41,13 +41,13 @@ private func engineItem(error: String? = nil) throws -> ItemRecord {
     #expect(SofaDetail(item, time: utc)?.fixedCves == [])
 }
 
-@Test func failedFeedNamesTheDateOfTheKeptData() throws {
+@Test func sofaFailedFeedNamesTheDateOfTheKeptData() throws {
     let detail = try #require(SofaDetail(try engineItem(error: "SOFA feed did not load."), time: utc))
     #expect(detail.failure == "SOFA feed did not load. Data from Oct 28.")
     #expect(detail.latest == "15.8.2 (24H232), released Oct 26")
 }
 
-@Test func failedFeedWithoutEarlierDataSaysOnlyThatItFailed() {
+@Test func sofaFailedFeedWithoutEarlierDataSaysOnlyThatItFailed() {
     let item = ItemRecord(id: "macos", source: "macos", name: "macOS", state: .manual,
                           error: "SOFA feed did not load.", attributes: ["build": "24G830"])
     let detail = SofaDetail(item, time: utc)

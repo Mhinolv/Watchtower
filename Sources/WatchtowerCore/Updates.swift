@@ -276,9 +276,27 @@ public enum UpdateKeys {
     }
 }
 
+extension ItemRecord {
+    /// An app with a Mac App Store receipt (#13). The engine sets `origin` to `App Store`.
+    public var isAppStoreApp: Bool { source == "apps" && origin == "App Store" }
+}
+
 public enum UpdatePolicy {
+    /// `Check for Update…` for App Store apps: the outdated check runs in the plan step (#13).
+    public static func buttonTitle(_ item: ItemRecord) -> String {
+        item.isAppStoreApp ? "Check for Update…" : "Update…"
+    }
+
     /// Nil if the Update button can open a plan for `item`, else why it is off.
     public static func blockReason(_ item: ItemRecord) -> String? {
+        if item.isAppStoreApp {
+            // The row state carries the mas limit: `error` for an unsupported mas, `manual` without mas.
+            if item.state == .error { return item.error ?? "mas is not supported." }
+            if item.attributes?["adamId"] == nil || item.state == .manual {
+                return item.note ?? "Install mas with Homebrew to update App Store apps here."
+            }
+            return nil
+        }
         guard item.source == "homebrew", item.kind == "formula" || item.kind == "cask" else {
             return "Watchtower can update Homebrew formulae and casks only."
         }
@@ -347,6 +365,8 @@ public final class UpdateModel {
     }
 
     public private(set) var step: Step
+    /// The loading step is the App Store check: `Checking the App Store…` (#13).
+    public private(set) var checkingStore = false
     public private(set) var output: [String]
     public private(set) var attempts: [UpdateAttempt]
     public var selectedAttemptID: UpdateAttempt.ID?
@@ -360,9 +380,11 @@ public final class UpdateModel {
     @ObservationIgnored private var majorConfirmed = false
     @ObservationIgnored private var scriptsConfirmed = false
 
-    public init(client: any UpdateClient, step: Step = .idle, output: [String] = [], attempts: [UpdateAttempt] = []) {
+    public init(client: any UpdateClient, step: Step = .idle, output: [String] = [], attempts: [UpdateAttempt] = [],
+                checkingStore: Bool = false) {
         self.client = client
         self.step = step
+        self.checkingStore = checkingStore
         self.output = output
         self.attempts = attempts
     }
@@ -379,17 +401,20 @@ public final class UpdateModel {
 
     /// Open the sheet for one item and load its plan. Nothing runs yet.
     public func start(_ item: ItemRecord) async {
+        checkingStore = item.isAppStoreApp
         await loadPlan(itemKey: item.key, name: item.name)
     }
 
     /// Open the sheet for one npm or uv dependency of a finding. Nothing runs yet.
     public func start(finding: FindingRecord, path: FindingPath) async {
         guard let key = UpdateKeys.forFinding(finding, path) else { return }
+        checkingStore = false
         await loadPlan(itemKey: key, name: finding.package)
     }
 
     /// Open the sheet for an engine key. Nothing runs yet.
     public func start(itemKey: String, name: String) async {
+        checkingStore = false
         await loadPlan(itemKey: itemKey, name: name)
     }
 

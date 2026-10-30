@@ -112,11 +112,14 @@ public struct SeverityStyle: Equatable, Sendable {
 }
 
 extension FindingRecord {
-    /// Malware first, then known exploited, then worst severity, then newest, then id.
+    /// Malware first, then known exploited, then EPSS high to low (no score last), then worst severity,
+    /// then newest, then id.
     public static func listOrder(_ a: FindingRecord, _ b: FindingRecord) -> Bool {
-        let left: [Int] = [a.malware == nil ? 1 : 0, a.kev == nil ? 1 : 0, a.severity.rank]
-        let right: [Int] = [b.malware == nil ? 1 : 0, b.kev == nil ? 1 : 0, b.severity.rank]
+        let left: [Int] = [a.malware == nil ? 1 : 0, a.kev == nil ? 1 : 0]
+        let right: [Int] = [b.malware == nil ? 1 : 0, b.kev == nil ? 1 : 0]
         if left != right { return left.lexicographicallyPrecedes(right) }
+        if let first = epssPrecedes(a, b) { return first }
+        if a.severity.rank != b.severity.rank { return a.severity.rank < b.severity.rank }
         if a.lastSeen != b.lastSeen { return a.lastSeen > b.lastSeen }
         return a.id < b.id
     }
@@ -187,11 +190,15 @@ public struct FindingSourceRow: Equatable, Sendable, Identifiable {
             let text = c.note == "official mirror" ? "\(c.label): retrieved from the official mirror"
                 : at.map { "\(c.label): retrieved \(time.absolute($0))" } ?? "\(c.label): retrieved"
             return FindingSourceRow(id: c.source, text: text, isProblem: false)
+        case .partial where c.source == "epss":
+            return FindingSourceRow(id: c.source, text: "EPSS download failed. \(data)", isProblem: true)
         case .partial:
             return FindingSourceRow(id: c.source, text: "\(c.label): incomplete. Some advisories can be missing.",
                                     isProblem: true)
         case .stale:
             return FindingSourceRow(id: c.source, text: "\(c.label): stale. \(data)", isProblem: true)
+        case .failed where c.source == "epss":
+            return FindingSourceRow(id: c.source, text: "EPSS download failed. \(data)", isProblem: true)
         case .failed:
             return FindingSourceRow(id: c.source, text: "\(c.label): failed (\(c.note ?? "error")). \(data)",
                                     isProblem: true)
@@ -378,7 +385,10 @@ public struct CoverageRow: Equatable, Sendable, Identifiable {
             case .notRun: ("Not run", .gray)
             }
             let last = c.lastSuccessAt.map { "Last success \(time.absolute($0))" } ?? "No success yet"
-            return CoverageRow(id: c.source, label: c.label, stateText: text, tone: tone, lastSuccess: last,
+            // `Sparkle feeds: 12 of 14 read` (#14). Other sources keep the plain label.
+            let counted = c.source == "sparkle" && c.state != .notRun
+            let label = counted ? c.note.map { "\(c.label): \($0)" } ?? c.label : c.label
+            return CoverageRow(id: c.source, label: label, stateText: text, tone: tone, lastSuccess: last,
                                error: c.error)
         }
     }
@@ -678,9 +688,14 @@ public final class DashboardModel {
 
     /// One row for each feed that ran: OSV, CISA KEV and GitHub Advisories.
     public var findingSourceRows: [FindingSourceRow] {
-        ["osv", "kev", "github"].compactMap { source in
+        ["osv", "kev", "github", "epss"].compactMap { source in
             state?.coverage.first { $0.source == source }.map { FindingSourceRow.make($0) }
         }
+    }
+
+    /// The EPSS text of one finding, with the `epss` coverage row and the clock of the model.
+    public func epssDisplay(for finding: FindingRecord) -> EpssDisplay {
+        EpssDisplay.make(finding, coverage: state?.coverage.first { $0.source == "epss" }, now: clock())
     }
 
     public func deferFinding(_ finding: FindingRecord, days: Int) async {

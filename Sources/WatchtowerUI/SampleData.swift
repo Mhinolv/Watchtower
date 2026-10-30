@@ -42,6 +42,10 @@ public enum SampleData {
                  latest: "3.4.0", sourceAt: time),
             item("com.tinyspeck.slackmacgap", "apps", "Slack", .upToDate, kind: "app", installed: "4.41.97",
                  latest: "4.41.97", sourceAt: time),
+            ItemRecord(id: "com.apple.iWork.Keynote", source: "apps", name: "Keynote", state: .unknown, kind: "app",
+                       installedVersion: "11.0", latestVersion: nil, origin: "App Store",
+                       note: "Watchtower checks App Store versions only when you click Check for Update…",
+                       attributes: ["adamId": "409183694", "path": "/Applications/Keynote.app"]),
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
             item("md.obsidian", "apps", "Obsidian", .error, kind: "app", installed: "1.7.4", latest: nil,
                  error: "Version could not be read.", detail: "Info.plist has no CFBundleShortVersionString"),
@@ -67,14 +71,16 @@ public enum SampleData {
                               path("web", "package-lock.json", "4.17.20")],
                       nextSteps: ["Update lodash to 4.17.21 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12")),
+                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12"),
+                      epss: epss("CVE-2021-23337", 0.21333, 0.97595)),
         FindingRecord(id: "SEC-0002", package: "minimist", title: "Prototype Pollution in minimist",
                       severity: .critical, advisoryIds: ["CVE-2021-44906", "GHSA-xvch-5gv4-984h", "OSV-2021-1"],
                       fixedIn: "1.2.6", firstSeen: days(3), lastSeen: ago(2), sourceAt: ago(6),
                       paths: [path("web", "package-lock.json", "1.2.5", via: ["mkdirp", "minimist"])],
                       nextSteps: ["Update minimist to 1.2.6 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001")),
+                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001"),
+                      epss: epss("CVE-2021-44906", 0.00182, 0.07828)),
         FindingRecord(id: "SEC-0003", package: "lodash", title: "ReDoS in lodash", severity: .medium,
                       advisoryIds: ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], status: .deferred,
                       deferredUntil: now.addingTimeInterval(7 * 86400), firstSeen: days(9), lastSeen: ago(2),
@@ -91,7 +97,7 @@ public enum SampleData {
                       paths: [path("web", "package-lock.json", "2.1.0")],
                       nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      withdrawnAt: days(1)),
+                      withdrawnAt: days(1), epss: epss("CVE-2026-20202", 0.00098, 0.00745)),
         FindingRecord(id: "SEC-0008", package: "yaml-tools", title: "Regular expression slowdown in the parser",
                       severity: .low, advisoryIds: ["CVE-2026-20203", "GHSA-bkgg-yaml-0008"], fixedIn: "2.1.2",
                       status: .backlog, firstSeen: days(9), lastSeen: ago(2), sourceAt: ago(6),
@@ -105,12 +111,19 @@ public enum SampleData {
                                           version: "0.25.1",
                                           updateBlock: "No environment found. Watchtower does not create environments.")],
                       nextSteps: ["Update httpx to 0.27.2 or later in the lockfile.",
-                                  "Restart the dev server after the update."]),
+                                  "Restart the dev server after the update."],
+                      epss: epss("CVE-2026-31337", 0.94, 0.99)),
     ]
+
+    /// The EPSS value of a sample finding, from the file of today.
+    static func epss(_ cve: String, _ score: Double?, _ percentile: Double?, fetched: Date? = nil) -> EpssMark {
+        EpssMark(cve: cve, score: score, percentile: percentile, scoreDate: "2026-10-29",
+                 fetchedAt: fetched ?? ago(6))
+    }
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
         [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV"),
-         ("kev", "CISA KEV"), ("github", "GitHub Advisories")].map { source, label in
+         ("kev", "CISA KEV"), ("github", "GitHub Advisories"), ("epss", "EPSS")].map { source, label in
             failing.contains(source)
                 ? CoverageRecord(source: source, label: label, state: .failed, lastSuccessAt: ago(30),
                                  error: "\(label) check did not finish.")
@@ -148,19 +161,69 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case findingEpssScore = "finding-epss-score"
+        case findingEpssNoCve = "finding-epss-no-cve"
+        case findingEpssMissing = "finding-epss-missing"
+        case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
         case sofaMacosCurrent = "sofa-macos-current"
         case sofaMacosExploited = "sofa-macos-exploited"
         case sofaSafariBehind = "sofa-safari-behind"
         case sofaFeedFailed = "sofa-feed-failed"
+        case sparkleNewer = "sparkle-newer"
+        case sparkleBeta = "sparkle-beta"
+        case sparkleOsTooOld = "sparkle-os-too-old"
+        case sparkleRejected = "sparkle-rejected"
+        case sparkleFailed = "sparkle-failed"
         case menubarFindings = "menubar-findings"
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
         case menubarNever = "menubar-never"
+        case appCatalogNewer = "app-catalog-newer"
+        case appSelfUpdating = "app-self-updating"
+        case appAmbiguous = "app-ambiguous"
+        case appNoHomepage = "app-no-homepage"
 
         /// Scenarios that render the menu bar popover, not the window.
         public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
+    }
+
+    /// One app of the #55 snapshots, matched to the Homebrew cask catalog, and its selection key.
+    static func catalogApp(_ scenario: Scenario) -> (ItemRecord, String) {
+        func app(_ id: String, _ name: String, installed: String, latest: String?, state: ItemState,
+                 origin: String, note: String?, attributes: [String: String]) -> (ItemRecord, String) {
+            let item = ItemRecord(id: id, source: "apps", name: name, state: state, kind: "app",
+                                  installedVersion: installed, latestVersion: latest, origin: origin,
+                                  sourceAt: ago(0.1), note: note,
+                                  attributes: attributes.merging(["path": "/Applications/\(name).app"]) { a, _ in a })
+            return (item, item.key)
+        }
+        switch scenario {
+        case .appSelfUpdating:
+            return app("com.t3tools.t3code", "T3 Code", installed: "0.1.3", latest: "0.1.5", state: .updateAvailable,
+                       origin: "Homebrew cask",
+                       note: "This app updates itself. Watchtower compares the app version, not the Homebrew record.",
+                       attributes: ["cask": "t3-code", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask t3-code", "homepage": "https://t3.codes/"])
+        case .appAmbiguous:
+            return app("org.mozilla.firefox", "Firefox", installed: "150.0", latest: nil, state: .manual,
+                       origin: "Manual", note: "More than one cask matches. Watchtower does not guess.",
+                       attributes: [:])
+        case .appNoHomepage:
+            return app("com.example.nohome", "Plain Tool", installed: "1.0", latest: "2.0", state: .updateAvailable,
+                       origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "plain-tool", "matchedBy": "App name",
+                                    "latestFrom": "Homebrew catalog, cask plain-tool"])
+        default:
+            return app("com.cryptic-apps.hopper-web-4", "Hopper Disassembler", installed: "6.5.0", latest: "6.6.1",
+                       state: .updateAvailable, origin: "Homebrew catalog",
+                       note: "Homebrew did not install this app. Update it from the vendor.",
+                       attributes: ["cask": "hopper-disassembler", "matchedBy": "Bundle ID",
+                                    "latestFrom": "Homebrew catalog, cask hopper-disassembler",
+                                    "homepage": "https://www.hopperapp.com/"])
+        }
     }
 
     @MainActor
@@ -214,7 +277,8 @@ public enum SampleData {
             model.selection = .backlog
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
-             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:
+             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv, .findingEpssScore,
+             .findingEpssNoCve, .findingEpssMissing, .findingEpssStale:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -222,6 +286,14 @@ public enum SampleData {
                                                                     failing: ["homebrew", "apps", "macos", "osv"]),
                                        projects: projects, clock: clock)
             model.selection = .apps
+            return model
+        case .appCatalogNewer, .appSelfUpdating, .appAmbiguous, .appNoHomepage:
+            var current = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            let (item, key) = catalogApp(scenario)
+            current.items.append(item)
+            let model = DashboardModel(engine: engine, state: current, projects: projects, clock: clock)
+            model.selection = .apps
+            model.selectedItemKey = key
             return model
         case .chipSelected:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
@@ -232,6 +304,8 @@ public enum SampleData {
             return model
         case .sofaMacosCurrent, .sofaMacosExploited, .sofaSafariBehind, .sofaFeedFailed:
             return sofaModel(scenario, engine: engine, clock: clock)
+        case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
+            return sparkleModel(scenario, engine: engine, clock: clock)
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
         case .menubarStale:
@@ -268,9 +342,37 @@ extension SampleData {
                 return c
             }
         }
+        var extra: [FindingRecord] = []
+        if scenario == .findingEpssNoCve || scenario == .findingEpssMissing {
+            // An OSV-only advisory has no CVE. A new CVE may not be in the EPSS file yet.
+            let cves = scenario == .findingEpssMissing ? ["CVE-2026-40404", "GHSA-newc-ve00-0009"] : ["GHSA-abcd-efgh-0009"]
+            extra = [FindingRecord(id: "SEC-0009", package: "tiny-parse", title: "Out-of-bounds read in the parser",
+                                   severity: .medium, advisoryIds: cves, fixedIn: "0.9.2", firstSeen: days(1),
+                                   lastSeen: ago(2), sourceAt: ago(6),
+                                   paths: [path("web", "package-lock.json", "0.9.1")],
+                                   nextSteps: ["Update tiny-parse to 0.9.2 or later in the lockfile.",
+                                               "Restart the dev server after the update."],
+                                   epss: scenario == .findingEpssMissing ? epss("CVE-2026-40404", nil, nil) : nil)]
+            sample.findings += extra
+        }
+        if scenario == .findingEpssStale {
+            // The download failed for 4 days and the file is old. The scores stay.
+            sample.findings = sample.findings.map { f in
+                var f = f
+                if let mark = f.epss { f.epss = epss(mark.cve, mark.score, mark.percentile, fetched: days(4)) }
+                return f
+            }
+            sample.coverage = sample.coverage.map { c in
+                var c = c
+                if c.source == "epss" { c.sourceAt = days(4) }
+                return c
+            }
+        }
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .findings
         switch scenario {
+        case .findingEpssScore, .findingEpssStale: model.selectedItemKey = "SEC-0006"
+        case .findingEpssNoCve, .findingEpssMissing: model.selectedItemKey = "SEC-0009"
         case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
         case .findingMalware: model.selectedItemKey = "SEC-0002"
         case .findingWithdrawn: model.selectedItemKey = "SEC-0005"
@@ -339,6 +441,62 @@ extension SampleData {
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .apps
         model.selectedItemKey = (scenario == .sofaSafariBehind ? sofa[1] : sofa[0]).key
+        return model
+    }
+
+    /// One app with a Sparkle feed (#14), in the state of `scenario`, selected in Apps.
+    static func sparkleApp(_ scenario: Scenario) -> ItemRecord {
+        let feed = "https://updates.example.com/acme-notes/appcast.xml"
+        var app = item("com.example.acme-notes", "apps", "Acme Notes", .updateAvailable, kind: "app",
+                       installed: "3.3.0", latest: "3.4.1", origin: "Sparkle feed",
+                       note: "Use the app's Check for Updates command to install it.", sourceAt: ago(3))
+        var attributes = ["path": "/Applications/Acme Notes.app", "bundleId": "com.example.acme-notes",
+                          "sparkleFeed": feed, "sparkleLatest": "3.4.1 (341)", "sparkleChannel": "Stable",
+                          "sparkleMinimumOs": "14.0", "sparkleChecked": "2026-10-29T09:12:00Z"]
+        switch scenario {
+        case .sparkleBeta:
+            app.state = .upToDate
+            app.installedVersion = "3.4.1"
+            app.note = "A beta (3.5b1) is available."
+        case .sparkleOsTooOld:
+            app.state = .manual
+            attributes["sparkleMinimumOs"] = "15.2"
+            app.note = "3.4.1 needs macOS 15.2. This Mac has 15.1."
+        case .sparkleRejected:
+            app.state = .unknown
+            app.latestVersion = nil
+            app.origin = nil
+            app.sourceAt = nil
+            app.note = "Watchtower reads HTTPS feeds only."
+            attributes = ["path": attributes["path"]!, "bundleId": attributes["bundleId"]!,
+                          "sparkleFeed": "http://updates.example.com/acme-notes/appcast.xml"]
+        case .sparkleFailed:
+            // The feed did not load. The evidence from the day before stays.
+            app.sourceAt = days(1)
+            attributes["sparkleChecked"] = "2026-10-28T09:12:00Z"
+            app.error = "Feed check failed."
+            app.detail = "URLError(code: -1001, \"The request timed out.\")"
+        default: break
+        }
+        app.attributes = attributes
+        return app
+    }
+
+    @MainActor
+    static func sparkleModel(_ scenario: Scenario, engine: PreviewEngine,
+                             clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+        let app = sparkleApp(scenario)
+        sample.items.append(app)
+        let failed = scenario == .sparkleFailed
+        sample.coverage.append(CoverageRecord(source: "sparkle", label: "Sparkle feeds",
+                                              state: failed ? .partial : .complete, lastSuccessAt: ago(2),
+                                              error: failed ? "Some Sparkle feeds did not load." : nil,
+                                              note: failed ? "5 of 6 read" : "6 of 6 read"))
+        if failed { sample.refresh?.status = .partial }
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .apps
+        model.selectedItemKey = app.key
         return model
     }
 }
@@ -505,6 +663,21 @@ extension SampleData {
         case npmVerified = "update-npm-verified"
         case npmLockfileOnly = "update-npm-lockfile-only"
         case npmNotSupported = "update-npm-not-supported"
+        case masChecking = "update-mas-checking"
+        case masPlan = "update-mas-plan"
+        case masCurrent = "update-mas-current"
+        case masSignedOut = "update-mas-signed-out"
+        case masAdmin = "update-mas-admin"
+    }
+
+    /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
+    public static func masPlan(name: String = "Keynote", installed: String? = "11.0", target: String? = "12.0",
+                               refusal: String? = nil) -> UpdatePlan {
+        UpdatePlan(id: "5d0c8e17a2b64f93", itemKey: "apps/com.apple.iWork.Keynote", name: name, kind: "mas",
+                   fullName: "409183694", installedVersion: installed, targetVersion: target,
+                   command: ["/opt/homebrew/bin/mas", "update", "409183694"], majorChange: refusal == nil,
+                   refusal: refusal,
+                   rows: [PlanRow(label: "Scripts", value: "Not used by App Store updates.")])
     }
 
     public static func npmPlan(scripts: Bool = false) -> UpdatePlan {
@@ -560,6 +733,13 @@ extension SampleData {
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
         case .npmLockfileOnly: .result(npmAttempt(installed: "4.17.1"), npmPlan())
+        case .masChecking: .loading("Keynote")
+        case .masPlan: .plan(masPlan())
+        case .masCurrent: .plan(masPlan(name: "Numbers", installed: "5.2", target: nil,
+                                        refusal: "Numbers is up to date (5.2)."))
+        case .masSignedOut: .plan(masPlan(installed: nil, target: nil, refusal: "Sign in to the App Store, then try again."))
+        case .masAdmin: .plan(masPlan(installed: nil, target: nil,
+                                      refusal: "This update needs an administrator. Use the App Store app."))
         case .npmNotSupported:
             .plan(UpdatePlan(id: "0", itemKey: "npm|~/Projects/monorepo|acme-router|-", name: "acme-router",
                              kind: "npm", fullName: "acme-router", installedVersion: nil, targetVersion: nil,
@@ -570,7 +750,7 @@ extension SampleData {
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",
                                          "==> Pouring git--2.47.1.arm64_sequoia.bottle.tar.gz"],
-                                attempts: attempts)
+                                attempts: attempts, checkingStore: scenario == .masChecking)
         if scenario == .log { model.selectedAttemptID = 3 }
         return model
     }
