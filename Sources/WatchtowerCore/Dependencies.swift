@@ -34,7 +34,12 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
     /// `dev-dependencies` or `build-dependencies`. nil: normal dependencies.
     public var table: String?
     public var latest: String?
+    /// `PyPI did not respond.` if the request for this package failed.
     public var latestError: String?
+    /// True if this read did not ask the registry for this package yet. Nothing failed.
+    public var latestPending: Bool
+    /// `No stable release.` if the registry answered and every release is a pre-release or yanked.
+    public var latestNote: String?
     public var status: ItemState
     /// An open finding on this package in this project. The status is then `vulnerable`.
     public var findingId: String?
@@ -47,8 +52,9 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
     public var id: String { [table ?? "", package].joined(separator: "|") }
 
     public init(package: String, declared: String, evidence: String, installed: String?, installedLabel: String,
-                table: String? = nil, latest: String?, latestError: String? = nil, status: ItemState,
-                findingId: String? = nil, severity: String? = nil, updateKey: String? = nil, updateRefusal: String? = nil) {
+                table: String? = nil, latest: String?, latestError: String? = nil, latestPending: Bool = false,
+                latestNote: String? = nil, status: ItemState, findingId: String? = nil, severity: String? = nil,
+                updateKey: String? = nil, updateRefusal: String? = nil) {
         self.package = package
         self.declared = declared
         self.evidence = evidence
@@ -57,6 +63,8 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         self.table = table
         self.latest = latest
         self.latestError = latestError
+        self.latestPending = latestPending
+        self.latestNote = latestNote
         self.status = status
         self.findingId = findingId
         self.severity = severity
@@ -89,6 +97,20 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
 
     public var declaredText: String { declared.isEmpty ? "—" : declared }
 
+    /// The `Latest` cell. A row that was not asked yet says so. A dash never stands for "not asked".
+    public var latestText: String {
+        if let latest { return latest }
+        if latestPending { return "Not checked yet" }
+        return latestNote == nil ? "—" : "No stable release"
+    }
+
+    /// The reason that no latest version shows: `Not checked yet.`, `No stable release.`, or the failure.
+    public var latestReason: String? {
+        if latest != nil { return nil }
+        if latestPending { return "Not checked yet." }
+        return latestError ?? latestNote
+    }
+
     /// What the `Update…` button does: open the plan, or stay off with a reason.
     public enum Update: Equatable, Sendable {
         case plan(String)
@@ -101,7 +123,7 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         switch status {
         case .upToDate: return .off("Already the latest version.")
         case .vulnerable where latest != nil && latest == installed: return .off("Already the latest version.")
-        default: return .off(latestError ?? (latest == nil ? "The latest version is not known." : "No newer version is known."))
+        default: return .off(latestReason ?? (latest == nil ? "The latest version is not known." : "No newer version is known."))
         }
     }
 
@@ -113,7 +135,7 @@ public struct DependencyRow: Codable, Hashable, Sendable, Identifiable {
         case .upToDate: "Up to date"
         default: "Unknown"
         }
-        return "\(package), declared \(declaredText), installed \(installed ?? "not known"), latest \(latest ?? "not known"), \(state)"
+        return "\(package), declared \(declaredText), installed \(installed ?? "not known"), latest \(latest ?? (latestPending ? "not checked yet" : "not known")), \(state)"
     }
 }
 
@@ -125,16 +147,19 @@ public struct DependencySection: Codable, Hashable, Sendable, Identifiable {
     public var rows: [DependencyRow]
     /// Why Update is off for the whole file: `requirements.txt with -r includes or hashes is not supported.`
     public var refusal: String?
+    /// The rows that the registry was not asked for yet in this read.
+    public var pending: Int
     public var latestSource: DependencyLatestSource
 
     public var id: String { manifest }
 
-    public init(manifest: String, kind: String, rows: [DependencyRow], refusal: String? = nil,
+    public init(manifest: String, kind: String, rows: [DependencyRow], refusal: String? = nil, pending: Int = 0,
                 latestSource: DependencyLatestSource) {
         self.manifest = manifest
         self.kind = kind
         self.rows = rows
         self.refusal = refusal
+        self.pending = pending
         self.latestSource = latestSource
     }
 
@@ -152,12 +177,15 @@ public struct DependencyList: Codable, Hashable, Sendable {
     /// False if the project has no `requirements.txt` or `Cargo.toml`.
     public var supported: Bool
     public var sections: [DependencySection]
+    /// The rows in all sections that the registry was not asked for yet. One read asks for at most 25 for each registry.
+    public var pending: Int
 
-    public init(schemaVersion: Int = 1, project: String, supported: Bool, sections: [DependencySection]) {
+    public init(schemaVersion: Int = 1, project: String, supported: Bool, sections: [DependencySection], pending: Int = 0) {
         self.schemaVersion = schemaVersion
         self.project = project
         self.supported = supported
         self.sections = sections
+        self.pending = pending
     }
 
     public static let unsupportedText = "Watchtower lists dependencies for requirements.txt and Cargo.toml only."
@@ -189,7 +217,8 @@ extension Engine: DependencyClient {
 // MARK: - Model
 
 /// The Dependencies tables that were read, one for each project. Reading a project asks the registries, so it
-/// runs when the owner opens the project detail, not in a refresh.
+/// runs when the owner opens the project detail, not in a refresh. One engine call asks for a few packages only
+/// (a project can have hundreds): the model calls again until no row is pending, and shows each answer at once.
 @MainActor
 @Observable
 public final class DependencyModel {
@@ -200,27 +229,44 @@ public final class DependencyModel {
     }
 
     public private(set) var loads: [String: Load]
+    /// The projects with a read in progress.
+    public private(set) var checking: Set<String> = []
     @ObservationIgnored private let client: any DependencyClient
 
-    public init(client: any DependencyClient, loads: [String: Load] = [:]) {
+    public init(client: any DependencyClient, loads: [String: Load] = [:], checking: Set<String> = []) {
         self.client = client
         self.loads = loads
+        self.checking = checking
     }
 
     public func load(for path: String) -> Load? { loads[path] }
 
-    /// Read the table of one project. A table that is already read stays until `reload`.
+    public func isChecking(_ path: String) -> Bool { checking.contains(path) }
+
+    /// Read the table of one project. A complete table stays until `force`. A table with rows not checked yet
+    /// continues where it stopped, also when the owner calls this again (`Check the rest`).
     public func load(_ project: ProjectRecord, force: Bool = false) async {
-        if !force, case .loaded? = loads[project.path] { return }
-        if case .loading? = loads[project.path] { return }
-        loads[project.path] = .loading
+        let path = project.path
+        if checking.contains(path) { return }
+        if !force, case .loaded(let list)? = loads[path], list.pending == 0 { return }
+        checking.insert(path)
+        defer { checking.remove(path) }
+        if force || loads[path] == nil { loads[path] = .loading }
         do {
-            loads[project.path] = .loaded(try await client.dependencies(projectPath: project.path))
+            var list = try await client.dependencies(projectPath: path)
+            loads[path] = .loaded(list)
+            while list.pending > 0 {
+                let next = try await client.dependencies(projectPath: path)
+                loads[path] = .loaded(next)
+                if next.pending >= list.pending { break }  // No progress: stop. The owner can ask again.
+                list = next
+            }
         } catch is CancellationError {
-            loads[project.path] = nil
+            if loads[path] == .loading { loads[path] = nil }
         } catch {
-            loads[project.path] = .failed((error as? EngineError) ?? .failed(message: "Watchtower could not read the dependencies.",
-                                                                              detail: "\(error)"))
+            if case .loaded? = loads[path] { return }  // Keep the rows read so far.
+            loads[path] = .failed((error as? EngineError) ?? .failed(message: "Watchtower could not read the dependencies.",
+                                                                     detail: "\(error)"))
         }
     }
 }

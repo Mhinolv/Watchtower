@@ -1,5 +1,6 @@
 # Registry fixtures (#81)
 
 Real answers, fetched 2026-10-30:
-- `pypi-<name>.json`: the real `https://pypi.org/pypi/<name>/json` answer for requests, click, rich, PyYAML, pytest and urllib3, cut to `info.name` and `info.version`.
+- `pypi-simple-<name>.json`: the real PEP 691 answer of `https://pypi.org/simple/<name>/` (`Accept: application/vnd.pypi.simple.v1+json`, gzip) for requests, click, rich, pyyaml (PyPI redirects `PyYAML` to the lower-case name), pytest and urllib3. The `versions` list is whole. Only the last 8 entries of `files` are kept. The real answer for requests is 31 KB gzip, 123 KB plain, where the full project JSON is 193 KB plain.
 - `crates-<name>.ndjson`: the last lines (the newest versions) of the real sparse index file at `https://index.crates.io/<path>` for serde, itoa, smallvec and memchr. `crates-smallvec.ndjson` also holds the real pre-release lines `2.0.0-beta.x`: the newest version in the file is a pre-release and the engine must not take it as latest.
+- `pypi-simple-betaonly.json`, `pypi-simple-yankedtop.json`, `pypi-simple-stableandbeta.json`: SYNTHETIC. They keep the real PEP 691 structure of the requests answer. The versions and file names are made up: a project with only pre-releases, a project whose newest releases are yanked, and a project with a stable release below newer pre-releases. Real PyPI has no stable shape for these cases at a fixed time.

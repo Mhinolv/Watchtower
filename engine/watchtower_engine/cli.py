@@ -111,6 +111,8 @@ def main(argv=None) -> int:
             fp.add_argument("days", type=int, choices=(7, 30))
     deps = sub.add_parser("dependencies", help="print the direct dependencies of one project as JSON")
     deps.add_argument("path", help="project folder")
+    deps.add_argument("--max-lookups", type=int, default=None, metavar="N",
+                      help="ask each registry for at most N packages (rows not asked are pending)")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
@@ -203,8 +205,9 @@ def main(argv=None) -> int:
             if project is None:
                 _emit(sys.stderr, {"error": "That folder is not a project in the project roots.", "detail": None})
                 return 1
+            limit = {} if args.max_lookups is None else {"max_lookups": max(0, args.max_lookups)}
             with Store(data_dir) as store:
-                _emit(sys.stdout, project_dependencies(project, store.findings(), data_dir))
+                _emit(sys.stdout, project_dependencies(project, store.findings(), data_dir, **limit))
             return 0
         if args.cmd == "project-state":
             project = set_project_active(args.path, args.state == "active", args.data_dir)

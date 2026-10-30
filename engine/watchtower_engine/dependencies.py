@@ -35,11 +35,23 @@ def _status(installed: str | None, latest: str | None) -> str:
     return "update_available" if version_key(latest) > version_key(installed) else "up_to_date"
 
 
-def _finding_for(findings, ecosystem: str, name: str, project_display: str):
-    """The worst open finding of `name` in this project. `findings` come sorted, worst first."""
+def finding_file(manifest: str, kind: str) -> str:
+    """The file that a finding path names for a manifest: the requirements.txt itself, or the Cargo.lock next to a Cargo.toml."""
+    if kind == "requirements":
+        return manifest
+    folder = Path(manifest).parent
+    return "Cargo.lock" if folder == Path(".") else f"{folder}/Cargo.lock"
+
+
+def _finding_for(findings, ecosystem: str, name: str, project_display: str, file: str):
+    """The worst open finding of `name` in this file of this project. `findings` come sorted, worst first.
+
+    One project can hold two files with the same package (`a/requirements.txt`, `b/requirements.txt`).
+    A finding marks a row only if its path names the file of the section.
+    """
     for f in findings:
         if (f.status == "open" and f.ecosystem == ecosystem and registries.normalize(f.package) == registries.normalize(name)
-                and any(p.project_path == project_display for p in f.paths)):
+                and any(p.project_path == project_display and p.lockfile == file for p in f.paths)):
             return f
     return None
 
@@ -113,8 +125,10 @@ def _finish(rows: list[dict], registry: str, latest: dict, findings, project_dis
     for row in rows:
         found = latest.get(row["package"])
         row["latest"], row["latest_error"] = (found.version, found.error) if found else (None, None)
+        row["latest_pending"] = bool(found and found.pending)  # Not asked in this call: no text of failure.
+        row["latest_note"] = found.note if found else None
         row["status"] = _status(row["installed"], row["latest"])
-        finding = _finding_for(findings, registry, row["package"], project_display)
+        finding = _finding_for(findings, registry, row["package"], project_display, finding_file(manifest, kind))
         row["finding_id"], row["severity"] = (finding.id, finding.severity) if finding else (None, None)
         if finding:
             row["status"] = "vulnerable"
@@ -130,8 +144,12 @@ def _finish(rows: list[dict], registry: str, latest: dict, findings, project_dis
 
 
 def project_dependencies(project: Project, findings: Iterable, data_dir: Path, fetch: Fetch = http_fetch,
-                         now: Callable[[], str] = utc_now) -> dict:
-    """The `Dependencies` sections of one project. Never raises for a failed registry request."""
+                         now: Callable[[], str] = utc_now, max_lookups: int = registries.MAX_LOOKUPS) -> dict:
+    """The `Dependencies` sections of one project. Never raises for a failed registry request.
+
+    One call asks each registry for at most `max_lookups` packages. A row not asked yet has `latest_pending`, and
+    `pending` counts them. The caller calls again until `pending` is 0: the answers of earlier calls are cached.
+    """
     base = Path(project.real_path or os.path.expanduser(project.path))
     shown = display_path(project.path)
     findings = list(findings)
@@ -146,7 +164,7 @@ def project_dependencies(project: Project, findings: Iterable, data_dir: Path, f
         # Only packages that come from the registry are looked up: not git, path or workspace members.
         names[registries.PYPI if kind == "requirements" else registries.CRATES] += [
             r["package"] for r in rows if r["evidence"] in ("exact_pin", "range", "unpinned")]
-    looked = {reg: registries.lookup(reg, pkgs, data_dir, fetch, now) for reg, pkgs in names.items() if pkgs}
+    looked = {reg: registries.lookup(reg, pkgs, data_dir, fetch, now, max_lookups) for reg, pkgs in names.items() if pkgs}
     sections = []
     for manifest, kind, rows, refusal in raw:
         registry = registries.PYPI if kind == "requirements" else registries.CRATES
@@ -156,7 +174,9 @@ def project_dependencies(project: Project, findings: Iterable, data_dir: Path, f
         times = [u.fetched_at for u in used if u.fetched_at]
         sections.append({
             "manifest": manifest, "kind": kind, "rows": rows, "refusal": refusal,
+            "pending": sum(1 for r in rows if r["latest_pending"]),
             "latest_source": {"registry": registry, "retrieved_at": min(times) if times else None,
                               "error": next((u.error for u in used if u.error), None)},
         })
-    return {"schema_version": 1, "project": shown, "supported": bool(manifests), "sections": sections}
+    return {"schema_version": 1, "project": shown, "supported": bool(manifests), "sections": sections,
+            "pending": sum(s["pending"] for s in sections)}

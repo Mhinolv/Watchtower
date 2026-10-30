@@ -1,5 +1,6 @@
 """The Projects `Dependencies` table (#81): the engine side. Real registry answers (fixtures/registries), real
 requirements.txt and Cargo shapes (fixtures/requirements, fixtures/cargo). No network, no process."""
+import gzip
 import json
 import os
 import shutil
@@ -30,20 +31,24 @@ class FakeRegistry:
 
     def __init__(self, fail=()):
         self.calls, self.fail = [], set(fail)
+        self.gzip = False  # True: answer in gzip, like the real PyPI.
 
     def __call__(self, url, headers):
         self.calls.append((url, dict(headers)))
-        if url.startswith("https://pypi.org/pypi/"):
+        if url.startswith("https://pypi.org/simple/"):
             name = url.split("/")[4]
-            path = REG / f"pypi-{name}.json"
+            path = REG / f"pypi-simple-{name.lower()}.json"
         elif url.startswith("https://index.crates.io/"):
             name = url.rsplit("/", 1)[1]
             path = REG / f"crates-{name}.ndjson"
         else:
             raise AssertionError(url)
-        if name in self.fail or not path.exists():
+        if name in self.fail or (not path.exists() and not name.startswith("pkg")):
             raise OSError("down")
-        return Response(200, {}, path.read_bytes())
+        body = path.read_bytes() if path.exists() else b'{"versions": ["1.0.0", "1.1.0"], "files": []}'  # `pkgN`: a made-up project.
+        if self.gzip:
+            return Response(200, {"content-encoding": "gzip"}, gzip.compress(body))
+        return Response(200, {}, body)
 
     def names(self):
         return [u.rsplit("/", 2)[-2] if "pypi.org" in u else u.rsplit("/", 1)[1] for u, _ in self.calls]
@@ -117,7 +122,7 @@ def test_an_up_to_date_row_has_no_update(tmp_path):
 
 def test_rows_sort_vulnerable_then_update_available_then_name(tmp_path):
     make_project(tmp_path)
-    finding = SimpleNamespace(status="open", ecosystem="PyPI", package="Click", paths=[SimpleNamespace(project_path="~/Real/script")],
+    finding = SimpleNamespace(status="open", ecosystem="PyPI", package="Click", paths=[SimpleNamespace(project_path="~/Real/script", lockfile="requirements.txt")],
                               id="SEC-0007", severity="high")
     sec = section(deps(tmp_path, "script", findings=[finding]), "requirements.txt")
     order = [r["package"] for r in sec["rows"]]
@@ -130,11 +135,11 @@ def test_rows_sort_vulnerable_then_update_available_then_name(tmp_path):
 
 def test_a_finding_of_another_project_or_a_resolved_one_does_not_mark_a_row(tmp_path):
     make_project(tmp_path)
-    other = SimpleNamespace(status="open", ecosystem="PyPI", package="requests", paths=[SimpleNamespace(project_path="~/Real/else")],
+    other = SimpleNamespace(status="open", ecosystem="PyPI", package="requests", paths=[SimpleNamespace(project_path="~/Real/else", lockfile="requirements.txt")],
                             id="SEC-0001", severity="high")
     resolved = SimpleNamespace(status="resolved", ecosystem="PyPI", package="requests",
-                               paths=[SimpleNamespace(project_path="~/Real/script")], id="SEC-0002", severity="high")
-    npm = SimpleNamespace(status="open", ecosystem="npm", package="requests", paths=[SimpleNamespace(project_path="~/Real/script")],
+                               paths=[SimpleNamespace(project_path="~/Real/script", lockfile="requirements.txt")], id="SEC-0002", severity="high")
+    npm = SimpleNamespace(status="open", ecosystem="npm", package="requests", paths=[SimpleNamespace(project_path="~/Real/script", lockfile="requirements.txt")],
                           id="SEC-0003", severity="high")
     row = rows(section(deps(tmp_path, "script", findings=[other, resolved, npm]), "requirements.txt"))["requests"]
     assert row["status"] == "update_available" and row["finding_id"] is None
@@ -266,8 +271,8 @@ def test_the_request_holds_the_package_name_and_nothing_else(tmp_path):
     make_project(tmp_path, text="requests==2.31.0\n")
     registry = FakeRegistry()
     deps(tmp_path, "script", registry)
-    assert registry.calls[0][0] == "https://pypi.org/pypi/requests/json"
-    assert set(registry.calls[0][1]) == {"User-Agent", "Accept"} and "2.31" not in registry.calls[0][0]
+    assert registry.calls[0][0] == "https://pypi.org/simple/requests/"
+    assert set(registry.calls[0][1]) == {"User-Agent", "Accept", "Accept-Encoding"} and "2.31" not in registry.calls[0][0]
 
 
 def test_an_answer_under_a_day_old_is_reused_and_an_older_one_is_asked_again(tmp_path):
@@ -302,8 +307,9 @@ def test_a_package_name_that_does_not_look_like_a_name_is_never_requested(tmp_pa
     registry = FakeRegistry()
     out = registries.lookup(registries.PYPI, ["requests", "../etc/passwd", "a b", "x" * 200], tmp_path / "data", registry,
                             lambda: T1)
-    assert [u for u, _ in registry.calls] == ["https://pypi.org/pypi/requests/json"]
-    assert out["../etc/passwd"].version is None and out["../etc/passwd"].error == "PyPI did not respond."
+    assert [u for u, _ in registry.calls] == ["https://pypi.org/simple/requests/"]
+    assert out["../etc/passwd"].version is None and out["../etc/passwd"].error == "The name is not a package name."
+    assert not out["../etc/passwd"].pending
 
 
 def test_the_crate_index_path_follows_the_registry_rules():
@@ -311,8 +317,9 @@ def test_the_crate_index_path_follows_the_registry_rules():
         "1/a", "2/ab", "3/a/abc", "se/rd/serde", "se/rd/serde"]
 
 
-@pytest.mark.parametrize("body", [b"not json", b'{"info": []}', b'{"info": {"version": "<script>"}}', b""])
-def test_a_bad_pypi_answer_is_no_version(body):
+@pytest.mark.parametrize("body", [b"not json", b'{"versions": 5}', b'{"versions": ["<script>"]}', b'{"versions": ["1.0"], "files": 3}',
+                                  b"[]", b""])
+def test_a_bad_pypi_answer_is_no_version_or_an_error(body):
     try:
         assert registries.parse_pypi(body) is None
     except ValueError:
@@ -324,6 +331,177 @@ def test_yanked_and_pre_release_crate_versions_are_skipped():
         {"vers": "1.0.0", "yanked": False}, {"vers": "1.1.0", "yanked": True}, {"vers": "2.0.0-rc.1", "yanked": False},
         {"vers": "1.0.5+meta", "yanked": False})).encode() + b"\nnot json\n"
     assert registries.parse_crate(body) == "1.0.0"
+
+
+# One finding, two requirements files (QA of #81)
+
+
+def two_files(tmp_path):
+    """The owner's biggest project shape: two requirements files with the same packages, one folder each."""
+    root = tmp_path / "home" / "Real" / "twin"
+    for sub, spec, version in (("a", "requests==2.19.0", "2.19.0"), ("b", "requests>=2.32", "2.32.3")):
+        (root / sub / ".venv" / "bin").mkdir(parents=True)
+        (root / sub / "requirements.txt").write_text(spec + "\n")
+        python = root / sub / ".venv" / "bin" / "python"
+        python.write_text("#!/bin/sh\n")
+        python.chmod(0o755)
+        (root / sub / ".venv" / "pyvenv.cfg").write_text("home = /usr/bin\nversion_info = 3.12.4\n")
+        (root / sub / ".venv" / "lib" / "python3.12" / "site-packages" / "pip").mkdir(parents=True)
+        put_dist(root / sub, "requests", version)
+    return root
+
+
+def finding_in(lockfile, **extra):
+    return SimpleNamespace(status="open", ecosystem="PyPI", package="requests", id="SEC-0001", severity="high",
+                           paths=[SimpleNamespace(project_path="~/Real/twin", lockfile=lockfile)], **extra)
+
+
+def test_a_finding_of_one_requirements_file_does_not_mark_the_same_package_in_another(tmp_path):
+    two_files(tmp_path)
+    result = deps(tmp_path, "twin", findings=[finding_in("a/requirements.txt")])
+    a = rows(section(result, "a/requirements.txt"))["requests"]
+    b = rows(section(result, "b/requirements.txt"))["requests"]
+    assert (a["status"], a["finding_id"], a["severity"]) == ("vulnerable", "SEC-0001", "high")
+    assert (b["status"], b["finding_id"], b["severity"]) == ("update_available", None, None)
+
+
+def test_a_finding_marks_the_file_that_the_path_names(tmp_path):
+    two_files(tmp_path)
+    result = deps(tmp_path, "twin", findings=[finding_in("b/requirements.txt")])
+    assert rows(section(result, "a/requirements.txt"))["requests"]["finding_id"] is None
+    assert rows(section(result, "b/requirements.txt"))["requests"]["finding_id"] == "SEC-0001"
+
+
+def test_a_finding_of_a_lockfile_does_not_mark_a_requirements_row(tmp_path):
+    make_project(tmp_path)
+    for lockfile in ("uv.lock", "package-lock.json", "other/requirements.txt"):
+        row = rows(section(deps(tmp_path, "script", findings=[
+            SimpleNamespace(status="open", ecosystem="PyPI", package="requests", id="SEC-0001", severity="high",
+                            paths=[SimpleNamespace(project_path="~/Real/script", lockfile=lockfile)])]), "requirements.txt"))["requests"]
+        assert row["finding_id"] is None, lockfile
+
+
+def test_a_cargo_lock_finding_marks_the_cargo_toml_of_its_own_folder(tmp_path):
+    root = cargo_project(tmp_path, name="mono")
+    (root / "capture").mkdir()
+    shutil.copy(CARGO / "tool" / "Cargo.toml", root / "capture" / "Cargo.toml")
+    shutil.copy(CARGO / "tool" / "Cargo.lock", root / "capture" / "Cargo.lock")
+    finding = SimpleNamespace(status="open", ecosystem="crates.io", package="serde", id="SEC-0009", severity="medium",
+                              paths=[SimpleNamespace(project_path="~/Projects/mono", lockfile="capture/Cargo.lock")])
+    project = Project("mono", str(root), "~/Projects", ["Cargo.toml", "capture/Cargo.toml"], "active", real_path=str(root))
+    result = project_dependencies(project, [finding], tmp_path / "data", FakeRegistry(), lambda: T1)
+    assert rows(section(result, "capture/Cargo.toml"))["serde"]["finding_id"] == "SEC-0009"
+    assert rows(section(result, "Cargo.toml"))["serde"]["finding_id"] is None
+
+
+# Lookups: a lighter answer, a cap, a true text for a row not asked yet (QA of #81)
+
+
+def many_packages(tmp_path, count):
+    make_project(tmp_path, text="".join(f"pkg{n}==1.0.0\n" for n in range(count)))
+
+
+def test_the_pypi_request_asks_for_the_small_simple_index_in_gzip(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\n")
+    registry = FakeRegistry()
+    deps(tmp_path, "script", registry)
+    headers = registry.calls[0][1]
+    assert headers["Accept"] == "application/vnd.pypi.simple.v1+json" and headers["Accept-Encoding"] == "gzip"
+
+
+def test_a_gzip_answer_is_read_and_a_bomb_is_refused(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\n")
+    registry = FakeRegistry()
+    registry.gzip = True
+    assert rows(section(deps(tmp_path, "script", registry), "requirements.txt"))["requests"]["latest"] == "2.34.2"
+    bomb = lambda url, headers: Response(200, {"content-encoding": "gzip"}, gzip.compress(b"0" * (registries.MAX_BYTES + 1)))
+    out = registries.lookup(registries.PYPI, ["requests"], tmp_path / "data2", bomb, lambda: T1)
+    assert out["requests"].version is None and out["requests"].error == "PyPI did not respond."
+
+
+def test_the_real_answer_is_far_smaller_than_the_project_json():
+    # The real requests answer: the whole versions list. The full project JSON of the same day was 193 KB, 43 KB in gzip.
+    body = (REG / "pypi-simple-requests.json").read_bytes()
+    assert len(json.loads(body)["versions"]) >= 160 and len(body) < 60_000 and len(gzip.compress(body)) < 15_000
+
+
+def test_one_call_asks_for_at_most_the_cap_and_the_rest_are_pending_with_a_true_text(tmp_path):
+    many_packages(tmp_path, 30)
+    registry = FakeRegistry()
+    result = deps(tmp_path, "script", registry)
+    sec = section(result, "requirements.txt")
+    assert len(registry.calls) == registries.MAX_LOOKUPS == 25
+    waiting = [r for r in sec["rows"] if r["latest_pending"]]
+    assert len(waiting) == 5 and sec["pending"] == 5 and result["pending"] == 5
+    assert all(r["latest"] is None and r["latest_error"] is None for r in waiting)  # Nothing failed: it was not asked yet.
+    assert sec["latest_source"]["error"] is None  # "PyPI did not respond." would be false.
+
+
+def test_the_next_call_asks_only_the_rest_and_the_table_completes(tmp_path):
+    many_packages(tmp_path, 30)
+    first, second = FakeRegistry(), FakeRegistry()
+    deps(tmp_path, "script", first)
+    result = deps(tmp_path, "script", second)
+    assert len(second.calls) == 5 and not set(first.names()) & set(second.names())
+    assert result["pending"] == 0 and not any(r["latest_pending"] for r in section(result, "requirements.txt")["rows"])
+    third = FakeRegistry()
+    deps(tmp_path, "script", third)
+    assert third.calls == []  # Everything is cached for a day.
+
+
+def test_a_failed_request_is_an_error_and_not_pending(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\n")
+    result = deps(tmp_path, "script", FakeRegistry(fail={"requests"}))
+    row = rows(section(result, "requirements.txt"))["requests"]
+    assert (row["latest_pending"], row["latest_error"], result["pending"]) == (False, "PyPI did not respond.", 0)
+
+
+def test_the_cap_can_be_set_for_one_call(tmp_path):
+    many_packages(tmp_path, 12)
+    registry = FakeRegistry()
+    result = project_dependencies(find(tmp_path, "script"), [], tmp_path / "data", registry, lambda: T1, max_lookups=4)
+    assert len(registry.calls) == 4 and result["pending"] == 8
+
+
+def test_the_command_sets_the_cap_and_prints_the_pending_count(tmp_path, capsys):
+    make_project(tmp_path, text="".join(f"pkg{n}==1.0.0\n" for n in range(6)))  # The network is off: asked rows fail.
+    folder = str(tmp_path / "home" / "Real" / "script")
+    assert cli.main(["--data-dir", str(tmp_path / "data"), "dependencies", "--max-lookups", "2", folder]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["pending"] == 4 and out["sections"][0]["pending"] == 4
+    assert sum(1 for r in out["sections"][0]["rows"] if r["latest_error"]) == 2
+
+
+# A pre-release is never the latest version (QA of #81)
+
+
+def test_a_package_with_only_pre_releases_has_no_latest_and_says_so(tmp_path):
+    make_project(tmp_path, text="betaonly==1.0.0rc1\n", installed={"betaonly": "1.0.0rc1"})
+    sec = section(deps(tmp_path, "script"), "requirements.txt")
+    row = rows(sec)["betaonly"]
+    assert (row["latest"], row["latest_error"], row["latest_pending"], row["status"]) == (None, None, False, "unknown")
+    assert row["latest_note"] == "No stable release." and row["update_key"] is None
+
+
+def test_the_latest_of_pypi_is_the_highest_stable_release(tmp_path):
+    body = lambda name: (REG / f"pypi-simple-{name}.json").read_bytes()
+    assert registries.parse_pypi(body("stableandbeta")) == "1.5.0"  # 2.0.0a1, 2.0.0rc2 and 2.0.0.dev3 are skipped.
+    assert registries.parse_pypi(body("yankedtop")) == "1.1.0"  # 2.0.0 and 2.0.1.post1 have only yanked files.
+    assert registries.parse_pypi(body("betaonly")) is None
+    assert registries.parse_pypi(body("pyyaml")) == "6.0.3"  # The real list also holds 6.0.2rc1.
+
+
+@pytest.mark.parametrize("version,stable", [
+    ("1.0", True), ("2.34.2", True), ("1.0.post1", True), ("1!2.0", True), ("1.0a1", False), ("1.0b2", False),
+    ("1.0rc1", False), ("1.0.dev3", False), ("1.0.post1.dev2", False), ("2.0.0a1.post3", False)])
+def test_stable_and_pre_release_pypi_versions(version, stable):
+    assert registries.is_stable(version) is stable
+
+
+def test_a_pre_release_pin_still_shows_the_stable_latest(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0rc1\n", installed={"requests": "2.31.0rc1"})
+    row = rows(section(deps(tmp_path, "script"), "requirements.txt"))["requests"]
+    assert row["latest"] == "2.34.2"
 
 
 # Reading only
@@ -340,6 +518,22 @@ def test_listing_starts_no_program(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", no_process)
     monkeypatch.setattr(os, "system", no_process)
     assert deps(tmp_path, "script")["supported"] and deps(tmp_path, "tool")["supported"]
+
+
+# The JSON contract with the app
+
+SWIFT_FIXTURES = Path(__file__).parents[2] / "Tests" / "WatchtowerCoreTests" / "Fixtures"
+
+
+@pytest.mark.parametrize("kind,setup", [("requirements", lambda t: make_project(t)), ("cargo", lambda t: cargo_project(t, name="crabby"))])
+def test_the_keys_match_the_json_that_the_app_decodes(tmp_path, kind, setup):
+    setup(tmp_path)
+    result = deps(tmp_path, "script" if kind == "requirements" else "crabby")
+    app = json.loads((SWIFT_FIXTURES / f"dependencies-{kind}.json").read_text())
+    assert set(result) == set(app)
+    assert set(result["sections"][0]) == set(app["sections"][0])
+    assert set(result["sections"][0]["rows"][0]) == set(app["sections"][0]["rows"][0])
+    assert set(result["sections"][0]["latest_source"]) == set(app["sections"][0]["latest_source"])
 
 
 # The CLI

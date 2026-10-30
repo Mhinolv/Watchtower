@@ -51,6 +51,20 @@ private func row(_ status: ItemState, installed: String? = "1.0", latest: String
     #expect(texts == ["Exact pin", "Range", "Unpinned", "Git", "Path"])
 }
 
+@Test func aRowThatWasNotAskedSaysSoAndIsNotAFailure() {
+    let waiting = DependencyRow(package: "p", declared: "==1.0", evidence: "exact_pin", installed: "1.0", installedLabel: ".venv",
+                                latest: nil, latestPending: true, status: .unknown)
+    #expect(waiting.latestText == "Not checked yet" && waiting.latestReason == "Not checked yet.")
+    #expect(waiting.update == .off("Not checked yet."))
+    #expect(waiting.accessibilityText.contains("latest not checked yet"))
+    let failed = row(.unknown, installed: nil, latest: nil, error: "PyPI did not respond.")
+    #expect(failed.latestText == "—" && failed.latestReason == "PyPI did not respond.")
+    let none = DependencyRow(package: "p", declared: "", evidence: "unpinned", installed: "1.0rc1", installedLabel: ".venv",
+                             latest: nil, latestNote: "No stable release.", status: .unknown)
+    #expect(none.latestText == "No stable release" && none.update == .off("No stable release."))
+    #expect(row(.updateAvailable).latestText == "2.0")
+}
+
 @Test func theUpdateButtonOpensThePlanOrStaysOffWithAReason() {
     #expect(row(.updateAvailable, key: "requirements/p@2.0|~/x|requirements.txt").update == .plan("requirements/p@2.0|~/x|requirements.txt"))
     #expect(row(.updateAvailable, refusal: "Cargo workspaces are not supported yet.").update == .off("Cargo workspaces are not supported yet."))
@@ -85,19 +99,33 @@ private func row(_ status: ItemState, installed: String? = "1.0", latest: String
 }
 
 private struct FakeDependencies: DependencyClient {
-    var list: DependencyList
+    /// One answer for each call. The last one repeats.
+    var lists: [DependencyList]
     var fail: EngineError?
+    /// The call (1 is the first) from which the call fails.
+    var failFrom: Int?
     let calls = Calls()
+
+    init(list: DependencyList, fail: EngineError? = nil) {
+        self.lists = [list]
+        self.fail = fail
+    }
+
+    init(lists: [DependencyList], failFrom: Int? = nil, fail: EngineError? = nil) {
+        self.lists = lists
+        self.failFrom = failFrom
+        self.fail = fail
+    }
 
     actor Calls {
         var paths: [String] = []
-        func add(_ path: String) { paths.append(path) }
+        func add(_ path: String) -> Int { paths.append(path); return paths.count }
     }
 
     func dependencies(projectPath: String) async throws -> DependencyList {
-        await calls.add(projectPath)
-        if let fail { throw fail }
-        return list
+        let n = await calls.add(projectPath)
+        if let fail, failFrom == nil || n >= failFrom! { throw fail }
+        return lists[min(n, lists.count) - 1]
     }
 }
 
@@ -144,4 +172,49 @@ private struct NoEngine: EngineClient {
     model.openFinding("SEC-0012")
     #expect(model.selection == .findings && model.selectedItemKey == "SEC-0012" && model.itemFilter == .all)
     #expect(model.findingFilter == .open)
+}
+
+// MARK: - Progressive reading (a project can have hundreds of packages)
+
+private func waiting(_ count: Int) -> DependencyList {
+    let rows = (0..<3).map { n in
+        DependencyRow(package: "p\(n)", declared: "==1.0", evidence: "exact_pin", installed: "1.0", installedLabel: ".venv",
+                      latest: n < 3 - count ? "2.0" : nil, latestPending: n >= 3 - count, status: n < 3 - count ? .updateAvailable : .unknown)
+    }
+    return DependencyList(project: "~/Real/script", supported: true, sections: [
+        DependencySection(manifest: "requirements.txt", kind: "requirements", rows: rows, pending: count,
+                          latestSource: DependencyLatestSource(registry: "PyPI"))], pending: count)
+}
+
+@MainActor
+@Test func theModelAsksAgainUntilNoRowIsPending() async {
+    let client = FakeDependencies(lists: [waiting(2), waiting(1), waiting(0)])
+    let model = DependencyModel(client: client)
+    await model.load(project)
+    #expect(model.load(for: project.path) == .loaded(waiting(0)))
+    #expect(await client.calls.paths.count == 3)
+    #expect(model.isChecking(project.path) == false)
+}
+
+@MainActor
+@Test func theModelStopsWhenAnAnswerBringsNoProgress() async {
+    let client = FakeDependencies(lists: [waiting(2), waiting(2)])
+    let model = DependencyModel(client: client)
+    await model.load(project)
+    #expect(await client.calls.paths.count == 2)  // No endless loop.
+    #expect(model.load(for: project.path) == .loaded(waiting(2)))
+}
+
+@MainActor
+@Test func aFailureAfterTheFirstAnswerKeepsTheRowsAndTheNextCallContinues() async {
+    let failing = FakeDependencies(lists: [waiting(2)], failFrom: 2, fail: .failed(message: "x", detail: nil))
+    let model = DependencyModel(client: failing)
+    await model.load(project)
+    #expect(model.load(for: project.path) == .loaded(waiting(2)))  // Not replaced by an error.
+    let again = FakeDependencies(lists: [waiting(0)])
+    let second = DependencyModel(client: again, loads: [project.path: .loaded(waiting(2))])
+    await second.load(project)  // `Check the rest`: a table with pending rows is not complete.
+    #expect(second.load(for: project.path) == .loaded(waiting(0)))
+    await second.load(project)
+    #expect(await again.calls.paths.count == 1)
 }

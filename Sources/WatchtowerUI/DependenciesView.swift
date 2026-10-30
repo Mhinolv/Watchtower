@@ -26,10 +26,26 @@ struct DependenciesView: View {
                 if !list.supported {
                     Text(DependencyList.unsupportedText).foregroundStyle(.secondary)
                 }
+                if list.pending > 0 { pendingLine(list.pending) }
                 ForEach(list.sections) { SectionView(model: model, section: $0) }
             }
         }
         .task(id: project.path) { await dependencies?.load(project) }
+    }
+
+    /// While the model asks the registries: the count that is left. After a stop: a button to ask for the rest.
+    @ViewBuilder private func pendingLine(_ count: Int) -> some View {
+        HStack(spacing: 8) {
+            if dependencies?.isChecking(project.path) == true {
+                ProgressView().controlSize(.small)
+                Text("Checking latest versions… \(count) left").foregroundStyle(.secondary)
+            } else {
+                Text("\(count) \(count == 1 ? "package is" : "packages are") not checked yet.").foregroundStyle(.secondary)
+                Button("Check the rest") { Task { await dependencies?.load(project) } }.controlSize(.small)
+            }
+        }
+        .font(.callout)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -94,8 +110,15 @@ private struct RowView: View {
                 if row.installed != nil { Text(row.installedLabel).font(.caption).foregroundStyle(.secondary) }
             }
             .frame(width: Column.installed, alignment: .leading)
-            Text(row.latest ?? "—").font(.callout.monospaced()).help(help)
-                .frame(width: Column.latest, alignment: .leading)
+            Group {
+                if row.latest == nil, row.latestReason != nil {  // Not checked yet, no stable release, or a failure.
+                    Text(row.latestText).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(row.latestText).font(.callout.monospaced())
+                }
+            }
+            .help(row.latestReason ?? help)
+            .frame(width: Column.latest, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {
                 statusCell
                 updateButton

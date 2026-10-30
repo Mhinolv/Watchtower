@@ -177,6 +177,9 @@ public enum SampleData {
         case dependenciesNone = "dependencies-none"
         case dependenciesUnsupported = "dependencies-unsupported"
         case dependenciesFinding = "dependencies-finding"
+        case dependenciesChecking = "dependencies-checking"
+        case dependenciesStopped = "dependencies-stopped"
+        case dependenciesNoStable = "dependencies-no-stable"
         case sofaMacosCurrent = "sofa-macos-current"
         case sofaMacosExploited = "sofa-macos-exploited"
         case sofaSafariBehind = "sofa-safari-behind"
@@ -335,7 +338,7 @@ public enum SampleData {
             model.selectedItemKey = requirementsProjects[scenario == .projectRequirements ? 0 : 1].path
             return model
         case .dependenciesRequirements, .dependenciesCargo, .dependenciesLoading, .dependenciesNone,
-             .dependenciesUnsupported, .dependenciesFinding:
+             .dependenciesUnsupported, .dependenciesFinding, .dependenciesChecking, .dependenciesStopped, .dependenciesNoStable:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
                                                                     lastComplete: ago(2)),
                                        projects: projects + dependencyProjects, clock: clock)
@@ -726,9 +729,10 @@ extension SampleData {
         }
         func row(_ name: String, _ declared: String, _ evidence: String, _ installed: String?, _ latest: String?, _ status: ItemState,
                  label: String = ".venv", table: String? = nil, key: String? = nil, refusal: String? = nil,
-                 error: String? = nil, finding: String? = nil) -> DependencyRow {
+                 error: String? = nil, finding: String? = nil, pending: Bool = false, note: String? = nil) -> DependencyRow {
             DependencyRow(package: name, declared: declared, evidence: evidence, installed: installed, installedLabel: label,
-                          table: table, latest: latest, latestError: error, status: status, findingId: finding,
+                          table: table, latest: latest, latestError: error, latestPending: pending, latestNote: note,
+                          status: status, findingId: finding,
                           severity: finding == nil ? nil : "high", updateKey: key, updateRefusal: refusal)
         }
         let requests = "requirements/requests@2.34.2|~/Real/script|requirements.txt"
@@ -768,6 +772,21 @@ extension SampleData {
                     return r
                 }, refusal: refusal, latestSource: source("PyPI")),
             ])
+        case .dependenciesChecking, .dependenciesStopped:
+            // A project with many packages: the first answers are in, the rest are not asked yet.
+            var rows = Array(requirements.prefix(3))
+            rows += [row("click", ">=8.0,<9", "range", "8.1.7", nil, .unknown, pending: true),
+                     row("Jinja2", "==3.1.2", "exact_pin", "3.1.2", nil, .unknown, pending: true),
+                     row("Flask", "==3.0.0", "exact_pin", nil, nil, .unknown, error: "PyPI did not respond.")]
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: rows, pending: 2,
+                                  latestSource: source("PyPI"))], pending: 2)
+        case .dependenciesNoStable:
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: [
+                    row("requests", "==2.31.0", "exact_pin", "2.31.0", "2.34.2", .updateAvailable, key: requests),
+                    row("newlib", "==1.0.0rc1", "exact_pin", "1.0.0rc1", nil, .unknown, note: "No stable release."),
+                ], latestSource: source("PyPI"))])
         case .dependenciesFinding:
             var rows = requirements
             rows.insert(row("click", ">=8.0,<9", "range", "8.1.7", "8.5.0", .vulnerable, key: "requirements/click@8.5.0|~/Real/script|requirements.txt",
@@ -787,7 +806,8 @@ extension SampleData {
         let project = scenario == .dependenciesCargo ? dependencyProjects[1]
             : scenario == .dependenciesNone ? dependencyProjects[2] : dependencyProjects[0]
         let load: DependencyModel.Load = scenario == .dependenciesLoading ? .loading : .loaded(dependencyList(scenario))
-        return DependencyModel(client: PreviewEngine(), loads: [project.path: load])
+        return DependencyModel(client: PreviewEngine(), loads: [project.path: load],
+                               checking: scenario == .dependenciesChecking ? [project.path] : [])
     }
 
     /// A Cargo plan with the real `cargo update` change of serde_derive (#15).
