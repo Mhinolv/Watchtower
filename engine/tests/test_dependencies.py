@@ -25,6 +25,8 @@ from test_requirements_update import INSTALLED, SIMPLE, make_project, put_dist
 REG = Path(__file__).parent / "fixtures" / "registries"
 CARGO = Path(__file__).parent / "fixtures" / "cargo"
 T1, T2, T3 = "2026-10-30T08:00:00Z", "2026-10-30T20:00:00Z", "2026-11-01T08:00:00Z"
+PYPI_TOO_LARGE = "The PyPI answer is larger than 8 MB. Watchtower did not read it."
+CRATES_TOO_LARGE = "The crates.io answer is larger than 8 MB. Watchtower did not read it."
 
 
 class FakeRegistry:
@@ -242,6 +244,19 @@ def test_git_and_path_dependencies_are_listed_without_a_lookup_or_update(tmp_pat
     assert "local" not in registry.names() and "gitdep" not in registry.names()
 
 
+def test_a_git_or_path_row_says_that_no_registry_version_applies(tmp_path):
+    root = cargo_project(tmp_path)
+    (root / "Cargo.toml").write_text((root / "Cargo.toml").read_text() +
+                                     'local = { path = "../local" }\ngitdep = { git = "https://example.com/x.git" }\n')
+    r = rows(section(deps(tmp_path, "tool"), "Cargo.toml"))
+    assert r["local"]["latest_note"] == "Path dependency. Watchtower does not look up a registry version for it."
+    assert r["gitdep"]["latest_note"] == "Git dependency. Watchtower does not look up a registry version for it."
+    for name in ("local", "gitdep"):
+        assert (r[name]["latest"], r[name]["latest_error"], r[name]["latest_pending"]) == (None, None, False)
+        assert r[name]["update_key"] is None and r[name]["update_refusal"] == "Git and path dependencies are not supported."
+    assert r["serde"]["latest_note"] is None  # A registry row has no such note.
+
+
 # Manifests keyed by their relative path (#85)
 
 
@@ -426,7 +441,51 @@ def test_a_gzip_answer_is_read_and_a_bomb_is_refused(tmp_path):
     assert rows(section(deps(tmp_path, "script", registry), "requirements.txt"))["requests"]["latest"] == "2.34.2"
     bomb = lambda url, headers: Response(200, {"content-encoding": "gzip"}, gzip.compress(b"0" * (registries.MAX_BYTES + 1)))
     out = registries.lookup(registries.PYPI, ["requests"], tmp_path / "data2", bomb, lambda: T1)
-    assert out["requests"].version is None and out["requests"].error == "PyPI did not respond."
+    assert out["requests"].version is None and out["requests"].error == PYPI_TOO_LARGE and out["requests"].too_large
+
+
+def test_an_answer_over_the_cap_is_too_large_for_both_registries_and_not_a_network_failure(tmp_path):
+    big = lambda url, headers: Response(200, {}, b"0" * (registries.MAX_BYTES + 1))
+    pypi = registries.lookup(registries.PYPI, ["requests"], tmp_path / "a", big, lambda: T1)["requests"]
+    crate = registries.lookup(registries.CRATES, ["serde"], tmp_path / "b", big, lambda: T1)["serde"]
+    assert (pypi.error, pypi.too_large, pypi.pending) == (PYPI_TOO_LARGE, True, False)
+    assert (crate.error, crate.too_large, crate.pending) == (CRATES_TOO_LARGE, True, False)
+    down = registries.lookup(registries.PYPI, ["requests"], tmp_path / "c", FakeRegistry(fail={"requests"}), lambda: T1)["requests"]
+    assert (down.error, down.too_large) == ("PyPI did not respond.", False)
+
+
+def test_a_too_large_row_says_so_and_the_section_help_follows_the_failures(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\nclick>=8.0\n")
+    big = lambda url, headers: Response(200, {}, b"0" * (registries.MAX_BYTES + 1))
+    sec = section(deps(tmp_path, "script", big), "requirements.txt")
+    r = rows(sec)
+    assert all((x["latest"], x["latest_error"], x["latest_too_large"]) == (None, PYPI_TOO_LARGE, True) for x in r.values())
+    assert sec["latest_source"]["error"] == PYPI_TOO_LARGE
+    assert all(not x["latest_pending"] and x["update_key"] is None for x in r.values())
+
+
+def test_a_mix_of_too_large_and_other_failures_keeps_the_did_not_respond_text(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\nclick>=8.0\n")
+    ok = FakeRegistry(fail={"click"})
+    def fetch(url, headers):
+        if "/requests/" in url:
+            return Response(200, {}, b"0" * (registries.MAX_BYTES + 1))
+        return ok(url, headers)
+    sec = section(deps(tmp_path, "script", fetch), "requirements.txt")
+    r = rows(sec)
+    assert (r["requests"]["latest_error"], r["requests"]["latest_too_large"]) == (PYPI_TOO_LARGE, True)
+    assert (r["click"]["latest_error"], r["click"]["latest_too_large"]) == ("PyPI did not respond.", False)
+    assert sec["latest_source"]["error"] == "PyPI did not respond."
+
+
+def test_a_too_large_answer_keeps_the_earlier_version_and_says_so(tmp_path):
+    make_project(tmp_path, text="requests==2.31.0\n")
+    deps(tmp_path, "script", FakeRegistry(), now=T1)
+    big = lambda url, headers: Response(200, {}, b"0" * (registries.MAX_BYTES + 1))
+    sec = section(deps(tmp_path, "script", big, now=T3), "requirements.txt")
+    row = rows(sec)["requests"]
+    assert (row["latest"], row["latest_error"], row["latest_too_large"]) == ("2.34.2", PYPI_TOO_LARGE, True)
+    assert sec["latest_source"] == {"registry": "PyPI", "retrieved_at": T1, "error": PYPI_TOO_LARGE}
 
 
 def test_the_real_answer_is_far_smaller_than_the_project_json():

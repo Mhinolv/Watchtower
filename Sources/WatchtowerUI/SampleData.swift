@@ -718,14 +718,20 @@ extension SampleData {
 }
 
 extension PreviewEngine: DependencyClient {
+    /// The list of the scenario if there is one. A reload then keeps the partial list of `dependencies-stopped`.
     public func dependencies(projectPath: String) async throws -> DependencyList {
-        SampleData.dependencyList(.dependenciesRequirements)
+        dependencyList ?? SampleData.dependencyList(.dependenciesRequirements)
     }
 }
 
 /// An engine for previews and snapshots. It answers at once and never starts a process.
 public struct PreviewEngine: EngineClient {
-    public init() {}
+    /// The answer of every `dependencies` call. nil: the complete requirements table.
+    let dependencyList: DependencyList?
+
+    public init(dependencies: DependencyList? = nil) {
+        self.dependencyList = dependencies
+    }
 
     public func state() async throws -> EngineState {
         SampleData.state(status: .complete, finished: SampleData.ago(2), lastComplete: SampleData.ago(2))
@@ -905,12 +911,14 @@ extension SampleData {
         }
         func row(_ name: String, _ declared: String, _ evidence: String, _ installed: String?, _ latest: String?, _ status: ItemState,
                  label: String = ".venv", table: String? = nil, key: String? = nil, refusal: String? = nil,
-                 error: String? = nil, finding: String? = nil, pending: Bool = false, note: String? = nil) -> DependencyRow {
+                 error: String? = nil, finding: String? = nil, pending: Bool = false, tooLarge: Bool = false,
+                 note: String? = nil) -> DependencyRow {
             DependencyRow(package: name, declared: declared, evidence: evidence, installed: installed, installedLabel: label,
-                          table: table, latest: latest, latestError: error, latestPending: pending, latestNote: note,
+                          table: table, latest: latest, latestError: error, latestPending: pending, latestTooLarge: tooLarge, latestNote: note,
                           status: status, findingId: finding,
                           severity: finding == nil ? nil : "high", updateKey: key, updateRefusal: refusal)
         }
+        let crateTooLarge = "The crates.io answer is larger than 8 MB. Watchtower did not read it."
         let requests = "requirements/requests@2.34.2|~/Real/script|requirements.txt"
         let requirements = [
             row("requests", "==2.31.0", "exact_pin", "2.31.0", "2.34.2", .updateAvailable, key: requests),
@@ -934,7 +942,11 @@ extension SampleData {
                     row("itoa", "=1.0.9", "exact_pin", "1.0.9", "1.0.18", .updateAvailable, label: "locked",
                         refusal: "Cargo.toml requires itoa \"=1.0.9\". That does not allow 1.0.18. Change it there first."),
                     row("memchr", "2.6", "range", "2.8.3", "2.8.3", .upToDate, label: "locked", table: "dev-dependencies"),
-                ], latestSource: source("crates.io")),
+                    row("regex", "1.10", "range", "1.10.6", nil, .unknown, label: "locked", error: crateTooLarge, tooLarge: true),
+                    row("local-utils", "../local-utils", "path", nil, nil, .unknown, label: "locked",
+                        refusal: "Git and path dependencies are not supported.",
+                        note: "Path dependency. Watchtower does not look up a registry version for it."),
+                ], latestSource: source("crates.io", crateTooLarge)),
             ])
         case .dependenciesNone:
             return DependencyList(project: "~/Projects/web-only", supported: false, sections: [])
@@ -982,7 +994,9 @@ extension SampleData {
         let project = scenario == .dependenciesCargo ? dependencyProjects[1]
             : scenario == .dependenciesNone ? dependencyProjects[2] : dependencyProjects[0]
         let load: DependencyModel.Load = scenario == .dependenciesLoading ? .loading : .loaded(dependencyList(scenario))
-        return DependencyModel(client: PreviewEngine(), loads: [project.path: load],
+        // The view reads the project when it appears. For a stopped read the reload must give the same partial list.
+        let client = PreviewEngine(dependencies: scenario == .dependenciesStopped ? dependencyList(scenario) : nil)
+        return DependencyModel(client: client, loads: [project.path: load],
                                checking: scenario == .dependenciesChecking ? [project.path] : [])
     }
 
