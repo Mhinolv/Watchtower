@@ -10,6 +10,8 @@ Rules for the list:
 - A root that cannot be read goes in `root_errors`. The other roots still run.
 - Manifests are looked up in the project folder and in the folders below it, down to MAX_DEPTH levels (#85).
   A folder is visited once, shallow folders first, and at most MAX_DIRS folders of a project are visited.
+  A project that hits the limit is `cut` (#88): its deeper manifests are not listed, and the refresh
+  reports the Projects coverage as `partial` with the project name.
   The walk skips hidden folders and dependency or build folders (SKIP_DIRS), and never follows a symlink.
 """
 from __future__ import annotations
@@ -49,6 +51,7 @@ SKIP_DIRS = frozenset(
 MAX_DEPTH = 8
 # The most folders that the walk visits in one project. Shallow folders come first.
 MAX_DIRS = 5000
+NOTE_CUT = "Watchtower stopped after {limit} folders. Deeper manifests are not listed."
 
 
 @dataclass
@@ -65,6 +68,12 @@ class Project:
     # The `Dependencies` table of a Cargo project (#15), and why it is incomplete. None: no table.
     dependencies: list[dict] | None = field(default=None, compare=False)
     dependency_note: str | None = field(default=None, compare=False)
+    # The folder limit if the walk stopped at it (#88). None: every folder was walked.
+    cut_after: int | None = field(default=None, compare=False)
+
+    @property
+    def cut(self) -> bool:
+        return self.cut_after is not None
 
     def __post_init__(self) -> None:
         if self.state not in PROJECT_STATES:
@@ -79,7 +88,8 @@ class Project:
             "state": self.state,
         } | ({"requirements": self.requirements} if self.requirements is not None else {}) \
           | ({"dependencies": self.dependencies, "dependency_note": self.dependency_note}
-             if self.dependencies is not None or self.dependency_note is not None else {})
+             if self.dependencies is not None or self.dependency_note is not None else {}) \
+          | ({"discovery_note": NOTE_CUT.format(limit=self.cut_after)} if self.cut else {})
 
 
 @dataclass
@@ -136,17 +146,25 @@ def _root_error(label: str, exc: OSError) -> RootError:
     return RootError(label, "unreadable", f"Cannot read {label}: read error.")
 
 
-def manifests_in(folder: str | os.PathLike) -> list[str]:
+def manifests_in(folder: str | os.PathLike, max_dirs: int | None = None) -> list[str]:
+    """Manifest file names in `folder` and below it, as `walk_manifests` finds them."""
+    return walk_manifests(folder, max_dirs)[0]
+
+
+def walk_manifests(folder: str | os.PathLike, max_dirs: int | None = None) -> tuple[list[str], bool]:
     """Manifest file names in `folder` and in the folders below it, sorted, as paths relative to `folder`.
 
     Names in `folder` are plain (`package.json`). Names below it carry the folders and use `/`
     (`engine/pyproject.toml`, `crates/core/Cargo.lock`). Raises OSError if `folder` cannot be listed.
     A folder below it that cannot be listed is skipped. The walk lists names only: it opens no file.
+    The second value is True if the walk stopped at `max_dirs` folders (MAX_DIRS by default) with folders
+    left to visit: the list is then incomplete (#88).
     """
+    limit = max_dirs or MAX_DIRS
     found: list[str] = []
     queue: deque[tuple[str, str, int]] = deque([("", os.fspath(folder), 0)])  # (relative path, path, depth)
     visited = 0
-    while queue and visited < MAX_DIRS:
+    while queue and visited < limit:
         rel, path, depth = queue.popleft()
         try:
             with os.scandir(path) as it:
@@ -169,7 +187,7 @@ def manifests_in(folder: str | os.PathLike) -> list[str]:
                     queue.append((f"{rel}{entry.name}/", entry.path, depth + 1))
             except OSError:
                 continue
-    return sorted(found)
+    return sorted(found), bool(queue)
 
 
 def worktree_main(folder: str) -> str | None:
@@ -195,8 +213,11 @@ def worktree_main(folder: str) -> str | None:
     return os.path.dirname(dot_git)
 
 
-def discover(roots: tuple[str, ...] = PROJECT_ROOTS, inactive=()) -> Discovery:
-    """List the projects in `roots`. `inactive` holds resolved paths the owner turned off."""
+def discover(roots: tuple[str, ...] = PROJECT_ROOTS, inactive=(), max_dirs: int | None = None) -> Discovery:
+    """List the projects in `roots`. `inactive` holds resolved paths the owner turned off.
+
+    `max_dirs` is the folder limit for each project (MAX_DIRS by default). Tests set a small one.
+    """
     inactive = set(inactive)
     result = Discovery()
     # Resolved root folder -> the root label that owns it. The first label wins.
@@ -237,14 +258,16 @@ def discover(roots: tuple[str, ...] = PROJECT_ROOTS, inactive=()) -> Discovery:
         label = real_roots[os.path.dirname(real)]
         name = os.path.basename(real)
         path = os.path.join(os.path.expanduser(label), name)
+        cut = False
         try:
-            manifests, state = manifests_in(real), "active"
+            (manifests, cut), state = walk_manifests(real, max_dirs), "active"
         except OSError:
             manifests, state = [], "inaccessible"
         if real in inactive:
             state = "inactive"
         result.projects.append(
-            Project(name=name, path=path, root=label, manifests=manifests, state=state, real_path=real)
+            Project(name=name, path=path, root=label, manifests=manifests, state=state, real_path=real,
+                    cut_after=(max_dirs or MAX_DIRS) if cut else None)
         )
 
     result.projects.sort(key=lambda p: (p.root, p.name.lower(), p.name))

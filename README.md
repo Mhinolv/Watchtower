@@ -115,6 +115,8 @@ The scanner runs with `--offline` against the local databases in `osv/` in the d
 It scans `package-lock.json`, `uv.lock` and `Cargo.lock` (crates.io, #15), and the exact pins of `requirements.txt` in a folder with no lockfile (#80). A database older than 7 days makes the OSV coverage `stale`.
 For a `requirements.txt`, the engine writes only `name==version` lines of its exact pins to a private file in `osv/requirements-pins/`, scans that file and deletes it. Ranges (`flask>=2.0,<3`), unpinned lines, markers and options never reach the scanner, and a range never makes a finding.
 A file with `-r`/`-c` includes or `--hash` lines is not scanned. The Projects detail says so, and the OSV coverage stays `partial` with `N requirements projects skipped.`
+Project discovery looks for manifests down to 8 folder levels and visits at most 5000 folders in one project, shallow folders first.
+If a project hits that limit, its deeper manifests are not listed. The `Projects` coverage row is then `partial` and names the project (#88).
 
 ## Updates
 
