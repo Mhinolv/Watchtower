@@ -82,9 +82,11 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
+| GET `https://sofafeed.macadmins.io/v2/macos_data_feed.json` and `/v2/safari_data_feed.json` | None. Two public bulk feeds (SOFA, MacAdmins). No version, path, bundle id or finding. | SOFA check, each refresh |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
+| GET `https://haveibeenpwned.com/api/v3/breaches` | None. The public breach list (about 1 MB), no API key. No email address, account name or finding data. The engine keeps only the breaches of GitHub and Google / Gmail. | Check Sources (on demand only) |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -95,9 +97,16 @@ It never launches an app. For the cask links, `watchtower apps` also runs the `b
 
 The Sparkle check reads the appcast of each app that has `SUFeedURL` and no usable Homebrew answer (#14).
 It refuses an address that is not HTTPS, has a user name, password or secret query value, or points to this Mac or a local network. A redirect must pass the same rules.
+Before each request, the engine resolves the host name. If any address is not global (private, loopback, link-local and others), it refuses the feed (#67).
+It checks every address of the host name first: one local address refuses the host. Then it connects to the checked addresses only, in order, until one connects (at most 8). A second DNS answer cannot change this. TLS still checks the certificate against the host name, and a TLS failure is not retried on the next address. Sparkle feeds do not use a proxy.
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
+The SOFA check (#58) compares the installed macOS version and build and the Safari version with the SOFA feeds. The compare runs on this Mac.
+The engine reads only known fields of the feeds, with format checks and limits. It shows the latest release, the CVEs that newer releases fix and the actively exploited CVEs.
+The Apple security releases page (`https://support.apple.com/en-us/100100`) stays the primary source. SOFA is a summary of that page.
+Safari compares within its installed major version. The engine keeps the last copy in `cache/sofa/feeds.json`. If a feed fails, it uses that copy and the coverage is `partial`.
+Watchtower never installs macOS or Safari. The `Open Software Update` button opens System Settings.
 
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
@@ -157,6 +166,16 @@ The Projects detail shows a `Dependencies` table for Cargo projects. `Evidence` 
 - States from mas output: not signed in (`Sign in to the App Store, then try again.`), needs an administrator (`This update needs an administrator. Use the App Store app.`), Spotlight cannot find apps (`App Store: partial` in Coverage).
 - Success needs the engine to read the installed version again from the app's `Info.plist`. Exit code 0 alone is `Not verified`.
 
+### requirements.txt dependency update (#30)
+
+An update plan for one direct requirement of a requirements-only project (no lockfile) with an existing `.venv`. The item key is `requirements/<package>@<fixed version>|<project path>|requirements.txt`.
+- The one command is `<project>/.venv/bin/python -m pip install --only-binary=:all: <package>==<version>`. Planning never builds: it reads `requirements.txt`, the `.venv` files, one PyPI page and a wheels-only `pip install --dry-run --report -` for the other packages that change. It never runs `setup.py` or a build hook.
+- The file edit is exact and shown in the plan: an exact pin (`requests==2.31.0`) becomes `requests==2.32.3`. Extras, markers and comments stay. A range that allows the target (`>=`, `~=`) stays as it is (`No change`). A range that does not allow it is refused. Pin and range are separate evidence types (`Exact pin`, `Range`, `Unpinned`).
+- The file is edited only after the environment shows the target. A copy of the file before the run goes to `update-backups/attempt-<id>/` in the data folder.
+- If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
+- Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
+- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. The OSV scan reads lockfiles only, so a finding does not yet open this plan: the key works from the CLI (`update-plan`).
+
 ## Findings
 
 Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.
@@ -190,3 +209,11 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - An incident does not need a CVE. A record is never removed or resolved because a feed stopped listing it. A later check can raise its status, never lower it.
 - A review window ends now and starts 48 hours before the end of the last complete review (7 days back for the first). A review is complete only if every source finished. A failed source makes it partial: its row shows the failure, the other incidents are saved, and the label keeps the end date of the last complete review. Days that no review covers show as a gap.
 - A quiet feed does not prove that no breach happened. The empty result says so.
+
+### Have I Been Pwned (breach list)
+
+- `Check Sources` also reads the public Have I Been Pwned breach list: `GET https://haveibeenpwned.com/api/v3/breaches`. It needs no key.
+- **No email address or account name is ever sent, searched or checked.** The request is the fixed URL. Watchtower never calls the account endpoints. The owner checks an account on haveibeenpwned.com.
+- The engine keeps a breach only if it is about a watched service: GitHub (domain `github.com` or a subdomain, or the exact name or title `GitHub`) or Google / Gmail (domain `google.com`, `gmail.com`, `googlemail.com` or a subdomain, or the exact name or title `Google` or `Gmail`). A part of a name does not match: `Bitcoin Security Forum Gmail Dump` is not Gmail.
+- A verified breach is `Possible relevance`. A breach that is not verified, or is fabricated, is `Unconfirmed`. The list is untrusted text: markup and control characters are removed and lengths are cut.
+- The review window compares with the day HIBP added the breach. A row added by the newest check shows `New`. A failed fetch keeps the earlier rows and shows `Have I Been Pwned: check failed. Data from <day>.`

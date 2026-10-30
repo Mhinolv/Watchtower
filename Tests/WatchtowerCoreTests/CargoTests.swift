@@ -34,7 +34,7 @@ private let cargoPath = FindingPath(project: "tool", projectPath: "~/Projects/to
     #expect(UpdateKeys.blockReason(smallvec, cargoPath) == nil)
     let gemfile = FindingPath(project: "r", projectPath: "~/Projects/r", lockfile: "Gemfile.lock", version: "1")
     #expect(UpdateKeys.blockReason(smallvec, gemfile)
-            == "Watchtower updates projects with package-lock.json, uv.lock or Cargo.lock only.")
+            == "Watchtower updates projects with package-lock.json, uv.lock, Cargo.lock or requirements.txt only.")
 }
 
 @Test func lockfileUpdatedIsItsOwnResultNotVerified() throws {

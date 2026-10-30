@@ -15,9 +15,10 @@ from watchtower_engine.research.sources import (
 from watchtower_engine.store import Store
 
 FIX = Path(__file__).parent / "fixtures" / "incidents"
-GITHUB, GOOGLE, APPLE = (s for s in SOURCES)
+GITHUB, GOOGLE, APPLE, HIBP = (s for s in SOURCES)
 BODY = {"github": (FIX / "github.rss").read_bytes(), "google": (FIX / "google.json").read_bytes(),
-        "apple": (FIX / "apple_security_releases.html").read_bytes()}
+        "apple": (FIX / "apple_security_releases.html").read_bytes(),
+        "hibp": (FIX / "hibp-breaches-excerpt.json").read_bytes()}  # Real list excerpt: no watched service in it.
 NOW = "2026-10-29T08:00:00Z"
 OTHERS = 5  # Records from the GitHub and Google fixtures.
 APPLE_RELEASES = 13  # Rows of the Apple fixture that are in the first window (22 Oct 2026 and later).
@@ -75,7 +76,7 @@ def test_each_source_is_one_plain_get_with_no_query_and_nothing_about_this_mac(s
         assert url.startswith("https://") and "?" not in url and "#" not in url
         assert set(headers) == {"User-Agent", "Accept"}
         assert "@" not in url
-    assert [s.label for s in SOURCES] == ["GitHub", "Google / Gmail", "Apple security"]
+    assert [s.label for s in SOURCES] == ["GitHub", "Google / Gmail", "Apple security", "Have I Been Pwned"]
 
 
 def test_the_check_is_not_part_of_a_refresh(tmp_path):
@@ -227,7 +228,8 @@ def test_first_review_covers_seven_days_and_is_complete(store):
     assert state["review"] == {"window_start": "2026-10-22T08:00:00Z", "window_end": NOW,
                                "last_attempt_state": "complete", "last_attempt_at": NOW}
     assert [(s["source"], s["state"], s["last_success_at"], s["error"]) for s in state["sources"]] == [
-        ("github", "complete", NOW, None), ("google", "complete", NOW, None), ("apple", "complete", NOW, None)]
+        ("github", "complete", NOW, None), ("google", "complete", NOW, None), ("apple", "complete", NOW, None),
+        ("hibp", "complete", NOW, None)]
     assert state["gaps"] == []
     assert not any(i["title"].startswith("Older breach") for i in state["incidents"])  # Before the window.
 
@@ -238,13 +240,15 @@ def test_never_checked_state(store):
     assert state["review"] == {"window_start": None, "window_end": None, "last_attempt_state": None,
                                "last_attempt_at": None}
     assert [(s["label"], s["state"]) for s in state["sources"]] == [
-        ("GitHub", "not_run"), ("Google / Gmail", "not_run"), ("Apple security", "not_run")]
+        ("GitHub", "not_run"), ("Google / Gmail", "not_run"), ("Apple security", "not_run"),
+        ("Have I Been Pwned", "not_run")]
 
 
 def test_progress_reports_each_source_then_the_end(store):
     seen = []
     check(store, progress=lambda d, t, l: seen.append((d, t, l)))
-    assert seen == [(0, 3, "GitHub"), (1, 3, "Google / Gmail"), (2, 3, "Apple security"), (3, 3, "")]
+    assert seen == [(0, 4, "GitHub"), (1, 4, "Google / Gmail"), (2, 4, "Apple security"), (3, 4, "Have I Been Pwned"),
+                    (4, 4, "")]
 
 
 def test_a_later_review_overlaps_the_last_one_by_48_hours_and_does_not_duplicate(store):
@@ -340,7 +344,7 @@ def test_the_next_window_covers_the_days_of_a_partial_review_again(store):
 
 def test_all_sources_failing_changes_nothing_but_the_rows(store):
     check(store)
-    dead = FakeFetch(github=OSError("a"), google=OSError("b"), apple=OSError("c"))
+    dead = FakeFetch(github=OSError("a"), google=OSError("b"), apple=OSError("c"), hibp=OSError("d"))
     state = check(store, dead, now="2026-10-30T08:00:00Z")
     assert state["review"]["last_attempt_state"] == "failed" and state["review"]["window_end"] == NOW
     assert {s["state"] for s in state["sources"]} == {"failed"} and len(state["incidents"]) == TOTAL
@@ -350,7 +354,7 @@ def test_a_check_of_some_sources_cannot_complete_the_review(store):
     state = check(store, selected=["github"])
     assert state["review"]["last_attempt_state"] == "partial" and state["review"]["window_end"] is None
     assert [(s["source"], s["state"]) for s in state["sources"]] == [
-        ("github", "complete"), ("google", "not_run"), ("apple", "not_run")]
+        ("github", "complete"), ("google", "not_run"), ("apple", "not_run"), ("hibp", "not_run")]
 
 
 def test_stopping_the_check_saves_nothing(store):
@@ -419,7 +423,7 @@ def test_cli_incidents_and_check(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     state = json.loads(captured.out)
     assert state["schema_version"] == 1 and len(state["incidents"]) >= 5
-    assert [json.loads(l)["progress"]["done"] for l in captured.err.splitlines()] == [0, 1, 2, 3]
+    assert [json.loads(l)["progress"]["done"] for l in captured.err.splitlines()] == [0, 1, 2, 3, 4]
     assert cli.main(["--data-dir", data, "incidents"]) == 0
     assert len(json.loads(capsys.readouterr().out)["incidents"]) == len(state["incidents"])
 
@@ -554,3 +558,53 @@ def test_a_blog_post_saved_by_a_check_stays_possible_and_the_google_incident_rec
     assert inc["What to do if your account was compromised"]["status"] == "possible"
     assert inc["Unauthorized access to a test account was found and fixed"]["status"] == "confirmed"
     assert not any(i["status"] == "confirmed" for i in state["incidents"] if i["source"] != "google")
+
+
+# Bad data from one source fails only that source (#76)
+
+NESTED = b"[" * 200_000 + b"]" * 200_000  # 400 KB of nested arrays: json.loads raises RecursionError.
+
+
+def test_the_nested_body_is_under_the_size_limit_and_breaks_the_json_parser():
+    assert len(NESTED) < sources.MAX_BYTES
+    with pytest.raises(RecursionError):
+        json.loads(NESTED)
+
+
+@pytest.mark.parametrize("source", [GOOGLE, HIBP], ids=["google", "hibp"])
+def test_fetch_items_turns_a_deeply_nested_body_into_bad_data(source):
+    with pytest.raises(SourceError, match="bad data"):
+        fetch_items(source, lambda url, headers: Response(200, {}, NESTED))
+
+
+@pytest.mark.parametrize("source,body", [
+    (GITHUB, b"<rss><channel><item>" * 100_000), (GITHUB, b"\xff\xfe not xml"),
+    (GOOGLE, b"\xff\xfe not json"), (HIBP, b"\xff\xfe not json"), (HIBP, b'[{"Name": "GitHub", "PwnCount": 1e999999}'),
+    (APPLE, b"<html>" + b"<table><tr><td>" * 50_000)], ids=["rss-deep", "rss-binary", "google-binary",
+                                                         "hibp-binary", "hibp-cut", "apple-deep"])
+def test_any_parser_failure_is_bad_data_and_not_an_escape(source, body):
+    try:
+        fetch_items(source, lambda url, headers: Response(200, {}, body))
+    except SourceError as exc:
+        assert str(exc) == "bad data"
+
+
+@pytest.mark.parametrize("key", ["google", "hibp"])
+def test_one_nested_source_fails_alone_and_the_other_sources_finish(store, key):
+    state = check(store, FakeFetch(**{key: Response(200, {}, NESTED)}))
+    rows = {s["source"]: s for s in state["sources"]}
+    assert rows[key]["state"] == "failed" and rows[key]["note"] == "bad data"
+    assert rows[key]["error"].endswith("check failed. The review is not complete.")
+    assert [rows[k]["state"] for k in rows if k != key] == ["complete"] * 3
+    assert state["review"]["last_attempt_state"] == "partial"
+
+
+def test_a_failed_source_keeps_the_incidents_of_earlier_checks(store):
+    first = check(store, FakeFetch())
+    assert len(first["incidents"]) == TOTAL
+    state = check(store, FakeFetch(google=Response(200, {}, NESTED), hibp=Response(200, {}, NESTED)),
+                  now="2026-10-30T08:00:00Z")
+    assert len(state["incidents"]) == TOTAL  # Nothing is dropped.
+    assert {s["source"] for s in state["sources"] if s["state"] == "failed"} == {"google", "hibp"}
+    google = next(s for s in state["sources"] if s["source"] == "google")
+    assert google["last_success_at"] == NOW  # The time of the last good check stays.

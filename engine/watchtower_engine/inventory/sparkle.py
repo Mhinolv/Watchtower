@@ -13,9 +13,11 @@ A failed check never clears it.
 """
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import json
 import os
+import functools
 import platform
 import socket
 import urllib.error
@@ -121,8 +123,85 @@ class _SafeRedirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def fetch_feed(url: str) -> bytes:
-    opener = urllib.request.build_opener(_SafeRedirects)
+# resolve(host, port) -> the addresses for a TCP connection. Tests pass a fake.
+Resolver = Callable[[str, int], list[str]]
+
+
+def system_resolve(host: str, port: int) -> list[str]:
+    return [info[4][0] for info in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)]
+
+
+class LocalAddress(ValueError):
+    """The host name resolves to an address that is not global (#67)."""
+
+
+MAX_ADDRESSES = 8  # At most this many checked addresses are tried for one host.
+
+
+def checked_addresses(host: str, port: int, resolve: Resolver) -> list[str]:
+    """The addresses to connect to, in the order of the answer. Raises LocalAddress if any address is not global.
+
+    One answer is checked, and the connection uses only addresses from it, so a second DNS answer cannot move
+    the connection (#67). Every address is checked before any connect: a local address anywhere in the answer
+    refuses the whole host, also when the first address is global (#77).
+    """
+    addresses = list(resolve(host, port))
+    if not addresses:
+        raise OSError(f"{host} has no address")
+    for text in addresses:
+        try:
+            ip = ipaddress.ip_address(text)
+        except ValueError as exc:
+            raise LocalAddress(f"{host} resolves to {text!r}, which is not an IP address") from exc
+        ip = getattr(ip, "ipv4_mapped", None) or ip
+        if not ip.is_global:
+            raise LocalAddress(f"{host} resolves to {ip}, which is not a global address")
+    ordered = list(dict.fromkeys(text.split("%")[0] for text in addresses))
+    return ordered[:MAX_ADDRESSES]
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """Connect to a checked address. TLS still checks the certificate against the host name.
+
+    The checked addresses are tried in order until one connects (#77). Only a failed connect moves on to the
+    next address. A TLS failure on a connected address is not retried: the host name check stays strict.
+    """
+
+    def __init__(self, host, *, addresses: list[str], **kwargs):
+        super().__init__(host, **kwargs)
+        self._addresses = addresses
+
+    def connect(self):
+        error: OSError | None = None
+        for address in self._addresses:
+            try:
+                sock = socket.create_connection((address, self.port), self.timeout, self.source_address)
+            except OSError as exc:
+                error = exc
+                continue
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+            return
+        raise error if error else OSError(f"{self.host} has no address")
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    """Resolve and check each request host (redirects too) before the connection."""
+
+    def __init__(self, resolve: Resolver):
+        super().__init__()
+        self._resolve = resolve
+
+    def https_open(self, req):
+        parts = urllib.parse.urlsplit(req.full_url)
+        addresses = checked_addresses(parts.hostname, parts.port or 443, self._resolve)
+        return self.do_open(functools.partial(_PinnedHTTPSConnection, addresses=addresses), req,
+                            context=self._context)
+
+
+def fetch_feed(url: str, resolve: Resolver = system_resolve) -> bytes:
+    # No proxy: the engine connects to the checked address itself (#67).
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _SafeRedirects,
+                                         _PinnedHTTPSHandler(resolve))
     request = urllib.request.Request(url, headers={"User-Agent": f"Watchtower/{__version__}",
                                                    "Accept": "application/rss+xml, application/xml, text/xml"})
     with opener.open(request, timeout=TIMEOUT_SECONDS) as resp:
@@ -317,6 +396,9 @@ def check(targets: list[Target], data_dir: Path, fetch: FetchFeed = fetch_feed,
             continue
         try:
             ev = evidence(t.feed_url, parse_appcast(fetch(t.feed_url)), now())
+        except LocalAddress:  # The host name resolves to this Mac or a local network (#67).
+            t.item.state, t.item.note = "unknown", NOTE_LOCAL
+            continue
         except Exception as exc:  # Network, HTTP, size or parse failure.
             failed += 1
             details.append(f"{t.item.name}: {exc!r}")

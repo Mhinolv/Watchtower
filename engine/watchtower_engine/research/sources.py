@@ -4,6 +4,9 @@ External calls (see README): one plain GET for each source, no query and no head
 - GitHub security blog feed (RSS).
 - Google Workspace status feed (JSON).
 - Apple security releases page (HTML table: name and link, available for, release date).
+- Have I Been Pwned breach list (JSON, #60): the whole public list, `GET https://haveibeenpwned.com/api/v3/breaches`,
+  no key. The engine keeps only the breaches of the watched services (GitHub, Google / Gmail) by domain or exact
+  name. No email address or account name is ever sent or checked: the request is the fixed URL.
 Only public product names go out, and only as part of the fixed URL. No path, project, package or
 inventory data is ever sent.
 
@@ -26,7 +29,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from .. import __version__
 
@@ -59,6 +62,8 @@ class Source:
     incident_records: bool = False
 
 
+HIBP_URL = "https://haveibeenpwned.com/api/v3/breaches"
+
 SOURCES = (
     Source("github", "GitHub", "GitHub", "GitHub security blog", "https://github.blog/security/feed/", "rss",
            ("github.blog", "github.com", "githubstatus.com")),
@@ -67,6 +72,10 @@ SOURCES = (
            ("google.com", "workspace.google.com", "blog.google"), incident_records=True),
     Source("apple", "Apple security", "Apple", "Apple security releases",
            "https://support.apple.com/en-us/100100", "apple_releases", ("support.apple.com",), notice=True),
+    # Not a vendor source: a breach list. Its rows are `possible` (verified) or `unconfirmed`, and never `confirmed`.
+    # The service is set for each row, so `service` here is empty.
+    Source("hibp", "Have I Been Pwned", "", "Have I Been Pwned", HIBP_URL, "hibp_breaches", ("haveibeenpwned.com",),
+           primary=False),
 )
 
 
@@ -78,6 +87,12 @@ class Item:
     published: str | None  # `2026-10-27` in UTC, or None if the date is unknown.
     url: str | None
     cves: list[str] = field(default_factory=list)
+    # Set by a source whose rows carry their own service, status and details (the HIBP breach list).
+    service: str | None = None
+    status: str | None = None
+    breach: dict | None = None
+    # The day that the review window compares with. The breach date can be old: the day HIBP added it counts.
+    window_date: str | None = None
 
 
 class Cancelled(Exception):
@@ -320,7 +335,72 @@ def _is_release_header(row: list[dict]) -> bool:
     return "release date" in text and "available for" in text and "name" in text
 
 
-PARSERS = {"rss": parse_rss, "google_status": parse_google_status, "apple_releases": parse_apple_releases}
+# Have I Been Pwned (#60)
+
+WATCHED = (
+    # (service, domains, exact names). A domain matches itself and its subdomains. A name matches the whole
+    # name or title, never a part of it: `Gmail Dump` of a forum is not Gmail.
+    ("GitHub", ("github.com",), ("github",)),
+    ("Google / Gmail", ("google.com", "gmail.com", "googlemail.com"), ("google", "gmail")),
+)
+MAX_SCAN = 20000
+_HOST = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,98}[a-z0-9])?$")
+
+
+def watched_service(domain, name, title) -> str | None:
+    """`GitHub` or `Google / Gmail` if a breach is about a watched service, else None."""
+    host = domain.strip().lower().rstrip(".") if isinstance(domain, str) else ""
+    names = {n.strip().lower() for n in (name, title) if isinstance(n, str)}
+    for service, domains, exact in WATCHED:
+        if host and any(host == d or host.endswith("." + d) for d in domains):
+            return service
+        if names & set(exact):
+            return service
+    return None
+
+
+def _count(value) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < 10**12 else None
+
+
+def parse_hibp(source: Source, body: bytes) -> list[Item]:
+    """The breaches of the watched services. The list is untrusted: only known fields are read as text."""
+    try:
+        data = json.loads(body)
+    except ValueError as exc:
+        raise SourceError("bad data") from exc
+    if not isinstance(data, list):
+        raise SourceError("bad data")
+    items: list[Item] = []
+    for row in data[:MAX_SCAN]:
+        if not isinstance(row, dict):
+            continue
+        service = watched_service(row.get("Domain"), row.get("Name"), row.get("Title"))
+        if service is None:
+            continue
+        name = clean_text(row.get("Name"), 100)
+        title = clean_text(row.get("Title") or row.get("Name"), TITLE_MAX - 16)
+        if not name or not title:
+            continue
+        domain = clean_text(row.get("Domain"), 100).lower()
+        classes = [c for c in (clean_text(x, 60) for x in (row.get("DataClasses") if isinstance(row.get("DataClasses"), list) else [])) if c][:30]
+        verified = row.get("IsVerified") is True and row.get("IsFabricated") is not True
+        added = parse_date(row.get("AddedDate"))
+        breach_date = parse_date(row.get("BreachDate"))
+        breach = {"breach_date": breach_date, "added_date": added, "data_classes": classes,
+                  "pwn_count": _count(row.get("PwnCount")), "domain": domain if _HOST.match(domain) else None,
+                  "verified": verified}
+        items.append(Item(guid=name, title=f"{title} data breach", summary=clean_text(row.get("Description"), SUMMARY_MAX),
+                          published=breach_date, url=f"https://haveibeenpwned.com/PwnedWebsites#{quote(name, safe='')}",
+                          service=service, status="possible" if verified else "unconfirmed", breach=breach,
+                          window_date=added))
+        if len(items) >= MAX_ITEMS:
+            break
+    return items
+
+
+PARSERS = {"rss": parse_rss, "google_status": parse_google_status, "apple_releases": parse_apple_releases,
+           "hibp_breaches": parse_hibp}
 
 
 # Fetch
@@ -334,7 +414,7 @@ def _reason(exc: BaseException) -> str:
 
 
 def fetch_items(source: Source, fetch: "Fetch | None" = None) -> list[Item]:
-    """One plain GET of the source. Raises SourceError with a short reason."""
+    """One plain GET of the source. Raises SourceError with a short reason, `bad data` for any parser failure."""
     if fetch is None:
         from ..feeds.homebrew import http_fetch
         fetch = http_fetch
@@ -351,4 +431,11 @@ def fetch_items(source: Source, fetch: "Fetch | None" = None) -> list[Item]:
         raise SourceError(f"HTTP {resp.status}")
     if len(resp.body) > MAX_BYTES:
         raise SourceError("too large")
-    return PARSERS[source.format](source, resp.body)
+    try:
+        return PARSERS[source.format](source, resp.body)
+    except (SourceError, Cancelled):
+        raise
+    except Exception as exc:
+        # The body is untrusted. A deeply nested JSON body raises RecursionError, a cut one JSONDecodeError, and
+        # a strange one anything else. Each fails only this source: the other sources still finish (#76).
+        raise SourceError("bad data") from exc

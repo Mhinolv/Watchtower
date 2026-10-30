@@ -252,3 +252,55 @@ def test_only_cve_ids_of_open_findings_are_passed_to_the_loader(tmp_path, monkey
     source = next(x for x in refresh.default_sources(tmp_path) if x.source == "epss")
     assert source.collect().coverage.source == "epss"
     assert seen["cves"] == {LOG4J}  # Ids that are not CVEs are not passed on. The request has none of them.
+
+
+# A truncated download (#69): the gzip stream did not reach its end
+
+
+def cuts():
+    """Cuts of the real excerpt as gzip: no trailer, a cut trailer, a cut in the middle, only the header."""
+    return {"no trailer": GZ[:-8], "cut trailer": GZ[:-3], "middle": GZ[: len(GZ) // 2], "header only": GZ[:12]}
+
+
+@pytest.mark.parametrize("name", ["no trailer", "cut trailer", "middle"])
+def test_a_truncated_gzip_file_is_refused_by_the_parser(name):
+    with pytest.raises(ValueError, match="truncated"):
+        epss.parse(cuts()[name], [LOG4J])
+
+
+def test_a_header_only_gzip_file_is_refused_too():
+    with pytest.raises(ValueError):
+        epss.parse(cuts()["header only"], [LOG4J])
+
+
+def test_a_complete_gzip_file_with_trailing_bytes_still_loads():
+    assert epss.parse(GZ + b"\0\0", [LOG4J])[0] == {LOG4J: (0.99999, 1.0)}
+
+
+@pytest.mark.parametrize("name", ["no trailer", "cut trailer", "middle"])
+def test_a_truncated_download_fails_the_source_and_writes_no_cache(tmp_path, name):
+    data = epss.load(tmp_path, [LOG4J], FakeFetch(Response(200, {}, cuts()[name])), lambda: D1)
+    assert not data.loaded and data.scores == {}
+    assert data.coverage().state == "failed" and "truncated" in data.coverage().detail
+    assert not (tmp_path / "cache" / "epss" / "epss.csv.gz").exists()
+
+
+@pytest.mark.parametrize("name", ["no trailer", "cut trailer", "middle"])
+def test_a_truncated_download_keeps_the_earlier_cache_and_scores(tmp_path, name):
+    epss.load(tmp_path, [LOG4J], FakeFetch(), lambda: D1)
+    folder = tmp_path / "cache" / "epss"
+    before = ((folder / "epss.csv.gz").read_bytes(), (folder / "epss.json").read_bytes())
+    data = epss.load(tmp_path, [LOG4J, NODE], FakeFetch(Response(200, {}, cuts()[name])), lambda: D6)
+    assert data.scores == {LOG4J: (0.99999, 1.0), NODE: (0.05213, 0.92481)}  # From the good cache.
+    assert (data.fresh, data.fetched_at, data.error) == (False, D1, "EPSS download failed.")
+    cov = data.coverage()
+    assert (cov.state, cov.source_at) == ("partial", D1)  # The retrieval time of the good copy stays.
+    assert ((folder / "epss.csv.gz").read_bytes(), (folder / "epss.json").read_bytes()) == before
+
+
+def test_findings_keep_their_scores_after_a_truncated_download(store, tmp_path):
+    result = scan([match(groups=[adv([LOG4J])])])
+    enrich(store, result, data_for(tmp_path, [LOG4J]))
+    truncated = data_for(tmp_path, [LOG4J], now=D6, answer=Response(200, {}, cuts()["middle"]))
+    [f] = enrich(store, result, truncated).values()
+    assert f.epss["score"] == 0.99999 and f.epss["fetched_at"] == D1

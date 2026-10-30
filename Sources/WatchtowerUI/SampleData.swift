@@ -169,6 +169,10 @@ public enum SampleData {
         case chipSelected = "chip-selected"
         case cargoDependencies = "cargo-dependencies"
         case cargoWorkspace = "cargo-workspace"
+        case sofaMacosCurrent = "sofa-macos-current"
+        case sofaMacosExploited = "sofa-macos-exploited"
+        case sofaSafariBehind = "sofa-safari-behind"
+        case sofaFeedFailed = "sofa-feed-failed"
         case sparkleNewer = "sparkle-newer"
         case sparkleBeta = "sparkle-beta"
         case sparkleOsTooOld = "sparkle-os-too-old"
@@ -300,6 +304,8 @@ public enum SampleData {
             model.selection = .apps
             model.itemFilter = .error
             return model
+        case .sofaMacosCurrent, .sofaMacosExploited, .sofaSafariBehind, .sofaFeedFailed:
+            return sofaModel(scenario, engine: engine, clock: clock)
         case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
             return sparkleModel(scenario, engine: engine, clock: clock)
         case .cargoDependencies, .cargoWorkspace:
@@ -393,6 +399,60 @@ extension SampleData {
 }
 
 extension SampleData {
+    /// The macOS and Safari items with SOFA data (#58), as the engine writes them for each scenario.
+    static func sofaItems(_ scenario: Scenario) -> [ItemRecord] {
+        let fixed = (1...12).map { "CVE-2026-\(String(format: "%05d", 86940 + $0))" }
+        var macOS = item("macos", "macos", "macOS", .upToDate, kind: "os", installed: "15.8.2", latest: "15.8.2",
+                         origin: "SOFA", sourceAt: ago(4))
+        macOS.attributes = ["build": "24H232", "sofaLatest": "15.8.2 (24H232)", "sofaReleased": "2026-10-26",
+                            "sofaChecked": "2026-10-29T08:00:00Z"]
+        var safari = item("com.apple.Safari", "apps", "Safari", .upToDate, kind: "app", installed: "26.6.1",
+                          latest: "26.6.1", origin: "SOFA", sourceAt: ago(4))
+        safari.attributes = ["bundleId": "com.apple.Safari", "path": "/Applications/Safari.app",
+                             "sofaLatest": "26.6.1", "sofaReleased": "2026-08-18", "sofaChecked": "2026-10-29T08:00:00Z"]
+        switch scenario {
+        case .sofaMacosExploited, .sofaFeedFailed:
+            macOS.state = .vulnerable
+            macOS.installedVersion = "15.7.9"
+            macOS.attributes?["build"] = "24G830"
+            macOS.attributes?["sofaFixedCves"] = fixed.joined(separator: ", ")
+            macOS.attributes?["sofaExploited"] = "CVE-2026-86950, CVE-2026-86951"
+            macOS.note = "15.8.2 fixes 2 actively exploited CVEs."
+            if scenario == .sofaFeedFailed {
+                // The feed did not load. The data from the day before stays.
+                macOS.sourceAt = days(1)
+                macOS.attributes?["sofaChecked"] = "2026-10-28T08:00:00Z"
+                macOS.error = "SOFA feed did not load."
+                macOS.detail = "GET https://sofafeed.macadmins.io/v2/macos_data_feed.json: URLError(code: -1009)"
+            }
+        case .sofaSafariBehind:
+            safari.state = .updateAvailable
+            safari.installedVersion = "26.5.2"
+            safari.attributes?["sofaFixedCves"] = fixed.prefix(10).joined(separator: ", ")
+            safari.note = "Safari 26.6.1 fixes 10 CVEs."
+        default: break
+        }
+        return [macOS, safari]
+    }
+
+    @MainActor
+    static func sofaModel(_ scenario: Scenario, engine: PreviewEngine,
+                          clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+        let sofa = sofaItems(scenario)
+        sample.items = sample.items.filter { $0.id != "macos" } + sofa
+        let failed = scenario == .sofaFeedFailed
+        sample.coverage.append(CoverageRecord(source: "sofa", label: "SOFA", state: failed ? .partial : .complete,
+                                              lastSuccessAt: failed ? days(1) : ago(2),
+                                              error: failed ? "SOFA did not load. Watchtower used the last copy." : nil,
+                                              sourceAt: failed ? days(1) : ago(4)))
+        if failed { sample.refresh?.status = .partial }
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .apps
+        model.selectedItemKey = (scenario == .sofaSafariBehind ? sofa[1] : sofa[0]).key
+        return model
+    }
+
     /// One app with a Sparkle feed (#14), in the state of `scenario`, selected in Apps.
     static func sparkleApp(_ scenario: Scenario) -> ItemRecord {
         let feed = "https://updates.example.com/acme-notes/appcast.xml"
@@ -671,6 +731,61 @@ extension SampleData {
         case masCurrent = "update-mas-current"
         case masSignedOut = "update-mas-signed-out"
         case masAdmin = "update-mas-admin"
+        case reqPlan = "update-req-plan"
+        case reqBuild = "update-req-build"
+        case reqVerified = "update-req-verified"
+        case reqNotVerified = "update-req-not-verified"
+        case reqInclude = "update-req-include"
+    }
+
+    /// A requirements-only project plan (#30). `refusal` is the explicit state from the engine.
+    public static func reqPlan(build: Bool = false, refusal: String? = nil) -> UpdatePlan {
+        let python = "/Users/me/Real/script/.venv/bin/python"
+        let rows = [
+            PlanRow(label: "Project", value: "~/Real/script"),
+            PlanRow(label: "Environment", value: ".venv (exists)"),
+            PlanRow(label: "requirements.txt", value: build ? "pycrypto==2.6.0 → pycrypto==2.6.1"
+                                                           : "requests==2.31.0 → requests==2.32.3"),
+            PlanRow(label: "Evidence", value: build ? "Exact pin (==2.6.0)" : "Exact pin (==2.31.0)"),
+            PlanRow(label: "Lockfile", value: "No lockfile."),
+            PlanRow(label: "Other packages", value: build ? "Not known before the build step" : "2 packages change",
+                    items: build ? nil : ["idna 3.4 → 3.20", "charset-normalizer 3.5.2 (new)"]),
+            PlanRow(label: "Build", value: "Disabled (wheels only)"),
+        ]
+        if let refusal {
+            // The engine refuses before it has a target: the plan holds the project row and the reason.
+            return UpdatePlan(id: "0", itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt",
+                              name: "requests", kind: "requirements", fullName: "requests", installedVersion: nil,
+                              targetVersion: nil, command: [python], refusal: refusal,
+                              rows: [PlanRow(label: "Project", value: "~/Real/script")])
+        }
+        let name = build ? "pycrypto" : "requests"
+        let reason = "pycrypto needs a source build: no wheel for this platform."
+        return UpdatePlan(id: "7a3d1c9e5b2f4a60", itemKey: "requirements/\(name)@\(build ? "2.6.1" : "2.32.3")|~/Real/script|requirements.txt",
+                          name: name, kind: "requirements", fullName: name,
+                          installedVersion: build ? "2.6.0" : "2.31.0", targetVersion: build ? "2.6.1" : "2.32.3",
+                          command: [python, "-m", "pip", "install", "--only-binary=:all:",
+                                    "--disable-pip-version-check", "--no-input", "\(name)==\(build ? "2.6.1" : "2.32.3")"],
+                          scripts: build ? [reason] : [], manualSteps: ["Restart the dev server after the update."],
+                          refusal: refusal, rows: rows, scriptsMessage: build ? reason : nil)
+    }
+
+    public static func reqAttempt(verified: Bool) -> UpdateAttempt {
+        let installed = verified ? "2.32.3" : "2.31.0"
+        return UpdateAttempt(
+            id: 8, itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt", name: "requests",
+            kind: "requirements",
+            command: ["/Users/me/Real/script/.venv/bin/python", "-m", "pip", "install", "--only-binary=:all:",
+                      "--disable-pip-version-check", "--no-input", "requests==2.32.3"],
+            beforeVersion: "2.31.0", targetVersion: "2.32.3", afterVersion: installed,
+            status: verified ? .verified : .notVerified, exitCode: 0,
+            output: "Collecting requests==2.32.3\nSuccessfully installed requests-2.32.3",
+            error: verified ? nil : "Not verified: the environment still has 2.31.0.",
+            manualSteps: verified ? ["Restart the dev server after the update."] : [],
+            startedAt: ago(0.1), finishedAt: ago(0.09),
+            resultRows: [PlanRow(label: "requirements.txt", value: verified ? "requests==2.32.3" : "requests==2.31.0",
+                                 ok: verified),
+                         PlanRow(label: "Installed (.venv)", value: "requests \(installed)", ok: verified)])
     }
 
     /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
@@ -735,6 +850,11 @@ extension SampleData {
         case .cargoPlan: .plan(cargoPlan())
         case .cargoLockfileUpdated: .result(cargoAttempt(), cargoPlan())
         case .cargoWorkspace: .plan(cargoPlan(refusal: "Cargo workspaces are not supported yet."))
+        case .reqPlan: .plan(reqPlan())
+        case .reqBuild: .confirmScripts(reqPlan(build: true))
+        case .reqVerified: .result(reqAttempt(verified: true), reqPlan())
+        case .reqNotVerified: .result(reqAttempt(verified: false), reqPlan())
+        case .reqInclude: .plan(reqPlan(refusal: "requirements.txt with -r includes or hashes is not supported."))
         case .npmPlan: .plan(npmPlan())
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
@@ -804,7 +924,27 @@ extension SampleData {
                  .unconfirmed, "News report only", source: "github"),
     ]
 
-    public static func incidentSources(failed: Bool = false) -> [IncidentSource] {
+    /// Two sample breach rows of Have I Been Pwned (#60). The data is made up.
+    public static func hibpIncidents(new: Bool = false) -> [IncidentRecord] {
+        func row(_ n: Int, _ service: String, _ title: String, _ date: String, _ added: String, _ status: IncidentStatus,
+                 _ verified: Bool, _ count: Int, _ domain: String, new: Bool) -> IncidentRecord {
+            IncidentRecord(id: String(format: "INC-%04d", n), source: "hibp", service: service, title: title,
+                           summary: "A sample description from the breach list. Watchtower shows it as plain text.",
+                           published: date, status: status, sourceName: "Have I Been Pwned",
+                           url: "https://haveibeenpwned.com/PwnedWebsites#Sample\(n)", firstSeen: ago(4), lastSeen: ago(4),
+                           breach: BreachDetails(breachDate: date, addedDate: added,
+                                                 dataClasses: ["Email addresses", "Passwords"], pwnCount: count,
+                                                 domain: domain, verified: verified), isNew: new)
+        }
+        return [
+            row(10, "GitHub", "GitHub data breach (sample)", "2024-06-04", "2026-10-27", .possible, true, 1_200_000,
+                "github.com", new: new),
+            row(11, "Google / Gmail", "Google account data breach (sample)", "2026-09-18", "2026-10-25", .unconfirmed,
+                false, 48_500, "accounts.google.com", new: false),
+        ]
+    }
+
+    public static func incidentSources(failed: Bool = false, hibpFailed: Bool = false) -> [IncidentSource] {
         [
             IncidentSource(source: "github", label: "GitHub", state: .complete, lastSuccessAt: ago(4)),
             failed
@@ -812,12 +952,16 @@ extension SampleData {
                                  error: "Google / Gmail: check failed. The review is not complete.", note: "HTTP 503")
                 : IncidentSource(source: "google", label: "Google / Gmail", state: .complete, lastSuccessAt: ago(4)),
             IncidentSource(source: "apple", label: "Apple security", state: .complete, lastSuccessAt: ago(4)),
+            hibpFailed
+                ? IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .failed, lastSuccessAt: days(2),
+                                 error: "Have I Been Pwned: check failed. The review is not complete.", note: "HTTP 503")
+                : IncidentSource(source: "hibp", label: "Have I Been Pwned", state: .complete, lastSuccessAt: ago(4)),
         ]
     }
 
     public static func incidentState(incidents: [IncidentRecord] = incidentList, failed: Bool = false,
-                                     gaps: [IncidentGap] = []) -> IncidentState {
-        IncidentState(incidents: incidents, sources: incidentSources(failed: failed),
+                                     gaps: [IncidentGap] = [], hibpFailed: Bool = false) -> IncidentState {
+        IncidentState(incidents: incidents, sources: incidentSources(failed: failed, hibpFailed: hibpFailed),
                       review: IncidentReview(windowStart: days(7), windowEnd: failed ? ago(28) : ago(4),
                                              lastAttemptState: failed ? "partial" : "complete", lastAttemptAt: ago(4)),
                       gaps: gaps)
@@ -829,6 +973,10 @@ extension SampleData {
         case failed = "incidents-failed"
         case checking = "incidents-checking"
         case empty = "incidents-empty"
+        case hibp = "incidents-hibp"
+        case hibpNew = "incidents-hibp-new"
+        case hibpFailed = "incidents-hibp-failed"
+        case hibpNone = "incidents-hibp-none"
     }
 
     /// The window and the incident model of one scenario. The window shows the `Incidents` section.
@@ -854,6 +1002,20 @@ extension SampleData {
             incidents.selectedID = "INC-0001"
         case .empty:
             incidents = IncidentModel(client: engine, state: incidentState(incidents: []))
+        case .hibp:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpNew:
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents(new: true) + incidentList))
+            incidents.selectedID = "INC-0010"
+        case .hibpFailed:
+            // The check failed. The earlier breach rows stay.
+            incidents = IncidentModel(client: engine, state: incidentState(incidents: hibpIncidents() + incidentList,
+                                                                           hibpFailed: true))
+            incidents.selectedID = "INC-0010"
+        case .hibpNone:
+            incidents = IncidentModel(client: engine, state: incidentState())
+            incidents.selectedID = "INC-0001"
         }
         return (dashboard, incidents)
     }

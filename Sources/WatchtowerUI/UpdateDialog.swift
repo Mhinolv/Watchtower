@@ -282,7 +282,8 @@ struct ScriptsStep: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(plan.scriptsText).font(.system(size: 15, weight: .semibold))
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(plan.kind == "uv" ? "The build runs only after you click Run Scripts."
+                    Text(plan.kind == "uv" || plan.kind == "requirements"
+                         ? "The build runs only after you click Run Scripts."
                                            : "Scripts run only after you click Run Scripts.")
                         .foregroundStyle(.secondary)
                 }
