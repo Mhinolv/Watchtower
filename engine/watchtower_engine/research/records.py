@@ -92,6 +92,8 @@ def migrate(db: sqlite3.Connection) -> None:
     have = {r["name"] for r in db.execute("PRAGMA table_info(incidents)")}
     if "breach" not in have:  # #60: the details of a breach list row, as JSON.
         db.execute("ALTER TABLE incidents ADD COLUMN breach TEXT")
+    if "primary_url" not in have:  # #19: a vendor link that Claude research named. Not checked, not a confirmation.
+        db.execute("ALTER TABLE incidents ADD COLUMN primary_url TEXT")
 
 
 def inc_id(seq: int) -> str:
@@ -289,6 +291,7 @@ def incident_state(db: sqlite3.Connection, sources: Iterable[Source] = SOURCES, 
         "first_seen": r["first_seen"], "last_seen": r["last_seen"],
         "breach": json.loads(r["breach"]) if r["breach"] else None,
         "is_new": bool(r["breach"]) and newest is not None and r["first_seen"] == newest,
+        "primary_url": r["primary_url"],
     } for r in rows]
     incidents.sort(key=lambda i: i["id"])
     # Newest first. A breach row sorts by the day HIBP added it, the others by their date.
@@ -321,4 +324,11 @@ def incident_state(db: sqlite3.Connection, sources: Iterable[Source] = SOURCES, 
             "last_attempt_at": attempt["finished_at"] if attempt else None,
         },
         "gaps": gaps,
+        "research": _last_research(db),
     }
+
+
+def _last_research(db: sqlite3.Connection) -> dict | None:
+    from .claude import last_run  # Not at the top: claude.py imports this module's numbering.
+
+    return last_run(db)

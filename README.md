@@ -59,6 +59,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
 | `watchtower incidents` | `{"schema_version", "incidents", "sources", "review", "gaps"}`: the saved vendor incident records |
 | `watchtower incidents-check` | The same, after a check of the vendor sources. Progress lines go to stderr. SIGTERM stops it and saves nothing |
+| `watchtower research-status` | `{"schema_version", "state", "text", "topics", "limits", "time_limit_seconds"}`: is Claude Code installed and signed in |
+| `watchtower research-run` | The incidents object, after one Claude web research run. It has `research`, the result of the last run. SIGTERM stops it and saves nothing |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
@@ -88,6 +90,8 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
 | GET `https://haveibeenpwned.com/api/v3/breaches` | None. The public breach list (about 1 MB), no API key. No email address, account name or finding data. The engine keeps only the breaches of GitHub and Google / Gmail. | Check Sources (on demand only) |
+| `claude -p` (Claude Code, headless) with the tools `WebSearch` and `WebFetch` | A fixed prompt with three public topic names: `GitHub`, `Google Gmail`, `Apple`. No path, project, package, account, finding or inventory data. Claude Code sends the prompt to Anthropic, and its web tools search and fetch public pages. | Research (on demand only, after the owner confirms). At most 5 minutes |
+| `claude auth status --json` | Nothing. A local call. The engine reads only `loggedIn`. | Incidents screen, to enable the Research button |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -233,3 +237,16 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - The engine keeps a breach only if it is about a watched service: GitHub (domain `github.com` or a subdomain, or the exact name or title `GitHub`) or Google / Gmail (domain `google.com`, `gmail.com`, `googlemail.com` or a subdomain, or the exact name or title `Google` or `Gmail`). A part of a name does not match: `Bitcoin Security Forum Gmail Dump` is not Gmail.
 - A verified breach is `Possible relevance`. A breach that is not verified, or is fabricated, is `Unconfirmed`. The list is untrusted text: markup and control characters are removed and lengths are cut.
 - The review window compares with the day HIBP added the breach. A row added by the newest check shows `New`. A failed fetch keeps the earlier rows and shows `Have I Been Pwned: check failed. Data from <day>.`
+
+### Claude web research (#19)
+
+- The `Research` button runs Claude Code headless (`claude -p`) once. It runs only after the owner confirms the topics and limits in a sheet. A refresh never runs it.
+- The prompt names only the public topics `GitHub`, `Google Gmail` and `Apple`. It never holds source code, paths, credentials, accounts or the inventory.
+- Isolation flags: `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP), `--tools WebSearch,WebFetch`, `--permission-mode dontAsk`, `--strict-mcp-config` with no servers, `--no-session-persistence`, `--disable-slash-commands`.
+- The run starts in an empty private folder (`research-work/` in the data folder, mode `0700`), with a small environment. The engine deletes the folder after the run.
+- The time limit is 5 minutes. At the limit, or on Stop, the engine ends the run and saves nothing.
+- The output is untrusted data. The engine reads only the JSON claims (at most 20), removes markup and control characters, cuts the length and keeps only https links. It never follows a link or an instruction in the text.
+- Each claim is saved as `Unconfirmed` with the source `Web research`. A vendor link is shown as `Primary source: <url> (not checked)`. Only a vendor source check can confirm a claim.
+- The engine keeps the result of the last run (state, counts, time) in the data folder. It does not keep the account email.
+- If Claude Code is not installed or not signed in, the button is off and the screen says why.
+- Each run uses the owner's Claude Code plan. There is no usage cap.
