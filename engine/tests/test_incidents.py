@@ -171,11 +171,14 @@ def test_fetch_failures_give_short_reasons():
 def test_status_rules():
     other = Source("news", "News", "News", "News site", "https://news.example/feed", "rss", ("news.example",),
                    primary=False)
-    assert classify(GITHUB, "Tokens reset", "We have confirmed unauthorized access.") == "confirmed"
+    assert classify(GOOGLE, "Tokens reset", "We have confirmed unauthorized access.") == "confirmed"  # A status page.
+    assert classify(GITHUB, "Tokens reset", "We have confirmed unauthorized access.") == "possible"  # A blog post.
     assert classify(GITHUB, "Report of leaked tokens", "We are looking into it.") == "possible"
-    assert classify(APPLE, "Security release: iOS 26.1", "may have been exploited in an attack") == "confirmed"
+    assert classify(APPLE, "Security release: iOS 26.1", "may have been exploited in an attack") == "possible"
     assert classify(APPLE, "Security release: iOS 26.1", "Available for: iPhone 11 and later.") == "possible"
     assert classify(other, "Breach at GitHub", "We have confirmed it.") == "unconfirmed"  # No primary source.
+    assert classify(GOOGLE, "Phishing campaign", "Google is watching it.") == "possible"  # No vendor-voice phrase.
+    assert classify(GOOGLE, "Gmail delays", "We are investigating the delays.") is None
     assert classify(GITHUB, "New features", "Faster code scanning.") is None
     assert classify(GITHUB, "PHISHING CAMPAIGN", "") == "possible"
 
@@ -199,9 +202,11 @@ def test_first_check_saves_incidents_with_three_statuses_and_keeps_those_without
         "Third-party app tokens reset after a security event", "Report of leaked access tokens on a forum",
         "Phishing campaign alert(1) targets maintainers", "Phishing campaign targets Workspace sign-in",
         "Unauthorized access to a test account was found and fixed"}
-    confirmed = inc["Third-party app tokens reset after a security event"]
-    assert (confirmed["status"], confirmed["service"], confirmed["source_name"], confirmed["cves"]) == (
-        "confirmed", "GitHub", "GitHub security blog", ["CVE-2026-1111"])
+    tokens = inc["Third-party app tokens reset after a security event"]
+    assert (tokens["status"], tokens["service"], tokens["source_name"], tokens["cves"]) == (
+        "possible", "GitHub", "GitHub security blog", ["CVE-2026-1111"])  # A blog post never confirms.
+    google = inc["Unauthorized access to a test account was found and fixed"]
+    assert (google["status"], google["service"]) == ("confirmed", "Google / Gmail")  # A status incident does.
     assert inc["Report of leaked access tokens on a forum"]["cves"] == []  # Visible without a CVE.
     assert inc["Phishing campaign targets Workspace sign-in"]["status"] == "possible"
     apple = [i for i in state["incidents"] if i["source"] == "apple"]
@@ -273,21 +278,20 @@ def test_a_record_that_leaves_the_feed_is_never_removed_or_resolved(store):
 
 
 def test_a_status_is_raised_but_never_lowered(store):
-    check(store)
-    quiet = b"""<rss><channel><item><title>Third-party app tokens reset after a security event</title>
-        <guid>gh-2026-1027-tokens</guid><pubDate>Tue, 27 Oct 2026 10:00:00 GMT</pubDate>
-        <description>An update about a leak.</description></item>
-        <item><title>Report of leaked access tokens on a forum</title><guid>gh-2026-1023-forum</guid>
-        <pubDate>Fri, 23 Oct 2026 09:00:00 GMT</pubDate>
-        <description>We have confirmed unauthorized access. CVE-2026-9999</description></item>
-        </channel></rss>"""
-    after = check(store, FakeFetch(github=Response(200, {}, quiet)), now="2026-10-30T08:00:00Z")
-    inc = by_title(after)
-    assert inc["Third-party app tokens reset after a security event"]["status"] == "confirmed"  # Not lowered.
-    leaked = inc["Report of leaked access tokens on a forum"]
-    assert leaked["status"] == "confirmed" and leaked["cves"] == ["CVE-2026-9999"]  # Raised. CVE added.
-    assert leaked["summary"].startswith("We are looking into")  # The first text stays.
-    assert leaked["first_seen"] == NOW and leaked["last_seen"] == "2026-10-30T08:00:00Z"
+    def google(text, title="Phishing campaign targets Workspace sign-in"):
+        return Response(200, {}, json.dumps([{"id": "gw-0001", "begin": "2026-10-26T10:00:00+00:00",
+                                             "external_desc": title, "most_recent_update": {"text": text}}]).encode())
+
+    first = check(store, FakeFetch(google=google("Google is watching it.")))
+    assert by_title(first)["Phishing campaign targets Workspace sign-in"]["status"] == "possible"
+    raised = check(store, FakeFetch(google=google("We have confirmed unauthorized access. See CVE-2026-9999.")),
+                   now="2026-10-30T08:00:00Z")
+    row = by_title(raised)["Phishing campaign targets Workspace sign-in"]
+    assert row["status"] == "confirmed" and row["cves"] == ["CVE-2026-9999"]  # Raised. CVE added.
+    assert row["summary"].startswith("Google is watching")  # The first text stays.
+    assert (row["first_seen"], row["last_seen"]) == (NOW, "2026-10-30T08:00:00Z")
+    softer = check(store, FakeFetch(google=google("An update about a phishing campaign.")), now="2026-10-31T08:00:00Z")
+    assert by_title(softer)["Phishing campaign targets Workspace sign-in"]["status"] == "confirmed"  # Not lowered.
 
 
 def test_a_source_without_a_primary_feed_gives_unconfirmed(store):
@@ -523,3 +527,30 @@ def test_apple_releases_older_than_the_window_are_not_saved_and_a_later_check_ad
     second = check(store, now="2026-10-30T08:00:00Z")
     assert len(second["incidents"]) == TOTAL
     assert [i["id"] for i in second["incidents"]] == [i["id"] for i in first["incidents"]]
+
+
+# Round 3: only a vendor's own incident record can confirm
+
+
+def test_a_blog_advice_post_is_never_confirmed():
+    # QA defect 1 of PR #43: an advice post on the GitHub blog became a red `Confirmed`.
+    for title, summary in [
+        ("What to do if your account was compromised", "Steps to secure an account after a security incident."),
+        ("Security incident response playbook for open source maintainers", "A guide. We have confirmed it works."),
+        ("We have confirmed unauthorized access to our systems", "A data breach was found."),
+    ]:
+        assert classify(GITHUB, title, summary) == "possible", title
+    assert classify(GOOGLE, "Unauthorized access to a test account was found and fixed", "We identified the cause.") == "confirmed"
+    assert classify(GOOGLE, "Phishing campaign targets Workspace sign-in", "Google is watching it.") == "possible"
+    assert classify(APPLE, "Security release: iOS 26.1", "may have been exploited in an attack") == "possible"
+
+
+def test_a_blog_post_saved_by_a_check_stays_possible_and_the_google_incident_record_confirms(store):
+    state = check(store, FakeFetch(github=Response(200, {}, b"""<rss><channel><item>
+        <title>What to do if your account was compromised</title><guid>gh-advice</guid>
+        <pubDate>Tue, 27 Oct 2026 10:00:00 GMT</pubDate><description>Steps to secure an account.</description>
+        </item></channel></rss>""")))
+    inc = by_title(state)
+    assert inc["What to do if your account was compromised"]["status"] == "possible"
+    assert inc["Unauthorized access to a test account was found and fixed"]["status"] == "confirmed"
+    assert not any(i["status"] == "confirmed" for i in state["incidents"] if i["source"] != "google")

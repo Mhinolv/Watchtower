@@ -483,14 +483,15 @@ extension SampleData {
                        url: "https://github.blog/security/sample-\(n)", cves: cves, firstSeen: ago(4), lastSeen: ago(4))
     }
 
-    /// The four incidents of the approved mockup: three statuses, and one without a CVE.
+    /// Four sample incidents with the three statuses. Only a status page can be `Confirmed`: a blog post or a
+    /// release page is `Possible relevance`. `Unconfirmed` needs a source that is not the vendor's own.
     public static let incidentList: [IncidentRecord] = [
-        incident(1, "GitHub", "Third-party app tokens reset after a security event (sample)", "2026-10-27",
-                 .confirmed, "GitHub status page", source: "github"),
-        incident(2, "Google / Gmail", "Phishing campaign targets Workspace sign-in (sample)", "2026-10-26",
-                 .possible, "Google Workspace status", source: "google"),
-        incident(3, "Apple security", "Update fixes a kernel flaw under attack (sample)", "2026-10-24",
-                 .confirmed, "Apple security releases", source: "apple", cves: ["CVE-2026-4242"]),
+        incident(1, "Google / Gmail", "Unauthorized access to a test account was found and fixed (sample)", "2026-10-27",
+                 .confirmed, "Google Workspace status", source: "google"),
+        incident(2, "GitHub", "Third-party app tokens reset after a security event (sample)", "2026-10-26",
+                 .possible, "GitHub security blog", source: "github"),
+        incident(3, "Apple", "Security release: iOS 27.2 and iPadOS 27.2 (sample)", "2026-10-24",
+                 .possible, "Apple security releases", source: "apple"),
         incident(4, "GitHub", "Report of leaked access tokens on a forum (sample)", "2026-10-23",
                  .unconfirmed, "News report only", source: "github"),
     ]

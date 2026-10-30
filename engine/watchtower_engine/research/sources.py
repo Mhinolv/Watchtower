@@ -54,6 +54,9 @@ class Source:
     # True if every item of the source is a vendor notice, for example a security release. It needs no
     # incident word: the notice itself is the record.
     notice: bool = False
+    # True if the items are the vendor's own incident records (a status page). Only such a source can give
+    # `Confirmed`. A blog or a release page cannot: an advice post is not a confirmation.
+    incident_records: bool = False
 
 
 SOURCES = (
@@ -61,7 +64,7 @@ SOURCES = (
            ("github.blog", "github.com", "githubstatus.com")),
     Source("google", "Google / Gmail", "Google / Gmail", "Google Workspace status",
            "https://www.google.com/appsstatus/dashboard/incidents.json", "google_status",
-           ("google.com", "workspace.google.com", "blog.google")),
+           ("google.com", "workspace.google.com", "blog.google"), incident_records=True),
     Source("apple", "Apple security", "Apple", "Apple security releases",
            "https://support.apple.com/en-us/100100", "apple_releases", ("support.apple.com",), notice=True),
 )

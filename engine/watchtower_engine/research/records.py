@@ -10,8 +10,9 @@ Rules (owner decisions 2026-10-29 and the Design notes of #12):
 - A record never leaves the table because a feed stopped listing it. Nothing here resolves a record.
 - A record keeps the strongest status it ever got. A later check does not lower it.
 - An incident does not need a CVE. A quiet feed is not proof that no breach happened.
-- Statuses: `confirmed` (the vendor says so in its own feed), `possible` (the service matches, impact on the
-  owner is not known), `unconfirmed` (no primary source). Nothing here says that the owner is affected.
+- Statuses: `confirmed` (the vendor's own incident record says so: a status page), `possible` (the service
+  matches, impact on the owner is not known), `unconfirmed` (no primary source). A blog post or a release page
+  is `possible` at best: advice or a notice is not a confirmation. Nothing here says that the owner is affected.
 """
 from __future__ import annotations
 
@@ -33,10 +34,10 @@ WINDOW_OVERLAP_HOURS = 48
 GAP_KEEP_DAYS = 30
 ERROR_SOURCE = "{label}: check failed. The review is not complete."
 
+# Phrases of an incident record in the voice of the vendor. They count only in a source of incident records.
 CONFIRM_PHRASES = (
     "we have confirmed", "we confirmed", "we identified", "we detected", "unauthorized access",
-    "was exploited", "been exploited", "actively exploited", "in the wild", "compromised", "security incident",
-    "data breach", "were stolen", "was stolen",
+    "was exploited", "been exploited", "actively exploited",
 )
 INCIDENT_WORDS = (
     "breach", "incident", "leak", "phishing", "campaign", "attack", "exploit", "compromis", "unauthorized",
@@ -133,16 +134,20 @@ def next_window(last_complete_end: str | None, now: str) -> Window:
 def classify(source: Source, title: str, summary: str) -> str | None:
     """The status of an item, or None if it does not read like an incident.
 
-    The text is untrusted. It is only searched for words. Only a primary source can confirm.
-    Every item of a notice source (a vendor security release) is a record: it is `possible` unless the text
-    says that the vendor knows of an exploit.
+    The text is untrusted. It is only searched for words.
+    - Only a vendor's own incident record (`source.incident_records`) can be `confirmed`, and only if the
+      text says so in the voice of the vendor. A blog post or a release page is `possible` at best.
+    - A source that is not primary gives `unconfirmed`.
+    - Every item of a notice source (a vendor security release) is a record: it needs no incident word.
     """
     text = f"{title} {summary}".lower()
     if not source.notice and not any(word in text for word in INCIDENT_WORDS):
         return None
     if not source.primary:
         return "unconfirmed"
-    return "confirmed" if any(phrase in text for phrase in CONFIRM_PHRASES) else "possible"
+    if source.incident_records and any(phrase in text for phrase in CONFIRM_PHRASES):
+        return "confirmed"
+    return "possible"
 
 
 def _stronger(a: str, b: str) -> str:
