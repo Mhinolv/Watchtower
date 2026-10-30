@@ -279,6 +279,20 @@ public struct TimeText: Sendable {
         return formatter.string(from: date)
     }
 
+    /// `2024-06-04` as `Jun 4, 2024`. Other text comes back as it is.
+    public func fullDay(_ text: String) -> String {
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = TimeZone(identifier: "UTC")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: text) else { return text }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "MMM d, yyyy"
+        return formatter.string(from: date)
+    }
+
     /// `2026-10-22` (the date of a KEV entry) as `Oct 22`. Other text comes back as it is.
     public func day(_ text: String) -> String {
         let parser = DateFormatter()
