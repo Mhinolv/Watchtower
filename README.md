@@ -61,6 +61,8 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed |
 | GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
 | GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
+| GET `https://registry.npmjs.org/<package>` and `/<package>/<version>` | The package name and a version only. | npm update plan, after the owner clicks `Update…` |
+| `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
@@ -89,6 +91,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - Every attempt goes in the update log (`update_attempts` table in the store): command, versions, output, result.
 - `brew upgrade` downloads the new bottle or app from Homebrew's usual sources. Watchtower sends nothing itself.
 - There is no "update all" and no `brew update`.
+
+### npm (one direct dependency in one project)
+- `Update…` on an npm finding plans one package in one project with `package-lock.json` (version 2 or 3).
+- The plan resolves the new lockfile in a temp copy, so the project and `node_modules` do not change before you confirm.
+- The plan shows `package.json`, `package-lock.json` and every other package that changes.
+- The install always runs with `--ignore-scripts`. Install scripts run with `npm rebuild <package>` only after a second confirmation that names the package and the script.
+- Watchtower refuses workspaces, git, file and URL dependencies, transitive packages and complex version ranges. It never runs `npm audit fix`.
+- If the project files change after the plan, the plan changes and nothing runs. If the install fails, `package.json` and `package-lock.json` go back to their state before the run.
+- Verification reads the lockfile and `node_modules/<package>/package.json` separately. Only both together count as `Updated`.
+- The npm and uv adapters share the plan, confirm, verify and log flow of Homebrew updates. Their plan rows and result rows come from the engine.
 
 ### uv dependency update
 

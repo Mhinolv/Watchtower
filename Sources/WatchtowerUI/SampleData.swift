@@ -424,6 +424,42 @@ extension SampleData {
         case uvVerified = "update-uv-verified"
         case uvLockOnly = "update-uv-lock-only"
         case uvNoEnv = "update-uv-no-env"
+        case npmPlan = "update-npm-plan"
+        case npmScripts = "update-npm-scripts"
+        case npmVerified = "update-npm-verified"
+        case npmLockfileOnly = "update-npm-lockfile-only"
+        case npmNotSupported = "update-npm-not-supported"
+    }
+
+    public static func npmPlan(scripts: Bool = false) -> UpdatePlan {
+        let npm = "/opt/homebrew/bin/npm"
+        let rows = [PlanRow(label: "Project", value: "~/Projects/storefront"),
+                    PlanRow(label: "package.json", value: "\"acme-router\": \"^4.17.1\" → \"^4.19.2\""),
+                    PlanRow(label: "package-lock.json", value: "acme-router 4.17.1 → 4.19.2"),
+                    PlanRow(label: "Other packages", value: "3 packages change",
+                            items: ["path-to-regexp 0.1.7 → 0.1.10", "cookie 0.5.0 → 0.6.0", "send 0.18.0 → 0.19.0"]),
+                    PlanRow(label: "Scripts", value: "Disabled (--ignore-scripts)")]
+        return UpdatePlan(
+            id: "9c1e0b7a55d2f310", itemKey: "npm|~/Projects/storefront|acme-router|4.19.0", name: "acme-router",
+            kind: "npm", fullName: "acme-router", installedVersion: "4.17.1", targetVersion: "4.19.2",
+            command: [npm, "install", "acme-router@^4.19.2", "--save-prod", "--ignore-scripts", "--no-audit",
+                      "--no-fund", "--prefix", "/Users/me/Projects/storefront"],
+            scripts: scripts ? ["esbuild needs its postinstall script"] : [],
+            manualSteps: ["Run the project tests: npm test", "Restart anything that runs this project."],
+            rows: rows, scriptsMessage: scripts ? "esbuild needs its postinstall script." : nil,
+            scriptDetails: scripts ? [ScriptDetail(package: "esbuild", version: "0.21.5", script: "postinstall")] : nil)
+    }
+
+    public static func npmAttempt(installed: String) -> UpdateAttempt {
+        let ok = installed == "4.19.2"
+        return UpdateAttempt(
+            id: 9, itemKey: "npm|~/Projects/storefront|acme-router|4.19.0", name: "acme-router", kind: "npm",
+            command: npmPlan().command, beforeVersion: "4.17.1", targetVersion: "4.19.2", afterVersion: "4.19.2",
+            status: ok ? .verified : .notVerified, exitCode: 0, output: "added 1 package, changed 3 packages",
+            error: ok ? nil : "Not verified: the installed package is still \(installed).",
+            startedAt: ago(0.1), finishedAt: ago(0.09),
+            resultRows: [PlanRow(label: "Lockfile", value: "acme-router 4.19.2", ok: true),
+                         PlanRow(label: "Installed (node_modules)", value: "acme-router \(installed)", ok: ok)])
     }
 
     @MainActor
@@ -444,6 +480,16 @@ extension SampleData {
         case .uvVerified: .result(uvAttempt(verified: true), uvPlan())
         case .uvLockOnly: .result(uvAttempt(verified: false), uvPlan())
         case .uvNoEnv: .plan(uvPlan(refusal: "No environment found. Watchtower does not create environments."))
+        case .npmPlan: .plan(npmPlan())
+        case .npmScripts: .confirmScripts(npmPlan(scripts: true))
+        case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
+        case .npmLockfileOnly: .result(npmAttempt(installed: "4.17.1"), npmPlan())
+        case .npmNotSupported:
+            .plan(UpdatePlan(id: "0", itemKey: "npm|~/Projects/monorepo|acme-router|-", name: "acme-router",
+                             kind: "npm", fullName: "acme-router", installedVersion: nil, targetVersion: nil,
+                             command: ["/opt/homebrew/bin/npm", "install", "acme-router"],
+                             refusal: "Watchtower cannot update workspace projects yet.",
+                             rows: [PlanRow(label: "Project", value: "~/Projects/monorepo")]))
         }
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",

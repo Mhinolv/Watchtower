@@ -67,12 +67,14 @@ class Plan:
     manual_steps: list[str] = field(default_factory=list)
     refusal: str | None = None
     detail: str | None = None
-    # More rows for the plan step: [{"label", "value", "items"?}]. The uv plan uses them (#11).
+    # More rows for the plan step: [{"label", "value", "items"?}]. The npm (#10) and uv (#11) plans use them.
     rows: list[dict] = field(default_factory=list)
     # The text of the scripts step, if it should not read `<name> needs install scripts: <reasons>.`
     scripts_message: str | None = None
     # The command to run after the scripts step was confirmed, if it differs from `command`.
     scripts_command: list[str] | None = None
+    # The scripts that need the second confirmation, for the scripts step: [{"package", "version", "script"}].
+    script_details: list[dict] = field(default_factory=list)
     # A digest of the files that the plan read. A change invalidates the approval.
     fingerprint: str | None = None
 
@@ -96,6 +98,7 @@ class Plan:
             "refusal": self.refusal, "detail": self.detail,
             "rows": [dict(r) for r in self.rows], "scripts_message": self.scripts_message,
             "scripts_command": list(self.scripts_command) if self.scripts_command else None,
+            "script_details": [dict(d) for d in self.script_details],
             "fingerprint": self.fingerprint,
         }
         if with_id:
