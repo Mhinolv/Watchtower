@@ -171,8 +171,15 @@ public enum SampleData {
         case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
-        case cargoDependencies = "cargo-dependencies"
-        case cargoWorkspace = "cargo-workspace"
+        case dependenciesRequirements = "dependencies-requirements"
+        case dependenciesCargo = "dependencies-cargo"
+        case dependenciesLoading = "dependencies-loading"
+        case dependenciesNone = "dependencies-none"
+        case dependenciesUnsupported = "dependencies-unsupported"
+        case dependenciesFinding = "dependencies-finding"
+        case dependenciesChecking = "dependencies-checking"
+        case dependenciesStopped = "dependencies-stopped"
+        case dependenciesNoStable = "dependencies-no-stable"
         case sofaMacosCurrent = "sofa-macos-current"
         case sofaMacosExploited = "sofa-macos-exploited"
         case sofaSafariBehind = "sofa-safari-behind"
@@ -196,6 +203,9 @@ public enum SampleData {
 
         /// Scenarios that render the menu bar popover, not the window.
         public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
+
+        /// Scenarios of the Projects `Dependencies` table (#81). They need a dependency model in the environment.
+        public var isDependencies: Bool { rawValue.hasPrefix("dependencies-") }
     }
 
     /// One app of the #55 snapshots, matched to the Homebrew cask catalog, and its selection key.
@@ -399,12 +409,14 @@ public enum SampleData {
             model.selection = .projects
             model.selectedItemKey = requirementsProjects[scenario == .projectRequirements ? 0 : 1].path
             return model
-        case .cargoDependencies, .cargoWorkspace:
+        case .dependenciesRequirements, .dependenciesCargo, .dependenciesLoading, .dependenciesNone,
+             .dependenciesUnsupported, .dependenciesFinding, .dependenciesChecking, .dependenciesStopped, .dependenciesNoStable:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
                                                                     lastComplete: ago(2)),
-                                       projects: projects + cargoProjects, clock: clock)
+                                       projects: projects + dependencyProjects, clock: clock)
             model.selection = .projects
-            model.selectedItemKey = cargoProjects[scenario == .cargoDependencies ? 0 : 1].path
+            model.selectedItemKey = (scenario == .dependenciesCargo ? dependencyProjects[1]
+                : scenario == .dependenciesNone ? dependencyProjects[2] : dependencyProjects[0]).path
             return model
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
@@ -601,6 +613,12 @@ extension SampleData {
     }
 }
 
+extension PreviewEngine: DependencyClient {
+    public func dependencies(projectPath: String) async throws -> DependencyList {
+        SampleData.dependencyList(.dependenciesRequirements)
+    }
+}
+
 /// An engine for previews and snapshots. It answers at once and never starts a process.
 public struct PreviewEngine: EngineClient {
     public init() {}
@@ -766,24 +784,103 @@ extension SampleData {
                                                       skipped: "-r includes or hashes are not supported")]),
     ]
 
-    /// Two Cargo projects (#15): one with the Dependencies table, one workspace that is refused.
-    public static let cargoProjects: [ProjectRecord] = [
+    /// The projects of the #81 snapshots: requirements.txt, Cargo.toml and one with no supported manifest.
+    public static let dependencyProjects: [ProjectRecord] = [
+        ProjectRecord(name: "script", path: NSHomeDirectory() + "/Real/script", root: "~/Real",
+                      manifests: ["requirements.txt"], state: "active"),
         ProjectRecord(name: "tool", path: NSHomeDirectory() + "/Projects/tool", root: "~/Projects",
-                      manifests: ["Cargo.lock", "Cargo.toml"], state: "active",
-                      dependencies: [
-                          DependencyRecord(package: "itoa", declared: "=1.0.9", locked: "1.0.9", evidence: "exact_pin",
-                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
-                          DependencyRecord(package: "memchr", declared: "2.6", locked: "2.8.0", evidence: "range",
-                                           ecosystem: "crates.io", table: "dev-dependencies", manifest: "Cargo.toml"),
-                          DependencyRecord(package: "serde", declared: "1.0.190", locked: "1.0.190", evidence: "range",
-                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
-                          DependencyRecord(package: "smallvec", declared: "1.6.0", locked: "1.6.0", evidence: "range",
-                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
-                      ]),
-        ProjectRecord(name: "engine-ws", path: NSHomeDirectory() + "/Projects/engine-ws", root: "~/Projects",
-                      manifests: ["Cargo.lock", "Cargo.toml", "member/Cargo.toml"], state: "active",
-                      dependencyNote: "Cargo workspaces are not supported yet."),
+                      manifests: ["Cargo.lock", "Cargo.toml"], state: "active"),
+        ProjectRecord(name: "web-only", path: NSHomeDirectory() + "/Projects/web-only", root: "~/Projects",
+                      manifests: ["package-lock.json"], state: "active"),
     ]
+
+    /// The `Dependencies` tables of the #81 snapshots. The values follow real PyPI and crates.io answers.
+    public static func dependencyList(_ scenario: Scenario) -> DependencyList {
+        func source(_ registry: String, _ error: String? = nil) -> DependencyLatestSource {
+            DependencyLatestSource(registry: registry, retrievedAt: ago(0.1), error: error)
+        }
+        func row(_ name: String, _ declared: String, _ evidence: String, _ installed: String?, _ latest: String?, _ status: ItemState,
+                 label: String = ".venv", table: String? = nil, key: String? = nil, refusal: String? = nil,
+                 error: String? = nil, finding: String? = nil, pending: Bool = false, note: String? = nil) -> DependencyRow {
+            DependencyRow(package: name, declared: declared, evidence: evidence, installed: installed, installedLabel: label,
+                          table: table, latest: latest, latestError: error, latestPending: pending, latestNote: note,
+                          status: status, findingId: finding,
+                          severity: finding == nil ? nil : "high", updateKey: key, updateRefusal: refusal)
+        }
+        let requests = "requirements/requests@2.34.2|~/Real/script|requirements.txt"
+        let requirements = [
+            row("requests", "==2.31.0", "exact_pin", "2.31.0", "2.34.2", .updateAvailable, key: requests),
+            row("urllib3", "==1.26.18", "exact_pin", "1.26.18", "2.8.0", .updateAvailable,
+                key: "requirements/urllib3@2.8.0|~/Real/script|requirements.txt"),
+            row("PyYAML", "", "unpinned", "6.0.1", "6.0.3", .updateAvailable,
+                key: "requirements/PyYAML@6.0.3|~/Real/script|requirements.txt"),
+            row("rich", "~=13.7", "range", "13.7.1", "15.0.0", .updateAvailable,
+                refusal: "requirements.txt requires \"rich~=13.7\". That does not allow 15.0.0. Change it there first."),
+            row("pytest", ">=7.4,!=8.0.0", "range", "9.2.0", "9.2.0", .upToDate),
+            row("Flask", "==3.0.0", "exact_pin", nil, nil, .unknown, error: "PyPI did not respond."),
+        ]
+        switch scenario {
+        case .dependenciesCargo:
+            return DependencyList(project: "~/Projects/tool", supported: true, sections: [
+                DependencySection(manifest: "Cargo.toml", kind: "cargo", rows: [
+                    row("serde", "1.0.190", "range", "1.0.190", "1.0.229", .updateAvailable, label: "locked",
+                        key: "cargo/serde@1.0.229|~/Projects/tool|Cargo.lock"),
+                    row("smallvec", "1.11", "range", "1.11.0", "1.16.4", .updateAvailable, label: "locked",
+                        key: "cargo/smallvec@1.16.4|~/Projects/tool|Cargo.lock"),
+                    row("itoa", "=1.0.9", "exact_pin", "1.0.9", "1.0.18", .updateAvailable, label: "locked",
+                        refusal: "Cargo.toml requires itoa \"=1.0.9\". That does not allow 1.0.18. Change it there first."),
+                    row("memchr", "2.6", "range", "2.8.3", "2.8.3", .upToDate, label: "locked", table: "dev-dependencies"),
+                ], latestSource: source("crates.io")),
+            ])
+        case .dependenciesNone:
+            return DependencyList(project: "~/Projects/web-only", supported: false, sections: [])
+        case .dependenciesUnsupported:
+            let refusal = "requirements.txt with -r includes or hashes is not supported."
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: requirements.map { r in
+                    var r = r
+                    r.updateKey = nil
+                    r.updateRefusal = r.status == .updateAvailable ? refusal : nil
+                    return r
+                }, refusal: refusal, latestSource: source("PyPI")),
+            ])
+        case .dependenciesChecking, .dependenciesStopped:
+            // A project with many packages: the first answers are in, the rest are not asked yet.
+            var rows = Array(requirements.prefix(3))
+            rows += [row("click", ">=8.0,<9", "range", "8.1.7", nil, .unknown, pending: true),
+                     row("Jinja2", "==3.1.2", "exact_pin", "3.1.2", nil, .unknown, pending: true),
+                     row("Flask", "==3.0.0", "exact_pin", nil, nil, .unknown, error: "PyPI did not respond.")]
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: rows, pending: 2,
+                                  latestSource: source("PyPI"))], pending: 2)
+        case .dependenciesNoStable:
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: [
+                    row("requests", "==2.31.0", "exact_pin", "2.31.0", "2.34.2", .updateAvailable, key: requests),
+                    row("newlib", "==1.0.0rc1", "exact_pin", "1.0.0rc1", nil, .unknown, note: "No stable release."),
+                ], latestSource: source("PyPI"))])
+        case .dependenciesFinding:
+            var rows = requirements
+            rows.insert(row("click", ">=8.0,<9", "range", "8.1.7", "8.5.0", .vulnerable, key: "requirements/click@8.5.0|~/Real/script|requirements.txt",
+                            finding: "SEC-0012"), at: 0)
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: rows,
+                                  latestSource: source("PyPI", "PyPI did not respond."))])
+        default:
+            return DependencyList(project: "~/Real/script", supported: true, sections: [
+                DependencySection(manifest: "requirements.txt", kind: "requirements", rows: requirements,
+                                  latestSource: source("PyPI"))])
+        }
+    }
+
+    @MainActor
+    public static func dependencyModel(_ scenario: Scenario) -> DependencyModel {
+        let project = scenario == .dependenciesCargo ? dependencyProjects[1]
+            : scenario == .dependenciesNone ? dependencyProjects[2] : dependencyProjects[0]
+        let load: DependencyModel.Load = scenario == .dependenciesLoading ? .loading : .loaded(dependencyList(scenario))
+        return DependencyModel(client: PreviewEngine(), loads: [project.path: load],
+                               checking: scenario == .dependenciesChecking ? [project.path] : [])
+    }
 
     /// A Cargo plan with the real `cargo update` change of serde_derive (#15).
     public static func cargoPlan(refusal: String? = nil) -> UpdatePlan {
