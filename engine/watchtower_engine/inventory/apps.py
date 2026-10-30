@@ -18,6 +18,7 @@ from typing import Callable
 from ..discovery import display_path
 from ..feeds.homebrew import Catalog, Fetch, http_fetch, load_catalog
 from ..models import CoverageRecord, ItemRecord, utc_now
+from . import mas as mas_inventory
 from .homebrew import NOTE_SELF_UPDATE, SourceResult, version_key
 from .plist import read_plist, text
 
@@ -79,6 +80,9 @@ class Bundle:
     build: str | None = None
     architecture: str | None = None
     electron: str | None = None
+    store_receipt: bool = False  # The bundle has a Mac App Store receipt file.
+    feed_url: str | None = None  # SUFeedURL: the app's Sparkle appcast (#14).
+    bundle_version: str | None = None  # CFBundleVersion as it is, for the Sparkle compare.
     error: str | None = None  # Set if Info.plist could not be read.
     detail: str | None = None
 
@@ -182,6 +186,7 @@ def electron_runtimes(version: str) -> tuple[str, str] | None:
 
 def read_bundle(path: Path) -> Bundle:
     bundle = Bundle(path=path, name=path.name[: -len(".app")])
+    bundle.store_receipt = (path / "Contents" / "_MASReceipt" / "receipt").is_file()  # Never opened.
     plist = _info_plist(path)
     if plist is None:
         bundle.error, bundle.detail = ERROR_PLIST, "No Info.plist in the bundle."
@@ -195,7 +200,9 @@ def read_bundle(path: Path) -> Bundle:
     bundle.bundle_id = text(info.get("CFBundleIdentifier"))
     bundle.version = text(info.get("CFBundleShortVersionString")) or text(info.get("CFBundleVersion"))
     build = text(info.get("CFBundleVersion"))
+    bundle.bundle_version = build or bundle.version
     bundle.build = build if build != bundle.version else None
+    bundle.feed_url = text(info.get("SUFeedURL"))
     executable = text(info.get("CFBundleExecutable"))
     if executable and plist.parent.name == "Contents":
         bundle.architecture = mach_o_architectures(plist.parent / "MacOS" / executable)
@@ -348,9 +355,13 @@ def build_items(
     bundles: list[Bundle],
     casks: list[dict] | None = None,
     cask_items: list[ItemRecord] | None = None,
+    mas: mas_inventory.MasInventory | None = None,
     catalog: Catalog | None = None,
 ) -> list[ItemRecord]:
     """One item for each bundle. `casks` is the `casks` list of `brew info --json=v2 --installed`.
+
+    `mas` is the `mas list --json` answer. An app with a Mac App Store receipt that no cask claims
+    is an App Store app (#13).
 
     `catalog` is the public cask catalog. An app that no installed cask claims can match a catalog
     cask by bundle id or app file name (#55).
@@ -409,10 +420,13 @@ def build_items(
             item.detail = "Casks that claim this app: " + ", ".join(tokens) + "."
         elif tokens:
             item.detail = f"Cask {tokens[0]} matches more than one copy of this app."
-        elif catalog is not None and catalog.loaded and not b.error and b.version:
+        elif catalog is not None and catalog.loaded and not b.error and b.version and not b.store_receipt:
             match = match_catalog(b, catalog, copies_by_file[b.filename])
             if match:
                 apply_catalog_match(item, b, match, catalog)
+
+        if b.store_receipt and item.origin == ORIGIN_MANUAL:
+            mas_inventory.label_item(item, mas, b.bundle_id)
 
         group = by_id.get(b.bundle_id.lower(), []) if b.bundle_id else []
         if len(group) > 1:
@@ -439,6 +453,8 @@ def collect(
     cask_items: list[ItemRecord] | None = None,
     casks_error: str | None = None,
     casks_detail: str | None = None,
+    mas_reader: Callable[[], mas_inventory.MasInventory] | None = None,
+    sparkle_check: Callable | None = None,
     catalog_loader: Callable[[], Catalog] | None = None,
 ) -> SourceResult:
     """Read the bundles and build the items.
@@ -448,8 +464,11 @@ def collect(
     """
     paths, root_errors = find_bundles(roots)
     bundles = [read_bundle(p) for p in paths]
+    # mas runs only if an app has a receipt. It lists the apps and never checks for updates.
+    mas = mas_reader() if mas_reader and any(b.store_receipt for b in bundles) else None
     catalog = catalog_loader() if catalog_loader and bundles else None
-    items = build_items(bundles, casks, cask_items, catalog)
+    items = build_items(bundles, casks, cask_items, mas, catalog)
+    sparkle_coverage = sparkle_check(sparkle_targets(bundles, items)).coverage if sparkle_check else None
 
     problems, details = [], []
     for label, exc in root_errors:
@@ -467,13 +486,37 @@ def collect(
         problems.append(ERROR_CATALOG)
         if catalog.detail:
             details.append(catalog.detail)
+    store_problem = mas_inventory.coverage_problem(mas)
+    if store_problem:
+        problems.append(store_problem[0])
+        if store_problem[1]:
+            details.append(store_problem[1])
 
     if not problems:
         coverage = CoverageRecord(SOURCE, LABEL, "complete")
     else:
         state = "failed" if root_errors and not bundles else "partial"
         coverage = CoverageRecord(SOURCE, LABEL, state, error=" ".join(problems), detail="\n".join(details))
-    return SourceResult(coverage, items)
+    result = SourceResult(coverage, items)
+    if sparkle_coverage is not None:
+        result.extra_coverage = [sparkle_coverage]  # The refresh saves it as its own source.
+    return result
+
+
+def sparkle_targets(bundles: list[Bundle], items: list[ItemRecord]):
+    """App items with a Sparkle feed and no usable Homebrew answer (manual or unknown)."""
+    from .sparkle import Target
+
+    by_path = {str(b.path): b for b in bundles}
+    targets = []
+    for item in items:
+        b = by_path.get((item.attributes or {}).get("path", ""))
+        if b is None or not b.feed_url or b.error:
+            continue
+        if item.origin == ORIGIN_CASK and item.state not in ("unknown",):
+            continue  # Homebrew already gives a version for this app.
+        targets.append(Target(item, b.feed_url, b.bundle_version))
+    return targets
 
 
 def collect_live(
@@ -483,6 +526,7 @@ def collect_live(
     run: Callable = subprocess.run,
     fetch: Fetch = http_fetch,
     now: Callable[[], str] = utc_now,
+    sparkle_check: Callable | None = None,
 ) -> SourceResult:
     """Read the apps and link them to the Homebrew casks.
 
@@ -493,9 +537,12 @@ def collect_live(
     def catalog_loader() -> Catalog:
         return load_catalog("cask", data_dir, fetch, now)
 
+    def mas_reader() -> mas_inventory.MasInventory:
+        return mas_inventory.read_inventory(mas_inventory.find_mas(), run)
+
     brew = brew or homebrew.find_brew()
     if brew is None:
-        return collect(roots, catalog_loader=catalog_loader)
+        return collect(roots, mas_reader=mas_reader, sparkle_check=sparkle_check, catalog_loader=catalog_loader)
     answers: dict[tuple, object] = {}
 
     def run_once(args, **kwargs):
@@ -507,7 +554,9 @@ def collect_live(
     try:
         installed = homebrew.read_installed(brew, run_once)
     except Exception as exc:
-        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc), catalog_loader=catalog_loader)
+        return collect(roots, casks_error=ERROR_CASKS, casks_detail=repr(exc), mas_reader=mas_reader,
+                       sparkle_check=sparkle_check, catalog_loader=catalog_loader)
     casks = [c for c in installed.get("casks") or [] if c.get("installed")]
     cask_items = homebrew.collect(data_dir, brew=brew, run=run_once, fetch=fetch, now=now).items if casks else []
-    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"], catalog_loader=catalog_loader)
+    return collect(roots, casks, [i for i in cask_items if i.kind == "cask"], mas_reader=mas_reader,
+                   sparkle_check=sparkle_check, catalog_loader=catalog_loader)

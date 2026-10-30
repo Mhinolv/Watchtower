@@ -236,6 +236,7 @@ public enum SourceLabel {
 
     /// `macOS`, `Cask · acme/casks`. An unknown kind shows the engine's source label unchanged.
     public static func text(kind: String?, sourceLabel: String, origin: String?, project: String?) -> String {
+        if origin == "App Store" { return "App Store" }  // #13: the receipt, not the folder.
         let base = kind.flatMap { kinds[$0] } ?? sourceLabel
         if let extra = origin ?? project { return "\(base) · \(extra)" }
         return base

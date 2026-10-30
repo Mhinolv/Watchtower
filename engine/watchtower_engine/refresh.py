@@ -62,7 +62,7 @@ def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
 def default_sources(data_dir: Path) -> list[Source]:
     """Homebrew, Applications, macOS and OSV. `brew info` and the catalogs run once."""
     from .feeds import github, kev
-    from .inventory import apps, homebrew, macos
+    from .inventory import apps, homebrew, macos, sparkle
     from .scanners import osv
     from .scope import list_projects
 
@@ -98,7 +98,9 @@ def default_sources(data_dir: Path) -> list[Source]:
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
                lambda: homebrew.collect(data_dir, run=run_once, fetch=fetch_once)),
-        Source(apps.SOURCE, apps.LABEL, lambda: apps.collect_live(data_dir, run=run_once, fetch=fetch_once)),
+        Source(apps.SOURCE, apps.LABEL, lambda: apps.collect_live(
+            data_dir, run=run_once, fetch=fetch_once,
+            sparkle_check=lambda targets: sparkle.check(targets, data_dir))),
         Source(macos.SOURCE, macos.LABEL, macos.collect),
         Source(osv.SOURCE, osv.LABEL, osv_source),
         Source(kev.SOURCE, kev.LABEL, kev_source),
@@ -125,6 +127,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
                                                      error=ERROR_SOURCE.format(label=src.label),
                                                      detail=repr(exc)), [])
             coverage.append(result.coverage)
+            coverage.extend(getattr(result, "extra_coverage", []))  # For example Sparkle feeds (#14).
             items.extend(result.items)
             scan = getattr(result, "osv", None) or scan
             kev = getattr(result, "kev", None) or kev

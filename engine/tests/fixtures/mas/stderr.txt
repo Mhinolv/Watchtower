@@ -1,0 +1,5 @@
+Warning: Found a likely App Store app that is not indexed in Spotlight in /Applications/Xcode.app
+
+         Indexing now; will likely complete sometime after mas exits
+
+         Disable auto-indexing via: export MAS_NO_AUTO_INDEX=1

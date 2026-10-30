@@ -45,7 +45,7 @@ def folder(tmp_path):
 
 def items_for(root, catalog, casks=None, cask_items=None):
     bundles = [read_bundle(p) for p in sorted(root.glob("*.app"))]
-    return {i.name: i for i in build_items(bundles, casks, cask_items, catalog)}
+    return {i.name: i for i in build_items(bundles, casks, cask_items, catalog=catalog)}
 
 
 # The index reads the real catalog shape
@@ -195,7 +195,7 @@ def test_two_copies_match_by_bundle_id_only(folder, tmp_path):
     make_app(folder, "Hopper Disassembler.app", "com.cryptic-apps.hopper-web-4", "6.5.0")
     make_app(other, "Hopper Disassembler.app", "com.example.second", "6.5.0")
     bundles = [read_bundle(folder / "Hopper Disassembler.app"), read_bundle(other / "Hopper Disassembler.app")]
-    items = build_items(bundles, None, None, load_catalog("cask", tmp_path / "d", Fetch(), now=lambda: T1))
+    items = build_items(bundles, None, None, catalog=load_catalog("cask", tmp_path / "d", Fetch(), now=lambda: T1))
     by_id = {i.id: i for i in items}
     assert by_id["com.cryptic-apps.hopper-web-4"].latest_version == "6.6.1"
     assert by_id["com.example.second"].latest_version is None
