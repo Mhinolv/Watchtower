@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from watchtower_engine import cli
-from watchtower_engine.feeds.homebrew import URLS, Response
+from watchtower_engine.feeds.homebrew import URLS, Catalog, Response
 from watchtower_engine.inventory import apps, macos
 from watchtower_engine.inventory.apps import (
     Bundle, build_items, collect, collect_live, electron_runtimes, find_bundles,
@@ -441,7 +441,7 @@ def test_live_run_without_brew_links_nothing(tmp_path, folders, monkeypatch):
     system, _, roots = folders
     make_app(system, "Zed.app", "dev.zed.Zed")
     monkeypatch.setattr("watchtower_engine.inventory.homebrew.find_brew", lambda: None)
-    result = collect_live(tmp_path / "data", roots)
+    result = collect_live(tmp_path / "data", roots, fetch=FakeFetch(), now=lambda: T1)
     assert result.coverage.state == "complete"
     assert result.items[0].origin == "Manual"
 
@@ -455,9 +455,17 @@ def test_live_run_with_failing_brew_is_partial(tmp_path, folders):
     assert result.items[0].origin == "Manual"
 
 
-def test_live_run_with_no_casks_does_not_fetch_the_catalog(tmp_path, folders):
+def test_live_run_with_no_casks_fetches_the_catalog_once_for_the_apps(tmp_path, folders):
     system, _, roots = folders
     make_app(system, "Zed.app", "dev.zed.Zed")
+    fetch = FakeFetch()
+    collect_live(tmp_path / "data", roots, brew="/fake/brew",
+                 run=FakeRun({"formulae": [], "casks": []}), fetch=fetch, now=lambda: T1)
+    assert fetch.calls == [URLS["cask"]]  # #55: the apps match the public catalog.
+
+
+def test_live_run_with_no_apps_does_not_fetch_the_catalog(tmp_path, folders):
+    _, _, roots = folders
     fetch = FakeFetch()
     collect_live(tmp_path / "data", roots, brew="/fake/brew",
                  run=FakeRun({"formulae": [], "casks": []}), fetch=fetch)
@@ -527,6 +535,7 @@ def test_apps_command_prints_coverage_and_items(tmp_path, capsys, monkeypatch):
     make_app(home / "Applications", "Mine.app", "com.example.mine")
     monkeypatch.setattr(apps, "APP_ROOTS", (str(tmp_path / "none"), "~/Applications"))
     monkeypatch.setattr("watchtower_engine.inventory.homebrew.find_brew", lambda: None)
+    monkeypatch.setattr(apps, "load_catalog", lambda *a, **k: Catalog("cask", fetched_at=T1, fresh=True))
     real = apps.collect_live
     monkeypatch.setattr(apps, "collect_live", lambda data_dir, **kw: real(data_dir, apps.APP_ROOTS, **kw))
     assert cli.main(["--data-dir", str(tmp_path / "data"), "apps"]) == 0
