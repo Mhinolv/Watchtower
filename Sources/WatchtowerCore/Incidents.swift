@@ -42,6 +42,28 @@ public enum IncidentStatus: String, Codable, Sendable, CaseIterable {
     }
 }
 
+/// The details of a Have I Been Pwned breach (#60). The text comes from a public list: show it as text only.
+public struct BreachDetails: Codable, Hashable, Sendable {
+    /// `2024-06-04`.
+    public var breachDate: String?
+    /// The day HIBP added the breach: `2026-10-27`.
+    public var addedDate: String?
+    public var dataClasses: [String]
+    public var pwnCount: Int?
+    public var domain: String?
+    public var verified: Bool
+
+    public init(breachDate: String? = nil, addedDate: String? = nil, dataClasses: [String] = [],
+                pwnCount: Int? = nil, domain: String? = nil, verified: Bool = true) {
+        self.breachDate = breachDate
+        self.addedDate = addedDate
+        self.dataClasses = dataClasses
+        self.pwnCount = pwnCount
+        self.domain = domain
+        self.verified = verified
+    }
+}
+
 public struct IncidentRecord: Codable, Hashable, Sendable, Identifiable {
     /// `INC-0001`.
     public var id: String
@@ -58,10 +80,15 @@ public struct IncidentRecord: Codable, Hashable, Sendable, Identifiable {
     public var cves: [String]
     public var firstSeen: Date
     public var lastSeen: Date
+    /// Have I Been Pwned rows only (#60).
+    public var breach: BreachDetails?
+    /// A breach row that the newest check added. nil for an older engine.
+    public var isNew: Bool?
 
     public init(id: String, source: String, service: String, title: String, summary: String = "",
                 published: String?, status: IncidentStatus, sourceName: String, url: String? = nil,
-                cves: [String] = [], firstSeen: Date, lastSeen: Date) {
+                cves: [String] = [], firstSeen: Date, lastSeen: Date, breach: BreachDetails? = nil,
+                isNew: Bool? = nil) {
         self.id = id
         self.source = source
         self.service = service
@@ -74,6 +101,18 @@ public struct IncidentRecord: Codable, Hashable, Sendable, Identifiable {
         self.cves = cves
         self.firstSeen = firstSeen
         self.lastSeen = lastSeen
+        self.breach = breach
+        self.isNew = isNew
+    }
+
+    /// The Date column: the breach date for a breach row, else the date of the source.
+    public func dateText(time: TimeText = TimeText()) -> String {
+        published.map { time.day($0) } ?? "—"
+    }
+
+    /// The second line of the Date column: `Added to HIBP Oct 27`.
+    public func addedText(time: TimeText = TimeText()) -> String? {
+        breach?.addedDate.map { "Added to HIBP \(time.day($0))" }
     }
 
     /// The link, only if it is an https link. The engine already checks the host.
@@ -210,6 +249,12 @@ public struct IncidentSourceRow: Equatable, Sendable, Identifiable {
         case .complete:
             return IncidentSourceRow(id: s.source, label: s.label, badge: "Checked", tone: .green,
                                      symbol: "checkmark.circle", lastSuccess: last, error: nil)
+        case .failed where s.source == "hibp":
+            // The earlier rows stay. The text names the day of the data that they come from.
+            let data = s.lastSuccessAt.map { " Data from \(time.day($0))." } ?? ""
+            return IncidentSourceRow(id: s.source, label: s.label, badge: "Failed", tone: .orange,
+                                     symbol: "exclamationmark.triangle", lastSuccess: last,
+                                     error: "Have I Been Pwned: check failed.\(data)")
         case .failed:
             return IncidentSourceRow(id: s.source, label: s.label, badge: "Failed", tone: .orange,
                                      symbol: "exclamationmark.triangle", lastSuccess: last,
@@ -355,6 +400,27 @@ public final class IncidentModel {
     public var showsEmptyResult: Bool {
         guard let state else { return false }
         return state.incidents.isEmpty && state.review.windowEnd != nil
+    }
+
+    /// The Have I Been Pwned check finished and no breach is listed for a watched service (#60).
+    public var hibpEmptyNote: String? {
+        guard let state, let hibp = state.sources.first(where: { $0.source == "hibp" }), hibp.state == .complete,
+              !state.incidents.contains(where: { $0.source == "hibp" }) else { return nil }
+        return "No breaches listed for GitHub or Google / Gmail. This does not prove that no breach happened."
+    }
+
+    /// The rows of the detail pane of a breach: date, data, accounts, domain and where the data comes from.
+    public func breachRows(_ incident: IncidentRecord, time: TimeText = TimeText()) -> [(label: String, value: String)] {
+        guard let breach = incident.breach else { return [] }
+        var rows: [(String, String)] = []
+        rows.append(("Breach date", breach.breachDate.map { time.fullDay($0) } ?? "Not given"))
+        rows.append(("Data exposed", breach.dataClasses.isEmpty ? "Not given" : breach.dataClasses.joined(separator: ", ")))
+        rows.append(("Accounts", breach.pwnCount.map { $0.formatted(.number.grouping(.automatic)) } ?? "Not given"))
+        rows.append(("Domain", breach.domain ?? "Not given"))
+        let source = state?.sources.first { $0.source == incident.source }
+        let when = (source?.lastSuccessAt).map { ", retrieved \(time.absolute($0))" } ?? ""
+        rows.append(("Data", "Have I Been Pwned\(when)"))
+        return rows.map { (label: $0.0, value: $0.1) }
     }
 
     public static let emptyTitle = "No incidents found in reviewed sources."

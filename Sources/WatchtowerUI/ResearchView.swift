@@ -99,6 +99,9 @@ public struct IncidentsView: View {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(model.sourceRows()) { SourceCard(row: $0) }
             }
+            if let note = model.hibpEmptyNote {
+                Text(note).font(.callout).foregroundStyle(.secondary)
+            }
             Text("Incidents").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             table
         }
@@ -114,12 +117,24 @@ public struct IncidentsView: View {
             Table(rows, selection: $model.selectedID) {
                 TableColumn("Service") { i in Text(i.service).fontWeight(.semibold).lineLimit(2) }
                     .width(min: 64, ideal: 78)
-                TableColumn("Title") { i in Text(i.title).lineLimit(2) }
-                    .width(min: 100, ideal: 150)
-                TableColumn("Date") { i in
-                    Text(i.published.map { TimeText().day($0) } ?? "—").foregroundStyle(.secondary)
+                TableColumn("Title") { i in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i.title).lineLimit(2)
+                        if i.isNew == true {
+                            Text("New").font(.caption.weight(.semibold)).foregroundStyle(Color.watchtowerAccent)
+                        }
+                    }
                 }
-                .width(min: 44, ideal: 52)
+                .width(min: 100, ideal: 150)
+                TableColumn("Date") { i in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i.dateText()).foregroundStyle(.secondary)
+                        if let added = i.addedText() {
+                            Text(added).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                    }
+                }
+                .width(min: 84, ideal: 96)
                 TableColumn("Status") { i in IncidentStatusBadge(status: i.status) }
                     .width(min: 128, ideal: 138)
                 TableColumn("Source") { i in
@@ -150,6 +165,7 @@ public struct IncidentsView: View {
 /// as plain text, and the link opens only in the browser.
 struct IncidentDetail: View {
     let incident: IncidentRecord
+    var breachRows: [(label: String, value: String)] = []
     private let time = TimeText()
 
     var body: some View {
@@ -162,13 +178,15 @@ struct IncidentDetail: View {
                 Text(incident.status.meaning).foregroundStyle(.secondary)
                 Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Service", incident.service)
-                    row("Date", incident.published.map { time.day($0) } ?? "Not given by the source")
-                    row("Source", incident.sourceName)
-                    row("First seen", time.absolute(incident.firstSeen))
-                    if !incident.cves.isEmpty {
-                        row("CVE", incident.cves.joined(separator: ", "))
+                    if incident.breach != nil {
+                        ForEach(breachRows, id: \.label) { row($0.label, $0.value) }
                     } else {
-                        row("CVE", "None named")
+                        row("Date", incident.published.map { time.day($0) } ?? "Not given by the source")
+                        row("Source", incident.sourceName)
+                    }
+                    row("First seen", time.absolute(incident.firstSeen))
+                    if incident.breach == nil {
+                        row("CVE", incident.cves.isEmpty ? "None named" : incident.cves.joined(separator: ", "))
                     }
                 }
                 if !incident.summary.isEmpty {
@@ -177,8 +195,16 @@ struct IncidentDetail: View {
                 if let link = incident.link {
                     Link(destination: link) { Label("Open the source page", systemImage: "arrow.up.right.square") }
                 }
-                Text("Watchtower does not know if this affects your accounts.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if incident.breach != nil {
+                    // Watchtower never checks an account. The owner does that on the HIBP site.
+                    (Text("Watchtower does not check your account. Visit ")
+                        + Text("[haveibeenpwned.com](https://haveibeenpwned.com)")
+                        + Text(" to check it yourself."))
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Watchtower does not know if this affects your accounts.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
