@@ -1,0 +1,4705 @@
+[
+ {
+  "token": "t3-code",
+  "full_token": "t3-code",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "T3 Code"
+  ],
+  "desc": "Minimal GUI for AI code agents",
+  "homepage": "https://t3.codes/",
+  "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-arm64.dmg",
+  "url_specs": {},
+  "version": "0.1.5",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "d81fd31f041ed03a30d2b412b6d930d297b3f6abef6fca966d3390ee0afae905",
+  "artifacts": [
+   {
+    "app": [
+     "T3 Code (Beta).app"
+    ],
+    "target": "/Applications/T3 Code (Beta).app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.t3/userdata",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.t3tools.t3code.sfl*",
+       "~/Library/Application Support/T3 Code (Alpha)",
+       "~/Library/Application Support/t3code",
+       "~/Library/Application Support/t3code-v2",
+       "~/Library/Caches/com.t3tools.t3code",
+       "~/Library/HTTPStorages/com.t3tools.t3code",
+       "~/Library/Preferences/com.t3tools.t3code.plist",
+       "~/Library/Saved Application State/com.t3tools.t3code.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/t/t3-code.rb",
+  "ruby_source_checksum": {
+   "sha256": "6000fefeacbf8505d1b060e812a8d517e646fc078bd508c3affdff8079d2ad35"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "tahoe": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "sequoia": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "sonoma": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "ventura": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "monterey": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "big_sur": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x64.dmg",
+    "sha256": "cc07e075b193b06de93096c6031c8caba1228706a9cf1e3d07d14ee87642a45e"
+   },
+   "x86_64_linux": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-x86_64.AppImage",
+    "sha256": "933ff9dc4c650a75aa4087c98f2ae6c6540c233f0e2feb32ebff950b09be849d",
+    "artifacts": [
+     {
+      "app_image": [
+       "T3-Code-0.1.5-x86_64.AppImage",
+       {
+        "target": "T3 Code.AppImage"
+       }
+      ],
+      "target": "/$HOME/Applications/T3 Code.AppImage"
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "auto_updates": null
+   },
+   "arm64_linux": {
+    "url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-arm64.AppImage",
+    "sha256": null,
+    "artifacts": [
+     {
+      "app_image": [
+       "T3-Code-0.1.5-arm64.AppImage",
+       {
+        "target": "T3 Code.AppImage"
+       }
+      ],
+      "target": "/$HOME/Applications/T3 Code.AppImage"
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "auto_updates": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "x86_64_linux"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "t3-code": 4420
+    },
+    "90d": {
+     "t3-code": 8375
+    },
+    "365d": {
+     "t3-code": 15067
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "hopper-disassembler",
+  "full_token": "hopper-disassembler",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Hopper Disassembler"
+  ],
+  "desc": "Reverse engineering tool that lets you disassemble, decompile and debug your app",
+  "homepage": "https://www.hopperapp.com/",
+  "url": "https://www.hopperapp.com/downloader/public/Hopper-6.6.1-demo.dmg",
+  "url_specs": {
+   "user_agent": ":browser"
+  },
+  "version": "6.6.1",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "164970efae0f60e622b08ac1f74037c3abe7269d99b00d5772e7b3342f826f7b",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": "com.cryptic-apps.ExternalAPI",
+      "quit": "com.cryptic-apps.hopper-web-4"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Hopper Disassembler.app"
+    ],
+    "target": "/Applications/Hopper Disassembler.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.cryptic-apps.hopper-web-4.sfl*",
+       "~/Library/Application Support/Hopper Disassembler v4",
+       "~/Library/Application Support/Hopper",
+       "~/Library/Caches/com.apple.helpd/Generated/com.cryptic-apps.hopper-web-4.help*",
+       "~/Library/Caches/com.cryptic-apps.hopper-web-4",
+       "~/Library/HTTPStorages/com.cryptic-apps.hopper-web-4",
+       "~/Library/Preferences/com.cryptic-apps.hopper-web-4.plist",
+       "~/Library/Saved Application State/com.cryptic-apps.hopper-web-4.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "12"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/h/hopper-disassembler.rb",
+  "ruby_source_checksum": {
+   "sha256": "f34ad13d4bf63019c67a963e3ecc9bcf57ed812685f77d680e5f09f9c46692fd"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "hopper-disassembler": 1108
+    },
+    "90d": {
+     "hopper-disassembler": 1240
+    },
+    "365d": {
+     "hopper-disassembler": 2209
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "zed",
+  "full_token": "zed",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Zed"
+  ],
+  "desc": "Multiplayer code editor",
+  "homepage": "https://zed.dev/",
+  "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-aarch64.dmg",
+  "url_specs": {},
+  "version": "1.26.2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "4632b670da78371fef5a0e417918d7b42bfc333e291ae86ab6b758d635c6be81",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "dev.zed.Zed"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Zed.app"
+    ],
+    "target": "/Applications/Zed.app"
+   },
+   {
+    "binary": [
+     "$APPDIR/Zed.app/Contents/MacOS/cli",
+     {
+      "target": "zed"
+     }
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/zed"
+   },
+   {
+    "generate_completions_from_executable": [
+     "$HOMEBREW_PREFIX/bin/zed",
+     "--completions",
+     {
+      "base_name": null,
+      "shell_parameter_format": null,
+      "shells": [
+       "bash",
+       "zsh",
+       "fish",
+       "pwsh"
+      ]
+     }
+    ]
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.config/zed",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/dev.zed.zed.sfl*",
+       "~/Library/Application Support/Zed",
+       "~/Library/Caches/dev.zed.Zed",
+       "~/Library/Caches/Zed",
+       "~/Library/HTTPStorages/dev.zed.Zed",
+       "~/Library/Logs/Zed",
+       "~/Library/Preferences/dev.zed.Zed.plist",
+       "~/Library/Saved Application State/dev.zed.Zed.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {},
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/z/zed.rb",
+  "ruby_source_checksum": {
+   "sha256": "0354bf922850745b3975c73b829db9ce02d122e605acd30f221690fe1418e830"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "tahoe": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "sequoia": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "sonoma": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "ventura": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "monterey": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "big_sur": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/Zed-x86_64.dmg",
+    "sha256": "3a34904105cae732a7fa9a1c708b7994ad09f11b679ce20c585eca4a61cd5f53"
+   },
+   "x86_64_linux": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/zed-linux-x86_64.tar.gz",
+    "sha256": "4d7b972019f25bd0a8cc6f4c56c81ab7ad9205f3461d00ac79259b34a03856d2",
+    "artifacts": [
+     {
+      "preflight_steps": [
+       {
+        "steps": [
+         {
+          "path": {
+           "base": "staged_path",
+           "path": "zed.app/share/applications/dev.zed.Zed.desktop"
+          },
+          "type": "inreplace",
+          "after": "Exec={{HOMEBREW_PREFIX}}/bin/zed",
+          "before": "Exec=zed"
+         },
+         {
+          "path": {
+           "base": "staged_path",
+           "path": "zed.app/share/applications/dev.zed.Zed.desktop"
+          },
+          "type": "inreplace",
+          "after": "Icon={{staged_path}}/zed.app/share/icons/hicolor/512x512/apps/zed.png",
+          "before": "Icon=zed"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "artifact": [
+       "zed.app/share/applications/dev.zed.Zed.desktop",
+       {
+        "target": "~/.local/share/applications/dev.zed.Zed.desktop"
+       }
+      ],
+      "target": "/$HOME/.local/share/applications/dev.zed.Zed.desktop"
+     },
+     {
+      "binary": [
+       "zed.app/bin/zed"
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zed"
+     },
+     {
+      "generate_completions_from_executable": [
+       "$HOMEBREW_PREFIX/bin/zed",
+       "--completions",
+       {
+        "base_name": null,
+        "shell_parameter_format": null,
+        "shells": [
+         "bash",
+         "zsh",
+         "fish",
+         "pwsh"
+        ]
+       }
+      ]
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.cache/zed",
+         "~/.config/zed",
+         "~/.local/share/zed"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "arm64_linux": {
+    "url": "https://github.com/zed-industries/zed/releases/download/v1.26.2/zed-linux-aarch64.tar.gz",
+    "sha256": "167c53a4b1ea13a788e6281269ccf0421b7fe77186267b4cd3d91e06a6fba928",
+    "artifacts": [
+     {
+      "preflight_steps": [
+       {
+        "steps": [
+         {
+          "path": {
+           "base": "staged_path",
+           "path": "zed.app/share/applications/dev.zed.Zed.desktop"
+          },
+          "type": "inreplace",
+          "after": "Exec={{HOMEBREW_PREFIX}}/bin/zed",
+          "before": "Exec=zed"
+         },
+         {
+          "path": {
+           "base": "staged_path",
+           "path": "zed.app/share/applications/dev.zed.Zed.desktop"
+          },
+          "type": "inreplace",
+          "after": "Icon={{staged_path}}/zed.app/share/icons/hicolor/512x512/apps/zed.png",
+          "before": "Icon=zed"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "artifact": [
+       "zed.app/share/applications/dev.zed.Zed.desktop",
+       {
+        "target": "~/.local/share/applications/dev.zed.Zed.desktop"
+       }
+      ],
+      "target": "/$HOME/.local/share/applications/dev.zed.Zed.desktop"
+     },
+     {
+      "binary": [
+       "zed.app/bin/zed"
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zed"
+     },
+     {
+      "generate_completions_from_executable": [
+       "$HOMEBREW_PREFIX/bin/zed",
+       "--completions",
+       {
+        "base_name": null,
+        "shell_parameter_format": null,
+        "shells": [
+         "bash",
+         "zsh",
+         "fish",
+         "pwsh"
+        ]
+       }
+      ]
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.cache/zed",
+         "~/.config/zed",
+         "~/.local/share/zed"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur",
+   "x86_64_linux",
+   "arm64_linux"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "zed": 8963
+    },
+    "90d": {
+     "zed": 22157
+    },
+    "365d": {
+     "zed": 111982
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "firefox",
+  "full_token": "firefox",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Mozilla Firefox"
+  ],
+  "desc": "Web browser",
+  "homepage": "https://www.mozilla.org/firefox/",
+  "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/en-US/Firefox%20159.0.dmg",
+  "url_specs": {},
+  "version": "159.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": "15826.10.19",
+  "bundle_short_version": "158.0.1",
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "0772404ae6e068d7cc03cecf4bb06a855f10287a77b624ffa41c6d092a64ea13",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "org.mozilla.firefox"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Firefox.app"
+    ],
+    "target": "/Applications/Firefox.app"
+   },
+   {
+    "command_wrapper": [
+     "firefox",
+     {
+      "executable": "$APPDIR/Firefox.app/Contents/MacOS/firefox"
+     }
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/firefox"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Logs/DiagnosticReports/firefox_*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/org.mozilla.firefox.sfl*",
+       "~/Library/Application Support/CrashReporter/firefox_*",
+       "~/Library/Application Support/Firefox",
+       "~/Library/Caches/Firefox",
+       "~/Library/Caches/Mozilla/updates/Applications/Firefox",
+       "~/Library/Caches/org.mozilla.crashreporter",
+       "~/Library/Caches/org.mozilla.firefox",
+       "~/Library/Preferences/org.mozilla.crashreporter.plist",
+       "~/Library/Preferences/org.mozilla.firefox.plist",
+       "~/Library/Saved Application State/org.mozilla.firefox.savedState",
+       "~/Library/WebKit/org.mozilla.firefox"
+      ],
+      "rmdir": [
+       "~/Library/Application Support/Mozilla",
+       "~/Library/Caches/Mozilla",
+       "~/Library/Caches/Mozilla/updates",
+       "~/Library/Caches/Mozilla/updates/Applications"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "firefox@beta",
+    "firefox@cn",
+    "firefox@esr"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [
+   "ach",
+   "af",
+   "an",
+   "ar",
+   "ast",
+   "az",
+   "be",
+   "bg",
+   "bn",
+   "br",
+   "bs",
+   "ca",
+   "cak",
+   "cs",
+   "cy",
+   "da",
+   "de",
+   "dsb",
+   "el",
+   "en-CA",
+   "en-GB",
+   "en",
+   "eo",
+   "es-AR",
+   "es-CL",
+   "es-ES",
+   "es-MX",
+   "et",
+   "eu",
+   "fa",
+   "ff",
+   "fi",
+   "fr",
+   "fur",
+   "fy",
+   "ga",
+   "gd",
+   "gl",
+   "gn",
+   "gu",
+   "he",
+   "hi",
+   "hr",
+   "hsb",
+   "hu",
+   "hy",
+   "ia",
+   "id",
+   "in",
+   "is",
+   "it",
+   "ja",
+   "ka",
+   "kab",
+   "kk",
+   "km",
+   "kn",
+   "ko",
+   "lij",
+   "lt",
+   "lv",
+   "mk",
+   "mr",
+   "ms",
+   "my",
+   "nb",
+   "ne",
+   "nl",
+   "nn",
+   "oc",
+   "pa-IN",
+   "pl",
+   "pt-BR",
+   "pt",
+   "rm",
+   "ro",
+   "ru",
+   "sat",
+   "sc",
+   "sco",
+   "si",
+   "sk",
+   "skr",
+   "sl",
+   "son",
+   "sq",
+   "sr",
+   "sv",
+   "szl",
+   "ta",
+   "te",
+   "tg",
+   "th",
+   "tl",
+   "tr",
+   "trs",
+   "uk",
+   "ur",
+   "uz",
+   "vi",
+   "xh",
+   "zh-TW",
+   "zh"
+  ],
+  "ruby_source_path": "Casks/f/firefox.rb",
+  "ruby_source_checksum": {
+   "sha256": "8ff27198d77626d6ecd8da09b6f1ca79ffc8859bc5e0b2d1cb356e40399d5e4a"
+  },
+  "language_variations": [
+   {
+    "languages": [
+     "ach"
+    ],
+    "default": false,
+    "value": "ach",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ach/Firefox%20159.0.dmg",
+    "sha256": "e1aca85ab36f17c88d751a2f058fdb327cd4ada39b46863c3146364de3ba6c03"
+   },
+   {
+    "languages": [
+     "af"
+    ],
+    "default": false,
+    "value": "af",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/af/Firefox%20159.0.dmg",
+    "sha256": "62337b4ee5e42270d5eebf6688e9a61f4f3f7880b5d949ec59410fbfbd1771db"
+   },
+   {
+    "languages": [
+     "an"
+    ],
+    "default": false,
+    "value": "an",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/an/Firefox%20159.0.dmg",
+    "sha256": "5199d5eeba43c0335e13f5360ca4fcc9bbcbd4d5e693d6de6cb5acb3bb5dc9dd"
+   },
+   {
+    "languages": [
+     "ar"
+    ],
+    "default": false,
+    "value": "ar",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ar/Firefox%20159.0.dmg",
+    "sha256": "76294da7c30137ad33ce37abc86b7ecc3323c6601b5079538ed48563bd3c4119"
+   },
+   {
+    "languages": [
+     "ast"
+    ],
+    "default": false,
+    "value": "ast",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ast/Firefox%20159.0.dmg",
+    "sha256": "92928f5d8215ba587156950837672b9a4c5b3842df46b580be3d354a34c39155"
+   },
+   {
+    "languages": [
+     "az"
+    ],
+    "default": false,
+    "value": "az",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/az/Firefox%20159.0.dmg",
+    "sha256": "71e15f24e7dfbcac0ce0afc9d35d4bb515621ff962402d7ec5edf095a1319cc3"
+   },
+   {
+    "languages": [
+     "be"
+    ],
+    "default": false,
+    "value": "be",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/be/Firefox%20159.0.dmg",
+    "sha256": "14bd34cf7d25a01c4e207f9c2f8fbb9f1619f44b8d18a747298312f9fd9b5fda"
+   },
+   {
+    "languages": [
+     "bg"
+    ],
+    "default": false,
+    "value": "bg",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/bg/Firefox%20159.0.dmg",
+    "sha256": "adc33b66a564c38618c7347aa777b3d9c605c356c594d7b90fa72b73c474f4ce"
+   },
+   {
+    "languages": [
+     "bn"
+    ],
+    "default": false,
+    "value": "bn",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/bn/Firefox%20159.0.dmg",
+    "sha256": "b6fda24014ebbb0ea3a8bc1e78658b5135da4c42738f2d64ac76ffdb1e534468"
+   },
+   {
+    "languages": [
+     "br"
+    ],
+    "default": false,
+    "value": "br",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/br/Firefox%20159.0.dmg",
+    "sha256": "7fe457be3fd61e22a4a4d019d807f5a3d96304c41b7fc3c56e8a758dd76b174b"
+   },
+   {
+    "languages": [
+     "bs"
+    ],
+    "default": false,
+    "value": "bs",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/bs/Firefox%20159.0.dmg",
+    "sha256": "ef00215085d856b1b420b6292db99b5227747cb21821533b8bbb1da10a529bbf"
+   },
+   {
+    "languages": [
+     "ca"
+    ],
+    "default": false,
+    "value": "ca",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ca/Firefox%20159.0.dmg",
+    "sha256": "c1a0ca0412758f870ba71edec93eaa10a59b8d9ac041f2a7032330c4774a4adf"
+   },
+   {
+    "languages": [
+     "cak"
+    ],
+    "default": false,
+    "value": "cak",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/cak/Firefox%20159.0.dmg",
+    "sha256": "0d4449751aa1e3213117fd5676dc2cbb85f569004bb2c70835e71e1e6130e83c"
+   },
+   {
+    "languages": [
+     "cs"
+    ],
+    "default": false,
+    "value": "cs",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/cs/Firefox%20159.0.dmg",
+    "sha256": "0081c87d2d66c08acda93d0bb826385e2d3e59e2463e63baffd462c4c05c753f"
+   },
+   {
+    "languages": [
+     "cy"
+    ],
+    "default": false,
+    "value": "cy",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/cy/Firefox%20159.0.dmg",
+    "sha256": "a3a6268ef92b97c944dc5ba9a8a00a3f29367db64ec42a3efe995bfd40ebda5b"
+   },
+   {
+    "languages": [
+     "da"
+    ],
+    "default": false,
+    "value": "da",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/da/Firefox%20159.0.dmg",
+    "sha256": "6fd525956eccf38f5241ca41675ce5433a9980610832f8d68b302b9dd1c80da1"
+   },
+   {
+    "languages": [
+     "de"
+    ],
+    "default": false,
+    "value": "de",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/de/Firefox%20159.0.dmg",
+    "sha256": "22eb58c1009a7d40ac28a5594c960339235b31c8ed73015c3a761d17057043f5"
+   },
+   {
+    "languages": [
+     "dsb"
+    ],
+    "default": false,
+    "value": "dsb",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/dsb/Firefox%20159.0.dmg",
+    "sha256": "bd2c347596bbd0657a5c846d8ad0911f762c46950133fac576b0debfdf2b658d"
+   },
+   {
+    "languages": [
+     "el"
+    ],
+    "default": false,
+    "value": "el",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/el/Firefox%20159.0.dmg",
+    "sha256": "94e42a1b4a429159cf1aa3a26ecdb09f2837f7bcbd1e6f209075800720b2477f"
+   },
+   {
+    "languages": [
+     "en-CA"
+    ],
+    "default": false,
+    "value": "en-CA",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/en-CA/Firefox%20159.0.dmg",
+    "sha256": "8765a36dd697e8bf6ec45270f1a0672780f893d0d56663b6a01ce7718b294e99"
+   },
+   {
+    "languages": [
+     "en-GB"
+    ],
+    "default": false,
+    "value": "en-GB",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/en-GB/Firefox%20159.0.dmg",
+    "sha256": "0145472481d9f22edcc5fe8b83c6fb744156aa1dccb69da264a26042abd02ef9"
+   },
+   {
+    "languages": [
+     "en"
+    ],
+    "default": true,
+    "value": "en-US"
+   },
+   {
+    "languages": [
+     "eo"
+    ],
+    "default": false,
+    "value": "eo",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/eo/Firefox%20159.0.dmg",
+    "sha256": "5870ae64ccc82697b6705993a1ae3c96fa74be9210bb5d5edc688d3ad5982aaf"
+   },
+   {
+    "languages": [
+     "es-AR"
+    ],
+    "default": false,
+    "value": "es-AR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/es-AR/Firefox%20159.0.dmg",
+    "sha256": "cc49c20968767d9c641435617a65510595bc1409d9e8599ab190922c67471e56"
+   },
+   {
+    "languages": [
+     "es-CL"
+    ],
+    "default": false,
+    "value": "es-CL",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/es-CL/Firefox%20159.0.dmg",
+    "sha256": "a84ae883501924c6f7e06abe4ed434fb256af1667307d287109c8c554204bbc1"
+   },
+   {
+    "languages": [
+     "es-ES"
+    ],
+    "default": false,
+    "value": "es-ES",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/es-ES/Firefox%20159.0.dmg",
+    "sha256": "a0618ae789be3aed63d4729534bd2b6e1da0d2c1a29793511d80b720e0dd4271"
+   },
+   {
+    "languages": [
+     "es-MX"
+    ],
+    "default": false,
+    "value": "es-MX",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/es-MX/Firefox%20159.0.dmg",
+    "sha256": "9028a55043207118878a026a5baa0f09ae2ecd07b05820592b2fe029d87b4852"
+   },
+   {
+    "languages": [
+     "et"
+    ],
+    "default": false,
+    "value": "et",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/et/Firefox%20159.0.dmg",
+    "sha256": "96a8f3e4d8e923d430f0e8df1816b7094770a10fe7308ac6ff0fc7c87d51e341"
+   },
+   {
+    "languages": [
+     "eu"
+    ],
+    "default": false,
+    "value": "eu",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/eu/Firefox%20159.0.dmg",
+    "sha256": "a78a64a90407abd0e83470aaef52a77d31fb9ce6a0b2729dae1c71f4d8544c96"
+   },
+   {
+    "languages": [
+     "fa"
+    ],
+    "default": false,
+    "value": "fa",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/fa/Firefox%20159.0.dmg",
+    "sha256": "d0503be54c7b663dd35a50feb4969a87168d9ab5dc844ac3d80d71e200cb05f3"
+   },
+   {
+    "languages": [
+     "ff"
+    ],
+    "default": false,
+    "value": "ff",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ff/Firefox%20159.0.dmg",
+    "sha256": "c90c736b516342d4c8de334d10bb9ab1fb82fc1aeb7798db9d19512bc5c8a3cc"
+   },
+   {
+    "languages": [
+     "fi"
+    ],
+    "default": false,
+    "value": "fi",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/fi/Firefox%20159.0.dmg",
+    "sha256": "83eb8d8d5db2af2aa38f12333f4cdc913e2d189fe517b41672e777b36a444de8"
+   },
+   {
+    "languages": [
+     "fr"
+    ],
+    "default": false,
+    "value": "fr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/fr/Firefox%20159.0.dmg",
+    "sha256": "19351720be7d86a9068ebb14fd250b824610cf291ef828778bb648b122f8f020"
+   },
+   {
+    "languages": [
+     "fur"
+    ],
+    "default": false,
+    "value": "fur",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/fur/Firefox%20159.0.dmg",
+    "sha256": "4b2cd7dd73be4de54d3901b98f57f7d62ef7f6acfeee82025a5cc4826fe5e6ab"
+   },
+   {
+    "languages": [
+     "fy"
+    ],
+    "default": false,
+    "value": "fy-NL",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/fy-NL/Firefox%20159.0.dmg",
+    "sha256": "ca608db5d39ded90f77c0435eda6f7ad5f9f78914185607ad82757cc5eb26089"
+   },
+   {
+    "languages": [
+     "ga"
+    ],
+    "default": false,
+    "value": "ga-IE",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ga-IE/Firefox%20159.0.dmg",
+    "sha256": "7e8509a27b80170997175556bfc44d7792773c75dfe4d4fe3172ef5a746c3457"
+   },
+   {
+    "languages": [
+     "gd"
+    ],
+    "default": false,
+    "value": "gd",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/gd/Firefox%20159.0.dmg",
+    "sha256": "01b9fff0fcc40cdc9e8d8c8c1343a5e5caaef88b25e68f6d5c3054b5de0eb535"
+   },
+   {
+    "languages": [
+     "gl"
+    ],
+    "default": false,
+    "value": "gl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/gl/Firefox%20159.0.dmg",
+    "sha256": "a47ed2325291a22d27adf27e0b82ee03c266ccc024476baa707d4e5c8d9ca821"
+   },
+   {
+    "languages": [
+     "gn"
+    ],
+    "default": false,
+    "value": "gn",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/gn/Firefox%20159.0.dmg",
+    "sha256": "f6ebf5f76e6e03409c0ed2e4c87e6a58d311ff7eafab9d7141645a837b4e920b"
+   },
+   {
+    "languages": [
+     "gu"
+    ],
+    "default": false,
+    "value": "gu-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/gu-IN/Firefox%20159.0.dmg",
+    "sha256": "3c802dd571f81eefda379695068643b27ff51fbadd0298d74daf258a3091299d"
+   },
+   {
+    "languages": [
+     "he"
+    ],
+    "default": false,
+    "value": "he",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/he/Firefox%20159.0.dmg",
+    "sha256": "839b0bf88efd3e16d6ea6a9b9592b2755f9fb56249d92caaaf5c3ef7437ce082"
+   },
+   {
+    "languages": [
+     "hi"
+    ],
+    "default": false,
+    "value": "hi-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hi-IN/Firefox%20159.0.dmg",
+    "sha256": "810b2c0ee99743f60997987df1eab414f0e404ad150e88047c11c49f30eafa4a"
+   },
+   {
+    "languages": [
+     "hr"
+    ],
+    "default": false,
+    "value": "hr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hr/Firefox%20159.0.dmg",
+    "sha256": "b46d57ea5f1681f71b6db71c4fa034db8e8da09685c711c9b2685c521750d184"
+   },
+   {
+    "languages": [
+     "hsb"
+    ],
+    "default": false,
+    "value": "hsb",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hsb/Firefox%20159.0.dmg",
+    "sha256": "8b485553fae6fe3ab17b1d31b82b3808681ad3fb70ac9fe7fc6a159a7789307f"
+   },
+   {
+    "languages": [
+     "hu"
+    ],
+    "default": false,
+    "value": "hu",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hu/Firefox%20159.0.dmg",
+    "sha256": "1aabc6691a65df7ca91ff101ab4a033c0d6ec72e2f6ac5c6bb11f1ae514bbfeb"
+   },
+   {
+    "languages": [
+     "hy"
+    ],
+    "default": false,
+    "value": "hy-AM",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hy-AM/Firefox%20159.0.dmg",
+    "sha256": "bbc8108cbd25b6d3488f1361528548db69430449150ea0de11ab52caa6e24ef0"
+   },
+   {
+    "languages": [
+     "ia"
+    ],
+    "default": false,
+    "value": "ia",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ia/Firefox%20159.0.dmg",
+    "sha256": "4fa136504b554f418b1074606b7e8ef9e424d416b4938d069c37b166b9afad34"
+   },
+   {
+    "languages": [
+     "id"
+    ],
+    "default": false,
+    "value": "id",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/id/Firefox%20159.0.dmg",
+    "sha256": "fe2c0245721323deba4cd40cce73e5329ae41e0e787536ac09d13cfa93a5122d"
+   },
+   {
+    "languages": [
+     "in"
+    ],
+    "default": false,
+    "value": "hi-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/hi-IN/Firefox%20159.0.dmg",
+    "sha256": "810b2c0ee99743f60997987df1eab414f0e404ad150e88047c11c49f30eafa4a"
+   },
+   {
+    "languages": [
+     "is"
+    ],
+    "default": false,
+    "value": "is",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/is/Firefox%20159.0.dmg",
+    "sha256": "34f1d14aa5fd52d0b36011c2504306e87d604549df10a4631b36aab659ab819b"
+   },
+   {
+    "languages": [
+     "it"
+    ],
+    "default": false,
+    "value": "it",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/it/Firefox%20159.0.dmg",
+    "sha256": "98d3c6e7cd77577a6e224d4eaa7723db677f95ad869d7d70267bb4e49ac4d21d"
+   },
+   {
+    "languages": [
+     "ja"
+    ],
+    "default": false,
+    "value": "ja-JP-mac",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ja-JP-mac/Firefox%20159.0.dmg",
+    "sha256": "818efe75d9b9de6d2f4194e44c0859bc76d15db5805915b578724fdad3658c6c"
+   },
+   {
+    "languages": [
+     "ka"
+    ],
+    "default": false,
+    "value": "ka",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ka/Firefox%20159.0.dmg",
+    "sha256": "d470dc08503015d5c94c41f70418ed95c33d132a5b84f00879147b9cc78c5c9c"
+   },
+   {
+    "languages": [
+     "kab"
+    ],
+    "default": false,
+    "value": "kab",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/kab/Firefox%20159.0.dmg",
+    "sha256": "7af976c1a853a91319ea67f2b734fdd92c33ab80216dece9f0e17039665c4d4e"
+   },
+   {
+    "languages": [
+     "kk"
+    ],
+    "default": false,
+    "value": "kk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/kk/Firefox%20159.0.dmg",
+    "sha256": "a19310fd8364b72c32797af0e9654c3735b4ab844b9b98716984bb764d84e5d2"
+   },
+   {
+    "languages": [
+     "km"
+    ],
+    "default": false,
+    "value": "km",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/km/Firefox%20159.0.dmg",
+    "sha256": "2f9ef6226bc7d0f08ecf8ef9f9f2905b6706f361d75c8f37fc10499f912da4d2"
+   },
+   {
+    "languages": [
+     "kn"
+    ],
+    "default": false,
+    "value": "kn",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/kn/Firefox%20159.0.dmg",
+    "sha256": "3dc4ab2a9cbd36344041b1d793cd7c5f4446babe1e225969b364d54541831c3b"
+   },
+   {
+    "languages": [
+     "ko"
+    ],
+    "default": false,
+    "value": "ko",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ko/Firefox%20159.0.dmg",
+    "sha256": "e1ddfeb9e9d82f38f2c52fc239d64d70935b0be49e5651c213fd6720b221b6fc"
+   },
+   {
+    "languages": [
+     "lij"
+    ],
+    "default": false,
+    "value": "lij",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/lij/Firefox%20159.0.dmg",
+    "sha256": "e068531fd4b3273b52fa6362dfb6e622f9a3fb42db181065b3844a8a4686998b"
+   },
+   {
+    "languages": [
+     "lt"
+    ],
+    "default": false,
+    "value": "lt",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/lt/Firefox%20159.0.dmg",
+    "sha256": "af8b909f5000d949f62d30c09d2f921a0982056844e18620ed7b84615e7b4593"
+   },
+   {
+    "languages": [
+     "lv"
+    ],
+    "default": false,
+    "value": "lv",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/lv/Firefox%20159.0.dmg",
+    "sha256": "070860ba14c0f61587882f43b0e712d10c71edbd16d86c672488db9ed5cdf3d5"
+   },
+   {
+    "languages": [
+     "mk"
+    ],
+    "default": false,
+    "value": "mk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/mk/Firefox%20159.0.dmg",
+    "sha256": "e71a3b566b954f99d7fe51e75880369e830b200e3329aee97fb95c9f516cc028"
+   },
+   {
+    "languages": [
+     "mr"
+    ],
+    "default": false,
+    "value": "mr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/mr/Firefox%20159.0.dmg",
+    "sha256": "649d15b2851218b58a0b85191ef1dbef91a3eb8d99155294f6e36711d2d835ec"
+   },
+   {
+    "languages": [
+     "ms"
+    ],
+    "default": false,
+    "value": "ms",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ms/Firefox%20159.0.dmg",
+    "sha256": "8135fb40a42c016a8ff12f781a5ed29f4d2679a63af1ca89db4f94af84fd9984"
+   },
+   {
+    "languages": [
+     "my"
+    ],
+    "default": false,
+    "value": "my",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/my/Firefox%20159.0.dmg",
+    "sha256": "bdf3b495bea5da68fb66f13f083e6b0bf2d8287eb551bb870bbd85393408fe14"
+   },
+   {
+    "languages": [
+     "nb"
+    ],
+    "default": false,
+    "value": "nb-NO",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/nb-NO/Firefox%20159.0.dmg",
+    "sha256": "64fecb6cdfa0551ec25e96eb3c7901446d2861544659e9e3aef84eed90c531c0"
+   },
+   {
+    "languages": [
+     "ne"
+    ],
+    "default": false,
+    "value": "ne-NP",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ne-NP/Firefox%20159.0.dmg",
+    "sha256": "c08b14da112a6125e508198ec094daff746088837dba5db6306ac0a9c63c4d41"
+   },
+   {
+    "languages": [
+     "nl"
+    ],
+    "default": false,
+    "value": "nl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/nl/Firefox%20159.0.dmg",
+    "sha256": "1ba551db84ba1caa3f48e69e2cf545f76cd6d92362b077b8dd6cd30b3bfc20b4"
+   },
+   {
+    "languages": [
+     "nn"
+    ],
+    "default": false,
+    "value": "nn-NO",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/nn-NO/Firefox%20159.0.dmg",
+    "sha256": "beb13cf56f3ca4d77efd9fea2349c3888dc196b16aafff7fdfc3d0762e986b26"
+   },
+   {
+    "languages": [
+     "oc"
+    ],
+    "default": false,
+    "value": "oc",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/oc/Firefox%20159.0.dmg",
+    "sha256": "5914c2082191853158f2db39ab7e0ae500ed90582be2858238842e23a69ffcc5"
+   },
+   {
+    "languages": [
+     "pa-IN"
+    ],
+    "default": false,
+    "value": "pa-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/pa-IN/Firefox%20159.0.dmg",
+    "sha256": "b60804804b8328302c1545ebc67591d275a51f89f4902fa0f49fd89fbb1c99f2"
+   },
+   {
+    "languages": [
+     "pl"
+    ],
+    "default": false,
+    "value": "pl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/pl/Firefox%20159.0.dmg",
+    "sha256": "8ea4cd7c222deeba8d8c79546483c2608dfa957d0140ff9ab5f28236cffb71c1"
+   },
+   {
+    "languages": [
+     "pt-BR"
+    ],
+    "default": false,
+    "value": "pt-BR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/pt-BR/Firefox%20159.0.dmg",
+    "sha256": "9b126d065c8f13a4ee72b3de6a69b1886dd46a7b8135e9702655ca714bd1d484"
+   },
+   {
+    "languages": [
+     "pt"
+    ],
+    "default": false,
+    "value": "pt-PT",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/pt-PT/Firefox%20159.0.dmg",
+    "sha256": "76d496e8b9cc6f65d068c8b303372e0b8ff53e6f754d18f896ac6af2aa791f6d"
+   },
+   {
+    "languages": [
+     "rm"
+    ],
+    "default": false,
+    "value": "rm",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/rm/Firefox%20159.0.dmg",
+    "sha256": "b1aec11379ffdcafb72f44c8654e5f7fda214f9938470b8015c248d78f20fb92"
+   },
+   {
+    "languages": [
+     "ro"
+    ],
+    "default": false,
+    "value": "ro",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ro/Firefox%20159.0.dmg",
+    "sha256": "f204ee75ce0b962623d7a4a6bf486cc2a749c2794317f810c49a83f16ceb8b1f"
+   },
+   {
+    "languages": [
+     "ru"
+    ],
+    "default": false,
+    "value": "ru",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ru/Firefox%20159.0.dmg",
+    "sha256": "1cb3c370773775d8b8f8c3bebd5bb5e2e947a5676b4e38e9f20de057a4a69c54"
+   },
+   {
+    "languages": [
+     "sat"
+    ],
+    "default": false,
+    "value": "sat",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sat/Firefox%20159.0.dmg",
+    "sha256": "5e16c9981ce651bf17696c99dd3dd59ecfc045d11ec3e88fcdc21336a48a3440"
+   },
+   {
+    "languages": [
+     "sc"
+    ],
+    "default": false,
+    "value": "sc",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sc/Firefox%20159.0.dmg",
+    "sha256": "3d3e08fc7e8ad97fbdac1ab0cee95330f1985eed790a06e2b0f4d09b5e7e3101"
+   },
+   {
+    "languages": [
+     "sco"
+    ],
+    "default": false,
+    "value": "sco",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sco/Firefox%20159.0.dmg",
+    "sha256": "87922ea2d3e25ef46b2745d7a912fb3056145d50694e7595691291d8b201db03"
+   },
+   {
+    "languages": [
+     "si"
+    ],
+    "default": false,
+    "value": "si",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/si/Firefox%20159.0.dmg",
+    "sha256": "69b1567f82ebfe9f45d5cd9a87a1bd3a55f137818eb932edf02c4e9be49bd33d"
+   },
+   {
+    "languages": [
+     "sk"
+    ],
+    "default": false,
+    "value": "sk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sk/Firefox%20159.0.dmg",
+    "sha256": "857bf34e4e1247224a1576e2749c42371d56c39435577d6532ce9d25d8c19f42"
+   },
+   {
+    "languages": [
+     "skr"
+    ],
+    "default": false,
+    "value": "skr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/skr/Firefox%20159.0.dmg",
+    "sha256": "944bcd4cef9e311a9e9bf1d2979775a3c4ebdd3e2dc830649de4fece8478576f"
+   },
+   {
+    "languages": [
+     "sl"
+    ],
+    "default": false,
+    "value": "sl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sl/Firefox%20159.0.dmg",
+    "sha256": "3e382a44f792252595a29d31b8dd193b4db95c798033baeb7fadfee9122ba2f6"
+   },
+   {
+    "languages": [
+     "son"
+    ],
+    "default": false,
+    "value": "son",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/son/Firefox%20159.0.dmg",
+    "sha256": "0f52b8fa7aca29bb745ee52769e03cd6587e6c1b62a4140abd2e2d8770db6c77"
+   },
+   {
+    "languages": [
+     "sq"
+    ],
+    "default": false,
+    "value": "sq",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sq/Firefox%20159.0.dmg",
+    "sha256": "5d8bef8c395c6057eb34e24eaebdb9e1f8138fa4f6e19f56a459540b51bd0493"
+   },
+   {
+    "languages": [
+     "sr"
+    ],
+    "default": false,
+    "value": "sr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sr/Firefox%20159.0.dmg",
+    "sha256": "34ea81570a9e0005b25889eb4bde2effe77a277816b47d0da4fb10c8160acaad"
+   },
+   {
+    "languages": [
+     "sv"
+    ],
+    "default": false,
+    "value": "sv-SE",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/sv-SE/Firefox%20159.0.dmg",
+    "sha256": "29ebd9876375f7376f07cb8c64ebc20f12fea9f84328cf0183f47188fe97ee45"
+   },
+   {
+    "languages": [
+     "szl"
+    ],
+    "default": false,
+    "value": "szl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/szl/Firefox%20159.0.dmg",
+    "sha256": "1571d682720108dc8279012aa9b301a6db676537ec9221422f7fa0cd880a592f"
+   },
+   {
+    "languages": [
+     "ta"
+    ],
+    "default": false,
+    "value": "ta",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ta/Firefox%20159.0.dmg",
+    "sha256": "78fa414ada523182a8045c05cd843c0d695a8e9c5822982bbb1ad68fd64a279b"
+   },
+   {
+    "languages": [
+     "te"
+    ],
+    "default": false,
+    "value": "te",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/te/Firefox%20159.0.dmg",
+    "sha256": "dbe9d8469ecd19096dc72fc91d3d562f6f2cd6f3efa485aa4bb0c84099f735fa"
+   },
+   {
+    "languages": [
+     "tg"
+    ],
+    "default": false,
+    "value": "tg",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/tg/Firefox%20159.0.dmg",
+    "sha256": "e682263cacdea545d087ea9d8f5be160f21ab594c434beb6d6062af2e0725a1e"
+   },
+   {
+    "languages": [
+     "th"
+    ],
+    "default": false,
+    "value": "th",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/th/Firefox%20159.0.dmg",
+    "sha256": "524f2392deef490d5f0d41afcc809a88eeea8ec8b9794f2ad7a969a589fa54ce"
+   },
+   {
+    "languages": [
+     "tl"
+    ],
+    "default": false,
+    "value": "tl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/tl/Firefox%20159.0.dmg",
+    "sha256": "bd9e79cd7566a2a2462852730978b7a0000327b5312889cf16ef5feb675a37c6"
+   },
+   {
+    "languages": [
+     "tr"
+    ],
+    "default": false,
+    "value": "tr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/tr/Firefox%20159.0.dmg",
+    "sha256": "e646686507bec1b2066ab4791ef10c4fc11181c9e467216fa2c870a114c73c7e"
+   },
+   {
+    "languages": [
+     "trs"
+    ],
+    "default": false,
+    "value": "trs",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/trs/Firefox%20159.0.dmg",
+    "sha256": "d10e60705f1e9e59346e15b9ee94d9182ba5729c95d3f53f4f01ae4acae46a7f"
+   },
+   {
+    "languages": [
+     "uk"
+    ],
+    "default": false,
+    "value": "uk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/uk/Firefox%20159.0.dmg",
+    "sha256": "f1942abb290351f22c7256226a4acb1098076694733820fb2869cf2a9a7206e0"
+   },
+   {
+    "languages": [
+     "ur"
+    ],
+    "default": false,
+    "value": "ur",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/ur/Firefox%20159.0.dmg",
+    "sha256": "4aebad5f8efd7dd57f437961b4752dbb4494f46848cbcb2e9ddac7c0810a97ab"
+   },
+   {
+    "languages": [
+     "uz"
+    ],
+    "default": false,
+    "value": "uz",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/uz/Firefox%20159.0.dmg",
+    "sha256": "d8bfdd2c2cd6ecb808fb5bbd765386a67c5b4438f4ed16aeb5291eeff4a56fc5"
+   },
+   {
+    "languages": [
+     "vi"
+    ],
+    "default": false,
+    "value": "vi",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/vi/Firefox%20159.0.dmg",
+    "sha256": "3116273d1273b4d45f39dc35e6548ab1989ca025996fabd3dfc74110ca88fc65"
+   },
+   {
+    "languages": [
+     "xh"
+    ],
+    "default": false,
+    "value": "xh",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/xh/Firefox%20159.0.dmg",
+    "sha256": "4002dd668c37b721a98e3a95312fa0be56f41163b849743e8c29fb3fca11949a"
+   },
+   {
+    "languages": [
+     "zh-TW"
+    ],
+    "default": false,
+    "value": "zh-TW",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/zh-TW/Firefox%20159.0.dmg",
+    "sha256": "42a3dca9f73d4b04712dc9c4db56d75e3ddd1679477f30fc0732cb0768d5d289"
+   },
+   {
+    "languages": [
+     "zh"
+    ],
+    "default": false,
+    "value": "zh-CN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/159.0/mac/zh-CN/Firefox%20159.0.dmg",
+    "sha256": "437490ac7b86f4e3827e96fb8c96183973a4d551391be6c4147c29254efa1add"
+   }
+  ],
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "firefox": 14006
+    },
+    "90d": {
+     "firefox": 34234
+    },
+    "365d": {
+     "firefox": 184363
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "firefox@esr",
+  "full_token": "firefox@esr",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Mozilla Firefox ESR",
+   "Mozilla Firefox Extended Support Release"
+  ],
+  "desc": "Web browser",
+  "homepage": "https://www.mozilla.org/en-US/firefox/all/#product-desktop-esr",
+  "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/en-US/Firefox%20153.6.0esr.dmg",
+  "url_specs": {},
+  "version": "153.6.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": "15826.10.19",
+  "bundle_short_version": "158.0.1",
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "e61f4490ae4c73ba8a98fd3c5682f40c3c3c3089e307018d4341583f605f6828",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "org.mozilla.firefox",
+      "delete": "/Library/Logs/DiagnosticReports/firefox_*"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Firefox.app"
+    ],
+    "target": "/Applications/Firefox.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/org.mozilla.firefox.sfl*",
+       "~/Library/Application Support/CrashReporter/firefox_*",
+       "~/Library/Application Support/Firefox",
+       "~/Library/Caches/Firefox",
+       "~/Library/Caches/Mozilla/updates/Applications/Firefox",
+       "~/Library/Caches/org.mozilla.crashreporter",
+       "~/Library/Caches/org.mozilla.firefox",
+       "~/Library/Preferences/org.mozilla.crashreporter.plist",
+       "~/Library/Preferences/org.mozilla.firefox.plist",
+       "~/Library/Saved Application State/org.mozilla.firefox.savedState",
+       "~/Library/WebKit/org.mozilla.firefox"
+      ],
+      "rmdir": [
+       "~/Library/Application Support/Mozilla",
+       "~/Library/Caches/Mozilla",
+       "~/Library/Caches/Mozilla/updates",
+       "~/Library/Caches/Mozilla/updates/Applications"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "firefox",
+    "firefox@beta",
+    "firefox@cn"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [
+   "af",
+   "ar",
+   "be",
+   "bg",
+   "bn",
+   "ca",
+   "cs",
+   "de",
+   "en-CA",
+   "en-GB",
+   "en",
+   "eo",
+   "es-AR",
+   "es-CL",
+   "es-ES",
+   "fa",
+   "ff",
+   "fi",
+   "fr",
+   "gl",
+   "gn",
+   "gu",
+   "he",
+   "hi",
+   "in",
+   "it",
+   "ja",
+   "ka",
+   "ko",
+   "mr",
+   "my",
+   "ne",
+   "nl",
+   "pa-IN",
+   "pl",
+   "pt-BR",
+   "pt",
+   "ru",
+   "si",
+   "sq",
+   "sr",
+   "sv",
+   "ta",
+   "te",
+   "th",
+   "tl",
+   "tr",
+   "uk",
+   "ur",
+   "zh-TW",
+   "zh"
+  ],
+  "ruby_source_path": "Casks/f/firefox@esr.rb",
+  "ruby_source_checksum": {
+   "sha256": "0d0776ef11a0a7e4473524b59bad0a713b7d898e0971f3d0ce815fc1c45d797a"
+  },
+  "language_variations": [
+   {
+    "languages": [
+     "af"
+    ],
+    "default": false,
+    "value": "af",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/af/Firefox%20153.6.0esr.dmg",
+    "sha256": "8e9b747818378137939136a704493d5be76ef6c7a1a0411ce00113d0e18f2f9f"
+   },
+   {
+    "languages": [
+     "ar"
+    ],
+    "default": false,
+    "value": "ar",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ar/Firefox%20153.6.0esr.dmg",
+    "sha256": "378249a3611af50a319f5735fa3a477ebc31b0d97b5f95b4c8d05b4ee7c80783"
+   },
+   {
+    "languages": [
+     "be"
+    ],
+    "default": false,
+    "value": "be",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/be/Firefox%20153.6.0esr.dmg",
+    "sha256": "9fb492115cc5b8f043268e7894ca469d0ee54cb8cff87276c988a19aa7a69f08"
+   },
+   {
+    "languages": [
+     "bg"
+    ],
+    "default": false,
+    "value": "bg",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/bg/Firefox%20153.6.0esr.dmg",
+    "sha256": "084dfe03867ca76a7fb85a1d39bc4b1fbe40be70a0310603388536c0084404db"
+   },
+   {
+    "languages": [
+     "bn"
+    ],
+    "default": false,
+    "value": "bn",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/bn/Firefox%20153.6.0esr.dmg",
+    "sha256": "c52b16c38a8a80de083228213c52622babd8a93040a7be708df7724dc0fdb898"
+   },
+   {
+    "languages": [
+     "ca"
+    ],
+    "default": false,
+    "value": "ca",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ca/Firefox%20153.6.0esr.dmg",
+    "sha256": "fbf6081a59d807b90cbbda666ec3317201e6ae56d95b039459eff4abb4a983cf"
+   },
+   {
+    "languages": [
+     "cs"
+    ],
+    "default": false,
+    "value": "cs",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/cs/Firefox%20153.6.0esr.dmg",
+    "sha256": "86603cd1a3364e84b8a2b6ced2141a9236fd15e79b2bcb63c2eed617b362f3e5"
+   },
+   {
+    "languages": [
+     "de"
+    ],
+    "default": false,
+    "value": "de",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/de/Firefox%20153.6.0esr.dmg",
+    "sha256": "924a4a647102458bcc3f5bf47c4e5dc01df96212d16baf525278a96143522c22"
+   },
+   {
+    "languages": [
+     "en-CA"
+    ],
+    "default": false,
+    "value": "en-CA",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/en-CA/Firefox%20153.6.0esr.dmg",
+    "sha256": "c1d4e6645c272bba85e52ae45c072875e7ccd0e01f36fc2b562c7a63bbf83d74"
+   },
+   {
+    "languages": [
+     "en-GB"
+    ],
+    "default": false,
+    "value": "en-GB",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/en-GB/Firefox%20153.6.0esr.dmg",
+    "sha256": "bdea1169e33fd6e6c577f411acfc65e42110ee6425a87f83f026feb4c8d8b529"
+   },
+   {
+    "languages": [
+     "en"
+    ],
+    "default": true,
+    "value": "en-US"
+   },
+   {
+    "languages": [
+     "eo"
+    ],
+    "default": false,
+    "value": "eo",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/eo/Firefox%20153.6.0esr.dmg",
+    "sha256": "37890e5d015013389e35cea8ed0ad5fd968aff6af135e0f866bd939d7e7478bd"
+   },
+   {
+    "languages": [
+     "es-AR"
+    ],
+    "default": false,
+    "value": "es-AR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/es-AR/Firefox%20153.6.0esr.dmg",
+    "sha256": "83115fc8c59c5d72397d2bc1a6d0b002d362f4e6348232ed5d3e628809061255"
+   },
+   {
+    "languages": [
+     "es-CL"
+    ],
+    "default": false,
+    "value": "es-CL",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/es-CL/Firefox%20153.6.0esr.dmg",
+    "sha256": "5b080e85617ec18dc9f4ec07596873e5e5b3aab6b6b295d0e4fec36821f55768"
+   },
+   {
+    "languages": [
+     "es-ES"
+    ],
+    "default": false,
+    "value": "es-ES",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/es-ES/Firefox%20153.6.0esr.dmg",
+    "sha256": "afa11417fb9b96503f935b2d3e4490178393b4b28e684b8d25673b5dc737e347"
+   },
+   {
+    "languages": [
+     "fa"
+    ],
+    "default": false,
+    "value": "fa",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/fa/Firefox%20153.6.0esr.dmg",
+    "sha256": "667f41e2a0469f6acc8d4eaebd1b0a7a90455f9101c137ae867fdb39b6a4f061"
+   },
+   {
+    "languages": [
+     "ff"
+    ],
+    "default": false,
+    "value": "ff",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ff/Firefox%20153.6.0esr.dmg",
+    "sha256": "861fe7e7fd4763ce73420f9a7283c772b97f41d9643d3bfe50ff0da55ed31e11"
+   },
+   {
+    "languages": [
+     "fi"
+    ],
+    "default": false,
+    "value": "fi",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/fi/Firefox%20153.6.0esr.dmg",
+    "sha256": "4885b7f2ffd5ef430d76645414411cefac86c57aa0c2c2aed9a8e61bf2a3c1ae"
+   },
+   {
+    "languages": [
+     "fr"
+    ],
+    "default": false,
+    "value": "fr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/fr/Firefox%20153.6.0esr.dmg",
+    "sha256": "100dc503ce128c145d31ed0c044c97f7d645a182f0418311d5311cfd7da2b9a6"
+   },
+   {
+    "languages": [
+     "gl"
+    ],
+    "default": false,
+    "value": "gl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/gl/Firefox%20153.6.0esr.dmg",
+    "sha256": "752964c13f15ca61838a3834d7fb3f68bf660facb61f778420047b38da3a6c1f"
+   },
+   {
+    "languages": [
+     "gn"
+    ],
+    "default": false,
+    "value": "gn",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/gn/Firefox%20153.6.0esr.dmg",
+    "sha256": "614a893ec7a97be5565e898251647ded4e7abbea83eec4f35a4e11fa837c64a4"
+   },
+   {
+    "languages": [
+     "gu"
+    ],
+    "default": false,
+    "value": "gu-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/gu-IN/Firefox%20153.6.0esr.dmg",
+    "sha256": "053decc9b859e5b0b9b62e2d8a7432d8f604ab9986a5e8c943d350af27050f86"
+   },
+   {
+    "languages": [
+     "he"
+    ],
+    "default": false,
+    "value": "he",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/he/Firefox%20153.6.0esr.dmg",
+    "sha256": "ef5b4994a2ca54c3d06eb9e35649102dc3ce8adf46094740ec2f08ca792535c9"
+   },
+   {
+    "languages": [
+     "hi"
+    ],
+    "default": false,
+    "value": "hi-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/hi-IN/Firefox%20153.6.0esr.dmg",
+    "sha256": "6bbcd8f82e68a69bbc637cf7b124e322c9b0bd3cfe00283e89cb3acabfc4eb6b"
+   },
+   {
+    "languages": [
+     "in"
+    ],
+    "default": false,
+    "value": "hi-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/hi-IN/Firefox%20153.6.0esr.dmg",
+    "sha256": "6bbcd8f82e68a69bbc637cf7b124e322c9b0bd3cfe00283e89cb3acabfc4eb6b"
+   },
+   {
+    "languages": [
+     "it"
+    ],
+    "default": false,
+    "value": "it",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/it/Firefox%20153.6.0esr.dmg",
+    "sha256": "6b94af0f3d10141b6c61300ef971a590a3c0f042e991ef1309f94631939cb606"
+   },
+   {
+    "languages": [
+     "ja"
+    ],
+    "default": false,
+    "value": "ja-JP-mac",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ja-JP-mac/Firefox%20153.6.0esr.dmg",
+    "sha256": "cb81e290f8fe37392e09288b9e7060714b0955fd7be38665bb4594b4c97e8a78"
+   },
+   {
+    "languages": [
+     "ka"
+    ],
+    "default": false,
+    "value": "ka",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ka/Firefox%20153.6.0esr.dmg",
+    "sha256": "9bcf30fc198c099a8921531618f7702998fb80ada6d922375df64998cb33e07b"
+   },
+   {
+    "languages": [
+     "ko"
+    ],
+    "default": false,
+    "value": "ko",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ko/Firefox%20153.6.0esr.dmg",
+    "sha256": "9b59d88768a342809fa2588e54d75bffcfa14a321a143de345ba690064778247"
+   },
+   {
+    "languages": [
+     "mr"
+    ],
+    "default": false,
+    "value": "mr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/mr/Firefox%20153.6.0esr.dmg",
+    "sha256": "1d599451144cda843e53b40395bd1d3ef1b0e43281855d243d2d5c00f4e223b8"
+   },
+   {
+    "languages": [
+     "my"
+    ],
+    "default": false,
+    "value": "my",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/my/Firefox%20153.6.0esr.dmg",
+    "sha256": "854b12288b40281e8974e68674f46a50908f6dca8e53f8615c7e35de97d3bc32"
+   },
+   {
+    "languages": [
+     "ne"
+    ],
+    "default": false,
+    "value": "ne-NP",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ne-NP/Firefox%20153.6.0esr.dmg",
+    "sha256": "265311b4f838143fd0a41e0c0eecd0c09792210d726fe62d16ed6b033fa6b69c"
+   },
+   {
+    "languages": [
+     "nl"
+    ],
+    "default": false,
+    "value": "nl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/nl/Firefox%20153.6.0esr.dmg",
+    "sha256": "12f9caff569e366ad38165bb9871466eea34ff757c101ed76715a1447665d653"
+   },
+   {
+    "languages": [
+     "pa-IN"
+    ],
+    "default": false,
+    "value": "pa-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/pa-IN/Firefox%20153.6.0esr.dmg",
+    "sha256": "df085bf5147ca4e64dd6f032c31245bbd77137cc80834d6a8f6f6b87e0005042"
+   },
+   {
+    "languages": [
+     "pl"
+    ],
+    "default": false,
+    "value": "pl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/pl/Firefox%20153.6.0esr.dmg",
+    "sha256": "39d406ca1140355f6a3b5736bccf67cfaab0fb74fdda53d0d7f84e6eb7f94b20"
+   },
+   {
+    "languages": [
+     "pt-BR"
+    ],
+    "default": false,
+    "value": "pt-BR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/pt-BR/Firefox%20153.6.0esr.dmg",
+    "sha256": "2b546065c0635982fc54bab15e11fe0c4696eb7167785dd492b010778efc6cdd"
+   },
+   {
+    "languages": [
+     "pt"
+    ],
+    "default": false,
+    "value": "pt-PT",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/pt-PT/Firefox%20153.6.0esr.dmg",
+    "sha256": "8449b7e0aefb44d8d023af1a427d3c18c83a0eb3107f6b821efb4fa653b58317"
+   },
+   {
+    "languages": [
+     "ru"
+    ],
+    "default": false,
+    "value": "ru",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ru/Firefox%20153.6.0esr.dmg",
+    "sha256": "107054c4f7fb47970ca396522197c2cdd39d095e63d4e4340d56c6bf8f7c8107"
+   },
+   {
+    "languages": [
+     "si"
+    ],
+    "default": false,
+    "value": "si",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/si/Firefox%20153.6.0esr.dmg",
+    "sha256": "30b7e583a703d39e2e913ad49753177e18bc5f11a48f404bf0e1017c5533f594"
+   },
+   {
+    "languages": [
+     "sq"
+    ],
+    "default": false,
+    "value": "sq",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/sq/Firefox%20153.6.0esr.dmg",
+    "sha256": "8b9a64a7521275c43f30f427ce0185beecad9572ae0ac3840c8341c57eecc027"
+   },
+   {
+    "languages": [
+     "sr"
+    ],
+    "default": false,
+    "value": "sr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/sr/Firefox%20153.6.0esr.dmg",
+    "sha256": "2552d82bc97cafb762fe10076cbc0bf3c19774129c140a66b92d3e698f058a68"
+   },
+   {
+    "languages": [
+     "sv"
+    ],
+    "default": false,
+    "value": "sv-SE",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/sv-SE/Firefox%20153.6.0esr.dmg",
+    "sha256": "8fcdc141080c5795bf530d690f6bd24611f0154b3757840cace63e9095ec2470"
+   },
+   {
+    "languages": [
+     "ta"
+    ],
+    "default": false,
+    "value": "ta",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ta/Firefox%20153.6.0esr.dmg",
+    "sha256": "afd8a277eece8d896f961d25be23c315f6d6e9e8a3ee42e517d8eaa074c12095"
+   },
+   {
+    "languages": [
+     "te"
+    ],
+    "default": false,
+    "value": "te",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/te/Firefox%20153.6.0esr.dmg",
+    "sha256": "c16b6431b7aa51ac171e173eaa84a6e1144fcd43009cf9553f704ea6d3e9ef09"
+   },
+   {
+    "languages": [
+     "th"
+    ],
+    "default": false,
+    "value": "th",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/th/Firefox%20153.6.0esr.dmg",
+    "sha256": "979834b05c10292a0a66ed6c7cb067b4ec8a77e034d4498551cbcf8e34f1f20e"
+   },
+   {
+    "languages": [
+     "tl"
+    ],
+    "default": false,
+    "value": "tl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/tl/Firefox%20153.6.0esr.dmg",
+    "sha256": "2e4c70af338eda3935076506c183d2e70f401834b2ad1df91723fd98fc6ae45b"
+   },
+   {
+    "languages": [
+     "tr"
+    ],
+    "default": false,
+    "value": "tr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/tr/Firefox%20153.6.0esr.dmg",
+    "sha256": "64b37bdd0e3b0f2bcd5981b7d1dda978ce7ab5449ba10f7add0d9ba7a40656bf"
+   },
+   {
+    "languages": [
+     "uk"
+    ],
+    "default": false,
+    "value": "uk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/uk/Firefox%20153.6.0esr.dmg",
+    "sha256": "f05eb3ca20c9de7c07eb814461d29d9190c85a5117ab249b786e8e64d9f70b96"
+   },
+   {
+    "languages": [
+     "ur"
+    ],
+    "default": false,
+    "value": "ur",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/ur/Firefox%20153.6.0esr.dmg",
+    "sha256": "c104ec40fa01d94fe8e8237eb8f2e1d6b8435befd3f2d90ca66ad879ed4c394d"
+   },
+   {
+    "languages": [
+     "zh-TW"
+    ],
+    "default": false,
+    "value": "zh-TW",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/zh-TW/Firefox%20153.6.0esr.dmg",
+    "sha256": "d94c497c5af302ee910fb65318d63f1203b8a73c5d0c38f50177f81e84a64822"
+   },
+   {
+    "languages": [
+     "zh"
+    ],
+    "default": false,
+    "value": "zh-CN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.6.0esr/mac/zh-CN/Firefox%20153.6.0esr.dmg",
+    "sha256": "a79bde91f38945bc69ebc073bc1a4524ab9372358cde4bcc8c6af7f4a270a705"
+   }
+  ],
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "firefox@esr": 123
+    },
+    "90d": {
+     "firefox@esr": 255
+    },
+    "365d": {
+     "firefox@esr": 1537
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "firefox@beta",
+  "full_token": "firefox@beta",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Mozilla Firefox Beta"
+  ],
+  "desc": "Web browser",
+  "homepage": "https://www.mozilla.org/firefox/channel/desktop/#beta",
+  "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/en-US/Firefox%20160.0b2.dmg",
+  "url_specs": {},
+  "version": "160.0b2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": "15826.10.19",
+  "bundle_short_version": "158.0.1",
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "1a70586831ec27bf6e79ae0b1f9d01fbf895113669581d7ce7f29ec0981c627d",
+  "artifacts": [
+   {
+    "app": [
+     "Firefox.app"
+    ],
+    "target": "/Applications/Firefox.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Logs/DiagnosticReports/firefox_*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/org.mozilla.firefox.sfl*",
+       "~/Library/Application Support/CrashReporter/firefox_*",
+       "~/Library/Application Support/Firefox",
+       "~/Library/Caches/Firefox",
+       "~/Library/Caches/Mozilla/updates/Applications/Firefox",
+       "~/Library/Caches/org.mozilla.crashreporter",
+       "~/Library/Caches/org.mozilla.firefox",
+       "~/Library/Preferences/org.mozilla.crashreporter.plist",
+       "~/Library/Preferences/org.mozilla.firefox.plist",
+       "~/Library/Saved Application State/org.mozilla.firefox.savedState",
+       "~/Library/WebKit/org.mozilla.firefox"
+      ],
+      "rmdir": [
+       "~/Library/Application Support/Mozilla",
+       "~/Library/Caches/Mozilla",
+       "~/Library/Caches/Mozilla/updates",
+       "~/Library/Caches/Mozilla/updates/Applications"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "firefox",
+    "firefox@cn",
+    "firefox@esr"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [
+   "cs",
+   "de",
+   "en-CA",
+   "en-GB",
+   "en",
+   "es-AR",
+   "es-CL",
+   "es-ES",
+   "fi",
+   "fr",
+   "gl",
+   "in",
+   "it",
+   "ja",
+   "nl",
+   "pl",
+   "pt-BR",
+   "pt",
+   "ru",
+   "uk",
+   "zh-TW",
+   "zh"
+  ],
+  "ruby_source_path": "Casks/f/firefox@beta.rb",
+  "ruby_source_checksum": {
+   "sha256": "d64b504e1bee5ffe2736efcd673d3355e387caaf5b6c7c19a3edf266739cc468"
+  },
+  "language_variations": [
+   {
+    "languages": [
+     "cs"
+    ],
+    "default": false,
+    "value": "cs",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/cs/Firefox%20160.0b2.dmg",
+    "sha256": "71e01a4e557fe9eabc7fc2f40e75df69cdfc5a06d05a141e56274f9e3c8e6e54"
+   },
+   {
+    "languages": [
+     "de"
+    ],
+    "default": false,
+    "value": "de",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/de/Firefox%20160.0b2.dmg",
+    "sha256": "db64ff55d920694f8aef6e08f27e929fda9d76e3f994a76bf3a6835984a8c54e"
+   },
+   {
+    "languages": [
+     "en-CA"
+    ],
+    "default": false,
+    "value": "en-CA",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/en-CA/Firefox%20160.0b2.dmg",
+    "sha256": "cd787159a60fcfe831999d5c21a7a798f84fe8c2ac600c4762afff6f47d33608"
+   },
+   {
+    "languages": [
+     "en-GB"
+    ],
+    "default": false,
+    "value": "en-GB",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/en-GB/Firefox%20160.0b2.dmg",
+    "sha256": "359466ede375a0a20df6e0d6eef5929a86d3d600ad1622a78cc6929b4c0fc4ec"
+   },
+   {
+    "languages": [
+     "en"
+    ],
+    "default": true,
+    "value": "en-US"
+   },
+   {
+    "languages": [
+     "es-AR"
+    ],
+    "default": false,
+    "value": "es-AR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/es-AR/Firefox%20160.0b2.dmg",
+    "sha256": "956b2eae9e8b997cee5ecbb6281d49e4b59fff05b4e283d8c60e439ca22c6409"
+   },
+   {
+    "languages": [
+     "es-CL"
+    ],
+    "default": false,
+    "value": "es-CL",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/es-CL/Firefox%20160.0b2.dmg",
+    "sha256": "7acc385e893397e1eb92ea925412b4d6cc602c795895b784719304758a9545f1"
+   },
+   {
+    "languages": [
+     "es-ES"
+    ],
+    "default": false,
+    "value": "es-ES",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/es-ES/Firefox%20160.0b2.dmg",
+    "sha256": "9eb03aac584f5e17b23def7ad73ca09fcf345534f7a397ea6291e63f1ebdd74a"
+   },
+   {
+    "languages": [
+     "fi"
+    ],
+    "default": false,
+    "value": "fi",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/fi/Firefox%20160.0b2.dmg",
+    "sha256": "2d4057f5680baba06b76440106558b0d14309bfe4d87054117c510291c78ffea"
+   },
+   {
+    "languages": [
+     "fr"
+    ],
+    "default": false,
+    "value": "fr",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/fr/Firefox%20160.0b2.dmg",
+    "sha256": "1fbfce3cea14af6fa4f8e3cda99a4d6df68711e9098c631df59f379553410c4b"
+   },
+   {
+    "languages": [
+     "gl"
+    ],
+    "default": false,
+    "value": "gl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/gl/Firefox%20160.0b2.dmg",
+    "sha256": "994fb322911e7c80d0582c0a3c7ca8801e0f84cc2940f6d0b5c5972b5d85db5f"
+   },
+   {
+    "languages": [
+     "in"
+    ],
+    "default": false,
+    "value": "hi-IN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/hi-IN/Firefox%20160.0b2.dmg",
+    "sha256": "36f68644c3d867f1ea438ed0d178cbadd0038c9801df8c4e38043ab170c53071"
+   },
+   {
+    "languages": [
+     "it"
+    ],
+    "default": false,
+    "value": "it",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/it/Firefox%20160.0b2.dmg",
+    "sha256": "c5f8afbcfb6d4c06cd4992a7b14907f58619a3e67756ec282f739598da256ed1"
+   },
+   {
+    "languages": [
+     "ja"
+    ],
+    "default": false,
+    "value": "ja-JP-mac",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/ja-JP-mac/Firefox%20160.0b2.dmg",
+    "sha256": "4a0bdb046dd4b2b01d9d9b7cf6a18c5fb4f384649e092e0691a3476fe7abd89c"
+   },
+   {
+    "languages": [
+     "nl"
+    ],
+    "default": false,
+    "value": "nl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/nl/Firefox%20160.0b2.dmg",
+    "sha256": "37555627d922195607f44b2874db68ea59503b50d810b3be498515cfec9a6baa"
+   },
+   {
+    "languages": [
+     "pl"
+    ],
+    "default": false,
+    "value": "pl",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/pl/Firefox%20160.0b2.dmg",
+    "sha256": "a4bef849fe4ce8f328f9b58d84db19c59f9b3dfade24565b9adb24a158cda094"
+   },
+   {
+    "languages": [
+     "pt-BR"
+    ],
+    "default": false,
+    "value": "pt-BR",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/pt-BR/Firefox%20160.0b2.dmg",
+    "sha256": "0d1dd9436b9532282875e0ed4c1a5b8bce3696906d03b8ea51fd6e124672b94e"
+   },
+   {
+    "languages": [
+     "pt"
+    ],
+    "default": false,
+    "value": "pt-PT",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/pt-PT/Firefox%20160.0b2.dmg",
+    "sha256": "afc4601bcda28b4dcbd6ef5758868f863fc5ea9f3246568228689123b86db770"
+   },
+   {
+    "languages": [
+     "ru"
+    ],
+    "default": false,
+    "value": "ru",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/ru/Firefox%20160.0b2.dmg",
+    "sha256": "ea335f8304f98677da6436709d874d8786452fadc92bbce5d3a242c261b9a53a"
+   },
+   {
+    "languages": [
+     "uk"
+    ],
+    "default": false,
+    "value": "uk",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/uk/Firefox%20160.0b2.dmg",
+    "sha256": "7b869843f5d47596a4b675040d24e2cc0cbc7a4cc0d647a6d2731d0e1cde0b0a"
+   },
+   {
+    "languages": [
+     "zh-TW"
+    ],
+    "default": false,
+    "value": "zh-TW",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/zh-TW/Firefox%20160.0b2.dmg",
+    "sha256": "56c06c4c0c63c0b643eea46ff08c9bbea66686022c53846663ca9bd2925e0cbd"
+   },
+   {
+    "languages": [
+     "zh"
+    ],
+    "default": false,
+    "value": "zh-CN",
+    "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0b2/mac/zh-CN/Firefox%20160.0b2.dmg",
+    "sha256": "c510545cd2b2c1ef93160ec8ddfd7f629ebc88af906af59a74e82ead307fb114"
+   }
+  ],
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "firefox@beta": 48
+    },
+    "90d": {
+     "firefox@beta": 131
+    },
+    "365d": {
+     "firefox@beta": 798
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "slack",
+  "full_token": "slack",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Slack"
+  ],
+  "desc": "Team communication and collaboration software",
+  "homepage": "https://slack.com/",
+  "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.53.276/Slack-4.53.276-macOS.dmg",
+  "url_specs": {},
+  "version": "4.53.276",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "f2a0a12038b7f3dee5742ce7ceaa29daf38363dec09249f12812c9c0f960328a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tinyspeck.slackmacgap"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Slack.app"
+    ],
+    "target": "/Applications/Slack.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Logs/DiagnosticReports/Slack_*",
+       "~/Library/Application Scripts/com.tinyspeck.slackmacgap",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.tinyspeck.slackmacgap.sfl*",
+       "~/Library/Application Support/Slack",
+       "~/Library/Caches/com.tinyspeck.slackmacgap*",
+       "~/Library/Containers/com.tinyspeck.slackmacgap*",
+       "~/Library/Cookies/com.tinyspeck.slackmacgap.binarycookies",
+       "~/Library/Group Containers/*.com.tinyspeck.slackmacgap",
+       "~/Library/Group Containers/*.slack",
+       "~/Library/HTTPStorages/com.tinyspeck.slackmacgap*",
+       "~/Library/Logs/Slack",
+       "~/Library/Preferences/ByHost/com.tinyspeck.slackmacgap.ShipIt.*.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap*",
+       "~/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+       "~/Library/WebKit/com.tinyspeck.slackmacgap"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "slack@beta"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/s/slack.rb",
+  "ruby_source_checksum": {
+   "sha256": "4df35de47024d22fae85171d1a6e79a1cdaa73567ff9ca4a958ed7421fa620e9"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "tahoe": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sequoia": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sonoma": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "ventura": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "monterey": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.51.191/Slack-4.51.191-macOS.dmg",
+    "version": "4.51.191",
+    "skip_livecheck": true,
+    "sha256": "1780f8d8dcb0057875f566ecf49623bab8d190e0327e89e0bb3b094a485a73a9"
+   },
+   "arm64_monterey": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.51.191/Slack-4.51.191-macOS.dmg",
+    "version": "4.51.191",
+    "skip_livecheck": true,
+    "sha256": "b22953c06eee150f0324ae71702b2b5a8450efdefbf84439217ef7bfd6a8ab24"
+   },
+   "big_sur": {
+    "url": "https://downloads.slack-edge.com/releases/macos/4.45.69/prod/x64/Slack-4.45.69-macOS.dmg",
+    "version": "4.45.69",
+    "skip_livecheck": true,
+    "sha256": "88ee611b36189ab1e84f39f0fbe0048468d32a24e783303dfe1a3ea0519755e2"
+   },
+   "arm64_big_sur": {
+    "url": "https://downloads.slack-edge.com/releases/macos/4.45.69/prod/arm64/Slack-4.45.69-macOS.dmg",
+    "version": "4.45.69",
+    "skip_livecheck": true,
+    "sha256": "31a3f08f49e27a1c0d6224a5f0677329217599eccab481620266730566f0abd0"
+   },
+   "x86_64_linux": {
+    "url": null,
+    "url_specs": null,
+    "version": null,
+    "sha256": null
+   },
+   "arm64_linux": {
+    "url": null,
+    "url_specs": null,
+    "version": null,
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "slack": 7249
+    },
+    "90d": {
+     "slack": 18140
+    },
+    "365d": {
+     "slack": 83710
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "slack@beta",
+  "full_token": "slack@beta",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Slack"
+  ],
+  "desc": "Team communication and collaboration software",
+  "homepage": "https://slack.com/beta/osx",
+  "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.53.276/Slack-4.53.276-macOS.dmg",
+  "url_specs": {},
+  "version": "4.53.276",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "f2a0a12038b7f3dee5742ce7ceaa29daf38363dec09249f12812c9c0f960328a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tinyspeck.slackmacgap"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Slack.app"
+    ],
+    "target": "/Applications/Slack.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Scripts/com.tinyspeck.slackmacgap",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.tinyspeck.slackmacgap.sfl*",
+       "~/Library/Application Support/Slack",
+       "~/Library/Caches/com.tinyspeck.slackmacgap",
+       "~/Library/Caches/com.tinyspeck.slackmacgap.ShipIt",
+       "~/Library/Containers/com.tinyspeck.slackmacgap",
+       "~/Library/Containers/com.tinyspeck.slackmacgap.SlackCallsService",
+       "~/Library/Cookies/com.tinyspeck.slackmacgap.binarycookies",
+       "~/Library/Group Containers/*.com.tinyspeck.slackmacgap",
+       "~/Library/Group Containers/*.slack",
+       "~/Library/Logs/Slack",
+       "~/Library/Preferences/ByHost/com.tinyspeck.slackmacgap.ShipIt.*.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap.helper.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap.plist",
+       "~/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+       "~/Library/WebKit/com.tinyspeck.slackmacgap"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "slack"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/s/slack@beta.rb",
+  "ruby_source_checksum": {
+   "sha256": "8b95ce759c44c6a00cd5d7ff1f7d8ba87cd666ac7deaf6d4d8d9e19498ae2e66"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "tahoe": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sequoia": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sonoma": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "ventura": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "x86_64_linux": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "slack@beta": 23
+    },
+    "90d": {
+     "slack@beta": 52
+    },
+    "365d": {
+     "slack@beta": 325
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "google-chrome",
+  "full_token": "google-chrome",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Google Chrome"
+  ],
+  "desc": "Web browser",
+  "homepage": "https://www.google.com/chrome/",
+  "url": "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg",
+  "url_specs": {},
+  "version": "156.0.8078.80",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": "8078.48",
+  "bundle_short_version": "156.0.8078.48",
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "no_check",
+  "artifacts": [
+   {
+    "app": [
+     "Google Chrome.app"
+    ],
+    "target": "/Applications/Google Chrome.app"
+   },
+   {
+    "zap": [
+     {
+      "launchctl": [
+       "com.google.keystone.agent",
+       "com.google.keystone.daemon"
+      ],
+      "trash": [
+       "/Library/Caches/com.google.SoftwareUpdate.*",
+       "/Library/Google/Google Chrome Brand.plist",
+       "/Library/Google/GoogleSoftwareUpdate",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.app.*.sfl*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.sfl*",
+       "~/Library/Application Support/Google/Chrome",
+       "~/Library/Caches/com.google.Chrome",
+       "~/Library/Caches/com.google.Chrome.helper.*",
+       "~/Library/Caches/com.google.Keystone",
+       "~/Library/Caches/com.google.Keystone.Agent",
+       "~/Library/Caches/com.google.SoftwareUpdate",
+       "~/Library/Caches/Google/Chrome",
+       "~/Library/Google/Google Chrome Brand.plist",
+       "~/Library/Google/GoogleSoftwareUpdate",
+       "~/Library/LaunchAgents/com.google.keystone.agent.plist",
+       "~/Library/LaunchAgents/com.google.keystone.xpcservice.plist",
+       "~/Library/Logs/GoogleSoftwareUpdateAgent.log",
+       "~/Library/Preferences/com.google.Chrome.plist",
+       "~/Library/Preferences/com.google.Keystone.Agent.plist",
+       "~/Library/Saved Application State/com.google.Chrome.app.*.savedState",
+       "~/Library/Saved Application State/com.google.Chrome.savedState",
+       "~/Library/WebKit/com.google.Chrome"
+      ],
+      "rmdir": [
+       "/Library/Google",
+       "~/Library/Application Support/Google",
+       "~/Library/Caches/Google",
+       "~/Library/Google"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/g/google-chrome.rb",
+  "ruby_source_checksum": {
+   "sha256": "13a858a3a5cef95d3ab38f59df30e559e5536d90c42a126c085582841146e923"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "google-chrome": 25203
+    },
+    "90d": {
+     "google-chrome": 71076
+    },
+    "365d": {
+     "google-chrome": 434065
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "wondershare-uniconverter",
+  "full_token": "wondershare-uniconverter",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "UniConverter"
+  ],
+  "desc": "Video editing software",
+  "homepage": "https://videoconverter.wondershare.com/",
+  "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_arm_18.0.0_full14207.zip",
+  "url_specs": {},
+  "version": "18.0.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "ed3f9b1a5da9f2140397ac30415c1536adef5d02ebae0547511ffdfdbe9731a7",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": [
+       "com.google.Chrome",
+       "com.Wondershare.UniConverter18"
+      ]
+     }
+    ]
+   },
+   {
+    "app": [
+     "Wondershare UniConverter 18.app"
+    ],
+    "target": "/Applications/Wondershare UniConverter 18.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Users/Shared/.Wondershare*.dat",
+       "~/Library/Application Support/com.Wondershare.UniConverter18",
+       "~/Library/Application Support/Wondershare UniConverter 18",
+       "~/Library/Application Support/wondershare",
+       "~/Library/Caches/com.Wondershare.UniConverter18",
+       "~/Library/HTTPStorages/com.Wondershare.UniConverter18",
+       "~/Library/Logs/com.Wondershare.UniConverter18",
+       "~/Library/Logs/Wondershare",
+       "~/Library/Preferences/com.wondershare.helper_compact.plist",
+       "~/Library/Preferences/com.Wondershare.UniConverter18.plist",
+       "~/Library/Saved Application State/com.Wondershare.UniConverter18.savedState",
+       "~/Movies/Wondershare UniConverter18",
+       "~/Pictures/Wondershare UniConverter18"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/w/wondershare-uniconverter.rb",
+  "ruby_source_checksum": {
+   "sha256": "52f6c55bb908b78bc8f20d621f013ed72d42f3102b7a5baf58c28683dc5181ff"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "tahoe": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "sequoia": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "sonoma": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "ventura": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "monterey": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "big_sur": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "x86_64_linux": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "wondershare-uniconverter": 6
+    },
+    "90d": {
+     "wondershare-uniconverter": 24
+    },
+    "365d": {
+     "wondershare-uniconverter": 84
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "visual-studio-code",
+  "full_token": "visual-studio-code",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Microsoft Visual Studio Code",
+   "VS Code"
+  ],
+  "desc": "Open-source code editor",
+  "homepage": "https://code.visualstudio.com/",
+  "url": "https://update.code.visualstudio.com/1.144.0/darwin-arm64/stable",
+  "url_specs": {},
+  "version": "1.144.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "cf2a21dbcb23c4213b91243e3cdd37197e9169f905652587113f16329fc92b87",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": "com.microsoft.VSCode.ShipIt",
+      "quit": "com.microsoft.VSCode"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Visual Studio Code.app"
+    ],
+    "target": "/Applications/Visual Studio Code.app"
+   },
+   {
+    "binary": [
+     "$APPDIR/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/code"
+   },
+   {
+    "binary": [
+     "$APPDIR/Visual Studio Code.app/Contents/Resources/app/bin/code-tunnel"
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/code-tunnel"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.vscode",
+       "~/Library/Application Support/Code",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.vscode.sfl*",
+       "~/Library/Caches/com.microsoft.VSCode",
+       "~/Library/Caches/com.microsoft.VSCode.ShipIt",
+       "~/Library/HTTPStorages/com.microsoft.VSCode",
+       "~/Library/Preferences/ByHost/com.microsoft.VSCode.ShipIt.*.plist",
+       "~/Library/Preferences/com.microsoft.VSCode.helper.plist",
+       "~/Library/Preferences/com.microsoft.VSCode.plist",
+       "~/Library/Saved Application State/com.microsoft.VSCode.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/v/visual-studio-code.rb",
+  "ruby_source_checksum": {
+   "sha256": "19f80e7511013bb32e68e568a9baa37201c0b34f37ca10d6c1ffdcaf662a6a8e"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "tahoe": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "sequoia": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "sonoma": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "ventura": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "monterey": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "big_sur": {
+    "url": "https://update.code.visualstudio.com/1.106.3/darwin/stable",
+    "version": "1.106.3",
+    "skip_livecheck": true,
+    "sha256": "c41872149a205f3a3be3e5d3a8f04920407a0762531e607f78dc93f4d4813cda"
+   },
+   "arm64_big_sur": {
+    "url": "https://update.code.visualstudio.com/1.106.3/darwin-arm64/stable",
+    "version": "1.106.3",
+    "skip_livecheck": true,
+    "sha256": "35dd438808dde1dd1f65490ffe7713ed64102324c0809efbec0b4eb2809b218b"
+   },
+   "x86_64_linux": {
+    "url": "https://update.code.visualstudio.com//darwin/stable",
+    "version": null,
+    "sha256": null
+   },
+   "arm64_linux": {
+    "url": "https://update.code.visualstudio.com//darwin-arm64/stable",
+    "version": null,
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "visual-studio-code": 36716
+    },
+    "90d": {
+     "visual-studio-code": 94045
+    },
+    "365d": {
+     "visual-studio-code": 479096
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "tidgi",
+  "full_token": "tidgi",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "TidGi"
+  ],
+  "desc": "Personal knowledge-base app",
+  "homepage": "https://github.com/tiddly-gittly/TidGi-Desktop",
+  "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-arm64-0.14.2.zip",
+  "url_specs": {},
+  "version": "0.14.2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "deb71923dfe95b0ab43434705a87d95a5b92cd8ed188653f6da7a18cd7c37d86",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tidgi"
+     }
+    ]
+   },
+   {
+    "app": [
+     "TidGi.app"
+    ],
+    "target": "/Applications/TidGi.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/TidGi",
+       "~/Library/Caches/com.tidgi.app",
+       "~/Library/Caches/com.tidgi.app.ShipIt",
+       "~/Library/Preferences/com.tidgi.app.plist",
+       "~/Library/Preferences/com.tidgi.plist",
+       "~/Library/Saved Application State/com.microsoft.VSCode.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "12"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": true,
+  "disable_date": "2026-09-01",
+  "disable_reason": "fails_gatekeeper_check",
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": {
+   "date": "2026-09-01",
+   "because": "fails_gatekeeper_check",
+   "replacement_formula": null,
+   "replacement_cask": null
+  },
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/t/tidgi.rb",
+  "ruby_source_checksum": {
+   "sha256": "e4fc6f0a82731c7cc063cdf7476273b8519c02b7346e6810f595188bbe9b1cc3"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "tahoe": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "sequoia": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "sonoma": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "ventura": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "monterey": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "x86_64_linux": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "tidgi": 0
+    },
+    "90d": {
+     "tidgi": 2
+    },
+    "365d": {
+     "tidgi": 24
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "chatgpt",
+  "full_token": "chatgpt",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "ChatGPT"
+  ],
+  "desc": "OpenAI's official ChatGPT desktop app",
+  "homepage": "https://chatgpt.com/",
+  "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1027.30824.zip",
+  "url_specs": {},
+  "version": "26.1027.30824",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "79018bcdcc141902d9a0e61950ec207f71951941db4165f8a0dc2dc8f0dcc883",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.openai.codex"
+     }
+    ]
+   },
+   {
+    "app": [
+     "ChatGPT.app"
+    ],
+    "target": "/Applications/ChatGPT.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Application Support/CodexComputerUseAuthorizationPlugin",
+       "~/Library/Application Scripts/*.com.openai.sky.CUAService",
+       "~/Library/Application Support/Codex",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.openai.codex.sfl*",
+       "~/Library/Application Support/com.openai.codex",
+       "~/Library/Application Support/OpenAI/Codex",
+       "~/Library/Caches/Codex",
+       "~/Library/Caches/com.openai.codex",
+       "~/Library/Caches/com.openai.sky.CUAService",
+       "~/Library/Group Containers/*.com.openai.sky.CUAService",
+       "~/Library/HTTPStorages/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex.binarycookies",
+       "~/Library/HTTPStorages/com.openai.sky.CUAService",
+       "~/Library/HTTPStorages/com.openai.sky.CUAService.binarycookies",
+       "~/Library/Logs/com.openai.codex",
+       "~/Library/Preferences/com.openai.codex.plist",
+       "~/Library/Preferences/com.openai.sky.CUAService.cli.plist",
+       "~/Library/Preferences/com.openai.sky.CUAService.plist",
+       "~/Library/Saved Application State/com.openai.codex.savedState"
+      ],
+      "rmdir": "~/.codex"
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/c/chatgpt.rb",
+  "ruby_source_checksum": {
+   "sha256": "8b500188086f8464d8a9e65c752d0941495221fe0ca53ac81f67d0e0c33e792a"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "tahoe": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "sequoia": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "sonoma": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "ventura": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "x86_64_linux": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "chatgpt": 13455
+    },
+    "90d": {
+     "chatgpt": 33254
+    },
+    "365d": {
+     "chatgpt": 92007
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "codex-app",
+  "full_token": "codex-app",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Codex"
+  ],
+  "desc": "OpenAI's Codex desktop app for managing coding agents",
+  "homepage": "https://openai.com/codex",
+  "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-arm64-26.623.141536.zip",
+  "url_specs": {},
+  "version": "26.623.141536",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "d948dc36b8358f5a2924b033fbf08398eea7860dc9e97cb5ab9b354490283a0a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.openai.codex"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Codex.app"
+    ],
+    "target": "/Applications/Codex.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/Codex",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.openai.codex.sfl*",
+       "~/Library/Caches/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex.binarycookies",
+       "~/Library/Logs/com.openai.codex",
+       "~/Library/Preferences/com.openai.codex.plist",
+       "~/Library/Saved Application State/com.openai.codex.savedState"
+      ],
+      "rmdir": "~/.codex"
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "12"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": true,
+  "deprecation_date": "2026-07-12",
+  "deprecation_reason": "discontinued",
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": "chatgpt",
+  "deprecate_args": {
+   "date": "2026-07-12",
+   "because": "discontinued",
+   "replacement_formula": null,
+   "replacement_cask": "chatgpt"
+  },
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/c/codex-app.rb",
+  "ruby_source_checksum": {
+   "sha256": "8a2e6e4da9e768aabe6b03bcdb9381f770938b71c1ce253fa5736ef4c4946432"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "tahoe": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "sequoia": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "sonoma": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "ventura": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "monterey": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "x86_64_linux": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "codex-app": 1268
+    },
+    "90d": {
+     "codex-app": 3198
+    },
+    "365d": {
+     "codex-app": 48393
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "iterm2",
+  "full_token": "iterm2",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "iTerm2"
+  ],
+  "desc": "Terminal emulator as alternative to Apple's Terminal app",
+  "homepage": "https://iterm2.com/",
+  "url": "https://iterm2.com/downloads/stable/iTerm2-3_7_6.zip",
+  "url_specs": {},
+  "version": "3.7.6",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "bb6102e9f57bbe41979ba7c7b1c25d4112e9a5c2142606eeccbe18dc7ee0706f",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.googlecode.iterm2"
+     }
+    ]
+   },
+   {
+    "app": [
+     "iTerm.app"
+    ],
+    "target": "/Applications/iTerm.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Scripts/com.googlecode.iterm2.iTermFileProvider",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.itermai.sfl*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.sfl*",
+       "~/Library/Application Support/iTerm",
+       "~/Library/Application Support/iTerm2",
+       "~/Library/Caches/com.googlecode.iterm2",
+       "~/Library/Containers/com.googlecode.iterm2.iTermFileProvider",
+       "~/Library/Containers/iTermAI",
+       "~/Library/Cookies/com.googlecode.iterm2.binarycookies",
+       "~/Library/HTTPStorages/com.googlecode.iterm2",
+       "~/Library/HTTPStorages/com.googlecode.iterm2.binarycookies",
+       "~/Library/Preferences/com.googlecode.iterm2.plist",
+       "~/Library/Preferences/com.googlecode.iterm2.private.plist",
+       "~/Library/Saved Application State/com.googlecode.iterm2*.savedState",
+       "~/Library/WebKit/com.googlecode.iterm2"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "iterm2@beta",
+    "iterm2@nightly"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/i/iterm2.rb",
+  "ruby_source_checksum": {
+   "sha256": "fd5303b2bf84d0d996f792437976fce42b0ed87b1df4cd90b55debb093e96a8b"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "iterm2": 18671
+    },
+    "90d": {
+     "iterm2": 49430
+    },
+    "365d": {
+     "iterm2": 305336
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "iterm2@beta",
+  "full_token": "iterm2@beta",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "iTerm2"
+  ],
+  "desc": "Terminal emulator as alternative to Apple's Terminal app",
+  "homepage": "https://iterm2.com/",
+  "url": "https://iterm2.com/downloads/beta/iTerm2-3_7_7beta2.zip",
+  "url_specs": {},
+  "version": "3.7.7beta2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "298db20038167ca24f7d5c804cc7aa18f7c6122ba68e04a070b564ce520ca77f",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.googlecode.iterm2"
+     }
+    ]
+   },
+   {
+    "app": [
+     "iTerm.app"
+    ],
+    "target": "/Applications/iTerm.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.sfl*",
+       "~/Library/Application Support/iTerm",
+       "~/Library/Application Support/iTerm2",
+       "~/Library/Caches/com.googlecode.iterm2",
+       "~/Library/Preferences/com.googlecode.iterm2.plist",
+       "~/Library/Saved Application State/com.googlecode.iterm2.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "iterm2",
+    "iterm2@nightly"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/i/iterm2@beta.rb",
+  "ruby_source_checksum": {
+   "sha256": "21387fd1b5812415679c3283981bd7b1504b0709f8aadc1a5fca4639a12b3c0c"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "iterm2@beta": 29
+    },
+    "90d": {
+     "iterm2@beta": 88
+    },
+    "365d": {
+     "iterm2@beta": 540
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "zoom",
+  "full_token": "zoom",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Zoom"
+  ],
+  "desc": "Video communication and virtual meeting platform",
+  "homepage": "https://www.zoom.us/",
+  "url": "https://cdn.zoom.us/prod/7.2.2.88465/arm64/zoomusInstallerFull.pkg",
+  "url_specs": {},
+  "version": "7.2.2.88465",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "ff15d926ef5a714c6683cc23ed628a7c2fc43d080a88ac54af4e200ba03a2456",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": [
+       "us.zoom.updater",
+       "us.zoom.updater.login.check",
+       "us.zoom.ZoomDaemon"
+      ],
+      "signal": [
+       "KILL",
+       "us.zoom.xos"
+      ],
+      "pkgutil": "us.zoom.pkg.videomeeting",
+      "delete": [
+       "/Applications/zoom.us.app",
+       "/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "/Library/Logs/DiagnosticReports/zoom.us*",
+       "/Library/PrivilegedHelperTools/us.zoom.ZoomDaemon"
+      ]
+     }
+    ]
+   },
+   {
+    "pkg": [
+     "zoomusInstallerFull.pkg"
+    ]
+   },
+   {
+    "postflight_steps": [
+     {
+      "steps": [
+       {
+        "name": "/Applications/zoom.us.app",
+        "match": "full",
+        "attempts": 3,
+        "notices": [
+         "The Zoom package postinstall script launches the Zoom app",
+         "Attempting to close zoom.us.app to avoid unwanted user intervention"
+        ],
+        "failure_message": "Unable to forcibly close zoom.us.app",
+        "type": "terminate_process"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.zoomus",
+       "~/Desktop/Zoom",
+       "~/Documents/Zoom",
+       "~/Library/Application Scripts/*.ZoomClient3rd",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings.plist",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/us.zoom*.sfl*",
+       "~/Library/Application Support/CrashReporter/zoom.us*",
+       "~/Library/Application Support/zoom.us",
+       "~/Library/Application Support/ZoomUpdater",
+       "~/Library/Caches/us.zoom.xos",
+       "~/Library/Cookies/us.zoom.xos.binarycookies",
+       "~/Library/Group Containers/*.ZoomClient3rd",
+       "~/Library/HTTPStorages/us.zoom.xos",
+       "~/Library/HTTPStorages/us.zoom.xos.binarycookies",
+       "~/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "~/Library/Logs/zoom.us",
+       "~/Library/Logs/zoominstall.log",
+       "~/Library/Logs/ZoomPhone",
+       "~/Library/Preferences/us.zoom.*.plist",
+       "~/Library/Preferences/ZoomChat.plist",
+       "~/Library/Saved Application State/us.zoom.xos.savedState",
+       "~/Library/WebKit/us.zoom.xos"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {},
+  "conflicts_with": {
+   "cask": [
+    "zoom-for-it-admins"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/z/zoom.rb",
+  "ruby_source_checksum": {
+   "sha256": "bc79cb64e1cc629d0ff8059e0c24825ddee46696b11f0fcbe5dee72c578aa47f"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "tahoe": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "sequoia": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "sonoma": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "ventura": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "monterey": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "big_sur": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "x86_64_linux": {
+    "url": "https://cdn.zoom.us/prod/7.2.1.5760/zoom_x86_64.tar.xz",
+    "version": "7.2.1.5760",
+    "sha256": "c2a492de44513d7533f4ddccea380248ca960a69b937327f647a536b88d6959b",
+    "artifacts": [
+     {
+      "binary": [
+       "zoom/ZoomLauncher",
+       {
+        "target": "zoom"
+       }
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zoom"
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.config/zoom",
+         "~/.config/zoom.conf",
+         "~/.config/zoomus.conf",
+         "~/.zoom"
+        ]
+       }
+      ]
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "conflicts_with": null,
+    "auto_updates": null
+   },
+   "arm64_linux": {
+    "url": "https://cdn.zoom.us/prod/7.2.1.5760/zoom_x86_64.tar.xz",
+    "version": "7.2.1.5760",
+    "sha256": null,
+    "artifacts": [
+     {
+      "binary": [
+       "zoom/ZoomLauncher",
+       {
+        "target": "zoom"
+       }
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zoom"
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.config/zoom",
+         "~/.config/zoom.conf",
+         "~/.config/zoomus.conf",
+         "~/.zoom"
+        ]
+       }
+      ]
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "conflicts_with": null,
+    "auto_updates": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur",
+   "x86_64_linux"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "zoom": 6261
+    },
+    "90d": {
+     "zoom": 15297
+    },
+    "365d": {
+     "zoom": 64669
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "zoom-for-it-admins",
+  "full_token": "zoom-for-it-admins",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Zoom for IT Admins"
+  ],
+  "desc": "Video communication and virtual meeting platform",
+  "homepage": "https://www.zoom.us/",
+  "url": "https://cdn.zoom.us/prod/7.2.2.88465/ZoomInstallerIT.pkg",
+  "url_specs": {},
+  "version": "7.2.2.88465",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "422f801771ef0c3db68bdf1a47a9c44e18b6f822b2f5d751adc3242270dc6417",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": "us.zoom.ZoomDaemon",
+      "signal": [
+       "KILL",
+       "us.zoom.xos"
+      ],
+      "pkgutil": "us.zoom.pkg.videomeeting",
+      "delete": [
+       "/Applications/zoom.us.app",
+       "/Library/Audio/Plug-Ins/HAL/ZoomAudioDevice.driver",
+       "/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "/Library/Logs/DiagnosticReports/zoom.us*",
+       "/Library/PrivilegedHelperTools/us.zoom.ZoomDaemon"
+      ]
+     }
+    ]
+   },
+   {
+    "pkg": [
+     "ZoomInstallerIT.pkg"
+    ]
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Preferences/us.zoom.config.plist",
+       "~/.zoomus",
+       "~/Desktop/Zoom",
+       "~/Documents/Zoom",
+       "~/Library/Application Scripts/*.ZoomClient3rd",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings.plist",
+       "~/Library/Application Support/CrashReporter/zoom.us*",
+       "~/Library/Application Support/zoom.us",
+       "~/Library/Caches/us.zoom.xos",
+       "~/Library/Cookies/us.zoom.xos.binarycookies",
+       "~/Library/Group Containers/*.ZoomClient3rd",
+       "~/Library/HTTPStorages/us.zoom.xos",
+       "~/Library/HTTPStorages/us.zoom.xos.binarycookies",
+       "~/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "~/Library/Logs/zoom.us",
+       "~/Library/Logs/zoominstall.log",
+       "~/Library/Logs/ZoomPhone",
+       "~/Library/Mobile Documents/iCloud~us~zoom~videomeetings",
+       "~/Library/Preferences/us.zoom.airhost.plist",
+       "~/Library/Preferences/us.zoom.caphost.plist",
+       "~/Library/Preferences/us.zoom.Transcode.plist",
+       "~/Library/Preferences/us.zoom.xos.Hotkey.plist",
+       "~/Library/Preferences/us.zoom.xos.plist",
+       "~/Library/Preferences/us.zoom.ZoomAutoUpdater.plist",
+       "~/Library/Preferences/ZoomChat.plist",
+       "~/Library/Safari/PerSiteZoomPreferences.plist",
+       "~/Library/SafariTechnologyPreview/PerSiteZoomPreferences.plist",
+       "~/Library/Saved Application State/us.zoom.xos.savedState",
+       "~/Library/WebKit/us.zoom.xos"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "zoom"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/z/zoom-for-it-admins.rb",
+  "ruby_source_checksum": {
+   "sha256": "46bb5b1e7971d7433e04028e29619d1ca92f89ccb9240c73f007d60f37831c6f"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "zoom-for-it-admins": 102
+    },
+    "90d": {
+     "zoom-for-it-admins": 249
+    },
+    "365d": {
+     "zoom-for-it-admins": 959
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ }
+]

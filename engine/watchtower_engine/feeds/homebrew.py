@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import os
+import posixpath
+import re
 import urllib.error
 import urllib.request
 import zlib
@@ -27,7 +29,7 @@ API = "https://formulae.brew.sh/api"
 URLS = {"formula": f"{API}/formula.json", "cask": f"{API}/cask.json"}
 TIMEOUT_SECONDS = 30
 MAX_BYTES = 200 * 1024 * 1024  # The formula catalog is about 30 MB uncompressed.
-CACHE_FORMAT = 1
+CACHE_FORMAT = 2  # 2: cask rows carry homepage, app names and bundle ids (#55).
 
 
 @dataclass
@@ -59,6 +61,7 @@ class Catalog:
 
     kind: str
     entries: dict[str, dict] = field(default_factory=dict)
+    rows: list[dict] = field(default_factory=list)
     # When the data was fetched or confirmed unchanged. None if there is no data.
     fetched_at: str | None = None
     # True if this refresh fetched or confirmed the data. False if it is from the cache or missing.
@@ -75,6 +78,14 @@ class Catalog:
             if name and name in self.entries:
                 return self.entries[name]
         return None
+
+    def casks_for_bundle_id(self, bundle_id: str) -> list[dict]:
+        """Casks that name this bundle id in an `uninstall quit` or `zap trash` entry."""
+        return [r for r in self.rows if bundle_id.lower() in (r.get("bundle_ids") or [])]
+
+    def casks_for_app_name(self, file_name: str) -> list[dict]:
+        """Casks with an `app` artifact of this file name, for example `T3 Code.app`."""
+        return [r for r in self.rows if file_name.lower() in (r.get("app_names") or [])]
 
 
 def _index_formulae(raw: list) -> list[dict]:
@@ -93,9 +104,64 @@ def _index_formulae(raw: list) -> list[dict]:
     return out
 
 
+_BUNDLE_ID = re.compile(r"^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+){2,}$")
+_ID_FOLDERS = ("/Library/Preferences/", "/Library/Caches/", "/Library/HTTPStorages/",
+               "/Library/Saved Application State/", "/Library/Containers/")
+_ID_SUFFIXES = (".plist", ".savedState")
+
+
+def _strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    return [v for v in value or [] if isinstance(v, str)] if isinstance(value, list) else []
+
+
+def cask_app_names(artifacts: list) -> list[str]:
+    """Lower-case file names of the `app` artifacts. A `target` renames the app."""
+    names: list[str] = []
+    for artifact in artifacts or []:
+        if not isinstance(artifact, dict):
+            continue
+        for entry in artifact.get("app") or []:
+            if isinstance(entry, str):
+                names.append(posixpath.basename(entry).lower())
+            elif isinstance(entry, dict) and entry.get("target") and names:
+                names[-1] = posixpath.basename(str(entry["target"])).lower()
+    return sorted(set(names))
+
+
+def cask_bundle_ids(artifacts: list) -> list[str]:
+    """Lower-case bundle ids that a cask names: `uninstall quit` values and ids in `zap trash` paths.
+
+    The catalog has no bundle id field. A zap path such as `~/Library/Preferences/com.example.app.plist`
+    names the id of the app that the cask installs.
+    """
+    ids: set[str] = set()
+    for artifact in artifacts or []:
+        if not isinstance(artifact, dict):
+            continue
+        for stanza in artifact.get("uninstall") or []:
+            if isinstance(stanza, dict):
+                ids.update(i.lower() for i in _strings(stanza.get("quit")) if _BUNDLE_ID.match(i))
+        for stanza in artifact.get("zap") or []:
+            if not isinstance(stanza, dict):
+                continue
+            for path in _strings(stanza.get("trash")):
+                if not any(folder in path for folder in _ID_FOLDERS):
+                    continue
+                base = posixpath.basename(path)
+                for suffix in _ID_SUFFIXES:
+                    if base.endswith(suffix):
+                        base = base[: -len(suffix)]
+                if _BUNDLE_ID.match(base):
+                    ids.add(base.lower())
+    return sorted(ids)
+
+
 def _index_casks(raw: list) -> list[dict]:
     out = []
     for c in raw:
+        artifacts = c.get("artifacts") or []
         out.append({
             "name": c["token"],
             "full_name": c.get("full_token") or c["token"],
@@ -103,6 +169,9 @@ def _index_casks(raw: list) -> list[dict]:
             "version": c.get("version"),
             "auto_updates": bool(c.get("auto_updates")),
             "old_names": c.get("old_tokens") or [],
+            "homepage": c.get("homepage") if isinstance(c.get("homepage"), str) else None,
+            "app_names": cask_app_names(artifacts),
+            "bundle_ids": cask_bundle_ids(artifacts),
         })
     return out
 
@@ -183,10 +252,10 @@ def load_catalog(
         else:
             raise ValueError(f"HTTP {resp.status}")
         cache.write(kind, {"fetched_at": fetched_at, "etag": resp.headers.get("etag"), "rows": rows})
-        return Catalog(kind, _by_name(rows), fetched_at, fresh=True)
+        return Catalog(kind, _by_name(rows), rows, fetched_at, fresh=True)
     except Exception as exc:  # Network, HTTP, size or parse failure. All mean "did not load".
         detail = f"GET {URLS[kind]}: {exc!r}"
         if cached:
-            return Catalog(kind, _by_name(cached["rows"]), cached["fetched_at"], fresh=False,
+            return Catalog(kind, _by_name(cached["rows"]), cached["rows"], cached["fetched_at"], fresh=False,
                            error="Homebrew catalog did not load.", detail=detail)
         return Catalog(kind, error="Homebrew catalog did not load.", detail=detail)

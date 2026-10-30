@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <item>
+      <sparkle:version>341</sparkle:version>
+      <sparkle:shortVersionString>3.4.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.2</sparkle:minimumSystemVersion>
+      <enclosure url="https://example.com/a.zip"/>
+    </item>
+  </channel>
+</rss>

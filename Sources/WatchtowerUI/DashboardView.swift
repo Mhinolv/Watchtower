@@ -217,7 +217,7 @@ struct ItemTable: View {
             .contextMenu(forSelectionType: String.self) { keys in
                 if keys.count == 1, let key = keys.first,
                    let item = model.state?.items.first(where: { $0.key == key }) {
-                    Button("Update…") { Task { await updates?.start(item) } }
+                    Button(UpdatePolicy.buttonTitle(item)) { Task { await updates?.start(item) } }
                         .disabled(updates == nil || UpdatePolicy.blockReason(item) != nil)
                 }
             }
@@ -404,25 +404,39 @@ struct ItemDetail: View {
                     }
                     Spacer()
                     let blocked = updates == nil ? "Updates are not available here." : UpdatePolicy.blockReason(item)
-                    Button("Update…") { Task { await updates?.start(item) } }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(blocked != nil)
-                        .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
+                    if !item.isCatalogApp {
+                        Button(UpdatePolicy.buttonTitle(item)) { Task { await updates?.start(item) } }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(blocked != nil)
+                            .help(blocked ?? "Show the update plan. Nothing runs before you confirm.")
+                    }
+                }
+                if item.source == "apps", item.vendorPageURL != nil || item.attributes?["path"] != nil {
+                    HStack { appActions }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Installed", item.installedVersion ?? "—")
                     row("Latest", item.latestVersion ?? "—")
+                    if let from = item.latestFromText { row("Latest from", from) }
+                    if let matched = item.matchedBy { row("Matched by", matched) }
                     if let kind = item.kind { row("Kind", kind) }
-                    if let origin = item.origin { row("Tap", origin) }
+                    if let origin = item.origin {
+                        row(origin == "Sparkle feed" ? "Source" : (item.source == "apps" ? "Origin" : "Tap"), origin)
+                    }
                     if let project = item.project { row("Project", project) }
-                    ForEach((item.attributes ?? [:]).sorted(by: { $0.key < $1.key }), id: \.key) { pair in
+                    ForEach(SparkleDetail.otherAttributes(item).filter { !ItemRecord.catalogAttributeKeys.contains($0.key) },
+                            id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
                 }
-                if let note = item.note {
-                    Text(note)
+                if let sparkle {
+                    SparkleSection(detail: sparkle)
                 }
-                if let error = item.error {
+                if let note = item.note {
+                    // A newer beta is extra information, not an action (#14 Design notes).
+                    Text(note).foregroundStyle(sparkle != nil && item.state == .upToDate ? .secondary : .primary)
+                }
+                if let error = sparkle?.failure ?? item.error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                     if let detail = item.detail {
                         DisclosureGroup("Details", isExpanded: $showsDetail) {
@@ -440,10 +454,26 @@ struct ItemDetail: View {
         }
     }
 
+    var sparkle: SparkleDetail? { SparkleDetail(item) }
+
     func row(_ label: String, _ value: String) -> some View {
         GridRow {
             Text(label).foregroundStyle(.secondary)
             Text(value).textSelection(.enabled)
+        }
+    }
+
+    /// The manual route for an app (#55): the vendor page, if the cask has one, and Finder. Never `Update`.
+    @ViewBuilder var appActions: some View {
+        if let url = item.vendorPageURL {
+            Button("Open Vendor Page", systemImage: "safari") { NSWorkspace.shared.open(url) }
+                .help("Open \(url.host ?? url.absoluteString) in your browser")
+        }
+        if let path = item.attributes?["path"] {
+            Button("Reveal in Finder", systemImage: "folder") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+            }
+            .help("Show the app in Finder")
         }
     }
 
@@ -457,6 +487,26 @@ struct ItemDetail: View {
         default: item.kind?.capitalized ?? item.source
         }
         return [kind, item.origin].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// `Sparkle feed` rows below the app fields (#14). Watchtower never installs Sparkle updates.
+struct SparkleSection: View {
+    let detail: SparkleDetail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sparkle feed").font(.headline)
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                ForEach(detail.rows, id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Text(row.value).textSelection(.enabled)
+                            .font(row.label == "Feed" ? .callout.monospaced() : .body)
+                    }
+                }
+            }
+        }
     }
 }
 

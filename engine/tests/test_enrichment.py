@@ -207,3 +207,34 @@ def test_resolved_findings_are_not_sent_to_github(tmp_path):
             r = s.begin_refresh()
             s.finish_refresh(r.id, "complete", coverage=[result.coverage], scan=result)
     assert refresh.advisory_id_groups(tmp_path, []) == []
+
+
+# Withdrawn only if every id is withdrawn (#65). Real nltk ids: a live advisory and a withdrawn duplicate.
+
+
+def test_a_wrong_withdrawn_mark_is_cleared_and_the_other_marks_stay(store, tmp_path):
+    from test_github import NLTK, nltk_fetch, rate_limited
+    from watchtower_engine.feeds.github import load
+    result = scan([match(name="nltk", groups=[adv(NLTK, severity="medium")])])
+    kev = kev_data({"CVE-2026-12259": {**KEV_ENTRY, "cve": "CVE-2026-12259"}})
+    # The reviewed answers arrive. The malware answers hit the rate limit, so the malware mark is unknown.
+    fetch = nltk_fetch({("malware", "GHSA-5wp5-5229-5g6q"): rate_limited()})
+    data = load(tmp_path / "gh", [NLTK], fetch, lambda: "2026-10-30T08:00:00Z")
+    assert data.assess(NLTK).withdrawn_known and not data.assess(NLTK).malware_known
+    enrich(store, result, kev=kev)  # KEV mark first, no GitHub data yet.
+    store.db.execute("UPDATE findings SET withdrawn_at = ?, malware = ?",
+                     ("2026-09-09T16:33:54Z", json.dumps({"advisory_id": "GHSA-prior-mark-0001"})))
+    [f] = enrich(store, result, kev=kev, github=data).values()
+    assert f.withdrawn_at is None  # The old bug set it from the duplicate.
+    assert f.kev["cve"] == "CVE-2026-12259"
+    assert f.malware == {"advisory_id": "GHSA-prior-mark-0001"}  # No malware answer: the prior mark stays.
+
+
+def test_a_finding_with_every_id_withdrawn_shows_the_mark_and_the_date(store, tmp_path):
+    from test_github import nltk_fetch
+    from watchtower_engine.feeds.github import load
+    ids = ["GHSA-gf32-cmjh-8m9v"]
+    result = scan([match(name="dup", groups=[adv(ids, severity="critical")])])
+    data = load(tmp_path / "gh", [ids], nltk_fetch(), lambda: "2026-10-30T08:00:00Z")
+    [f] = enrich(store, result, github=data).values()
+    assert f.withdrawn_at == "2026-09-09T16:33:54Z"

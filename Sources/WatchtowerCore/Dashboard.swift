@@ -385,7 +385,10 @@ public struct CoverageRow: Equatable, Sendable, Identifiable {
             case .notRun: ("Not run", .gray)
             }
             let last = c.lastSuccessAt.map { "Last success \(time.absolute($0))" } ?? "No success yet"
-            return CoverageRow(id: c.source, label: c.label, stateText: text, tone: tone, lastSuccess: last,
+            // `Sparkle feeds: 12 of 14 read` (#14). Other sources keep the plain label.
+            let counted = c.source == "sparkle" && c.state != .notRun
+            let label = counted ? c.note.map { "\(c.label): \($0)" } ?? c.label : c.label
+            return CoverageRow(id: c.source, label: label, stateText: text, tone: tone, lastSuccess: last,
                                error: c.error)
         }
     }

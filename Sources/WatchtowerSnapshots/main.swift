@@ -160,7 +160,21 @@ MainActor.assumeIsolated {
             }
         }
     }
-    let expected = (SampleData.Scenario.allCases.count + SampleData.UpdateScenario.allCases.count
+    // The Coverage popover with the Sparkle row (#14).
+    for dark in [false, true] {
+        let name = "sparkle-coverage-\(dark ? "dark" : "light").png"
+        do {
+            try render(CoverageView(rows: SampleData.model(.sparkleFailed).coverageRows)
+                           .background(Color(nsColor: .windowBackgroundColor)),
+                       size: CGSize(width: 320, height: 0), dark: dark, chrome: false,
+                       to: out.appendingPathComponent(name))
+            print(name)
+            written += 1
+        } catch {
+            FileHandle.standardError.write(Data("\(name): \(error)\n".utf8))
+        }
+    }
+    let expected = 2 + (SampleData.Scenario.allCases.count + SampleData.UpdateScenario.allCases.count
                     + SampleData.IncidentScenario.allCases.count) * 2
     exit(written == expected ? 0 : 1)
 }
