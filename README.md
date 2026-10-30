@@ -69,6 +69,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
+| GET `https://sofafeed.macadmins.io/v2/macos_data_feed.json` and `/v2/safari_data_feed.json` | None. Two public bulk feeds (SOFA, MacAdmins). No version, path, bundle id or finding. | SOFA check, each refresh |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
@@ -79,6 +80,12 @@ The engine keeps a small catalog index in `cache/homebrew/` in the data folder. 
 
 The macOS and app check makes no network call. It reads `/System/Library/CoreServices/SystemVersion.plist`, each app's `Info.plist`, the Electron framework `Info.plist` and the first 4 KB of each main executable.
 It never launches an app. For the cask links, `watchtower apps` also runs the `brew info` command above, once.
+
+The SOFA check (#58) compares the installed macOS version and build and the Safari version with the SOFA feeds. The compare runs on this Mac.
+The engine reads only known fields of the feeds, with format checks and limits. It shows the latest release, the CVEs that newer releases fix and the actively exploited CVEs.
+The Apple security releases page (`https://support.apple.com/en-us/100100`) stays the primary source. SOFA is a summary of that page.
+Safari compares within its installed major version. The engine keeps the last copy in `cache/sofa/feeds.json`. If a feed fails, it uses that copy and the coverage is `partial`.
+Watchtower never installs macOS or Safari. The `Open Software Update` button opens System Settings.
 
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.

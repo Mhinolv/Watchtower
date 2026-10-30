@@ -60,8 +60,8 @@ def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
 
 
 def default_sources(data_dir: Path) -> list[Source]:
-    """Homebrew, Applications, macOS and OSV. `brew info` and the catalogs run once."""
-    from .feeds import github, kev
+    """Homebrew, Applications, macOS, SOFA, OSV, KEV and GitHub. `brew info` and the catalogs run once."""
+    from .feeds import github, kev, sofa
     from .inventory import apps, homebrew, macos
     from .scanners import osv
     from .scope import list_projects
@@ -81,6 +81,14 @@ def default_sources(data_dir: Path) -> list[Source]:
         return fetches[url]
 
     scans: list = []  # The OSV result of this refresh. The GitHub source reads its advisory ids.
+    inventory: list = []  # The macOS and app items of this refresh. SOFA updates them in place.
+
+    def keep(result: SourceResult) -> SourceResult:
+        inventory.extend(result.items)
+        return result
+
+    def sofa_source() -> SourceResult:
+        return SourceResult(sofa.check(inventory, data_dir), [])
 
     def osv_source() -> SourceResult:
         result = osv.collect(data_dir, list_projects(data_dir).projects)
@@ -98,8 +106,10 @@ def default_sources(data_dir: Path) -> list[Source]:
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
                lambda: homebrew.collect(data_dir, run=run_once, fetch=fetch_once)),
-        Source(apps.SOURCE, apps.LABEL, lambda: apps.collect_live(data_dir, run=run_once, fetch=fetch_once)),
-        Source(macos.SOURCE, macos.LABEL, macos.collect),
+        Source(apps.SOURCE, apps.LABEL,
+               lambda: keep(apps.collect_live(data_dir, run=run_once, fetch=fetch_once))),
+        Source(macos.SOURCE, macos.LABEL, lambda: keep(macos.collect())),
+        Source(sofa.SOURCE, sofa.LABEL, sofa_source),
         Source(osv.SOURCE, osv.LABEL, osv_source),
         Source(kev.SOURCE, kev.LABEL, kev_source),
         Source(github.SOURCE, github.LABEL, github_source),

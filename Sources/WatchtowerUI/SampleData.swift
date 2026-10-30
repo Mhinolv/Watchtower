@@ -150,6 +150,10 @@ public enum SampleData {
         case findingUv = "finding-uv"
         case failed
         case chipSelected = "chip-selected"
+        case sofaMacosCurrent = "sofa-macos-current"
+        case sofaMacosExploited = "sofa-macos-exploited"
+        case sofaSafariBehind = "sofa-safari-behind"
+        case sofaFeedFailed = "sofa-feed-failed"
         case menubarFindings = "menubar-findings"
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
@@ -226,6 +230,8 @@ public enum SampleData {
             model.selection = .apps
             model.itemFilter = .error
             return model
+        case .sofaMacosCurrent, .sofaMacosExploited, .sofaSafariBehind, .sofaFeedFailed:
+            return sofaModel(scenario, engine: engine, clock: clock)
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
         case .menubarStale:
@@ -277,6 +283,62 @@ extension SampleData {
             model.selectedItemKey = "SEC-0004"
         default: break
         }
+        return model
+    }
+}
+
+extension SampleData {
+    /// The macOS and Safari items with SOFA data (#58), as the engine writes them for each scenario.
+    static func sofaItems(_ scenario: Scenario) -> [ItemRecord] {
+        let fixed = (1...12).map { "CVE-2026-\(String(format: "%05d", 86940 + $0))" }
+        var macOS = item("macos", "macos", "macOS", .upToDate, kind: "os", installed: "15.8.2", latest: "15.8.2",
+                         origin: "SOFA", sourceAt: ago(4))
+        macOS.attributes = ["build": "24H232", "sofaLatest": "15.8.2 (24H232)", "sofaReleased": "2026-10-26",
+                            "sofaChecked": "2026-10-29T08:00:00Z"]
+        var safari = item("com.apple.Safari", "apps", "Safari", .upToDate, kind: "app", installed: "26.6.1",
+                          latest: "26.6.1", origin: "SOFA", sourceAt: ago(4))
+        safari.attributes = ["bundleId": "com.apple.Safari", "path": "/Applications/Safari.app",
+                             "sofaLatest": "26.6.1", "sofaReleased": "2026-08-18", "sofaChecked": "2026-10-29T08:00:00Z"]
+        switch scenario {
+        case .sofaMacosExploited, .sofaFeedFailed:
+            macOS.state = .vulnerable
+            macOS.installedVersion = "15.7.9"
+            macOS.attributes?["build"] = "24G830"
+            macOS.attributes?["sofaFixedCves"] = fixed.joined(separator: ", ")
+            macOS.attributes?["sofaExploited"] = "CVE-2026-86950, CVE-2026-86951"
+            macOS.note = "15.8.2 fixes 2 actively exploited CVEs."
+            if scenario == .sofaFeedFailed {
+                // The feed did not load. The data from the day before stays.
+                macOS.sourceAt = days(1)
+                macOS.attributes?["sofaChecked"] = "2026-10-28T08:00:00Z"
+                macOS.error = "SOFA feed did not load."
+                macOS.detail = "GET https://sofafeed.macadmins.io/v2/macos_data_feed.json: URLError(code: -1009)"
+            }
+        case .sofaSafariBehind:
+            safari.state = .updateAvailable
+            safari.installedVersion = "26.5.2"
+            safari.attributes?["sofaFixedCves"] = fixed.prefix(10).joined(separator: ", ")
+            safari.note = "Safari 26.6.1 fixes 10 CVEs."
+        default: break
+        }
+        return [macOS, safari]
+    }
+
+    @MainActor
+    static func sofaModel(_ scenario: Scenario, engine: PreviewEngine,
+                          clock: @escaping @Sendable () -> Date) -> DashboardModel {
+        var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+        let sofa = sofaItems(scenario)
+        sample.items = sample.items.filter { $0.id != "macos" } + sofa
+        let failed = scenario == .sofaFeedFailed
+        sample.coverage.append(CoverageRecord(source: "sofa", label: "SOFA", state: failed ? .partial : .complete,
+                                              lastSuccessAt: failed ? days(1) : ago(2),
+                                              error: failed ? "SOFA did not load. Watchtower used the last copy." : nil,
+                                              sourceAt: failed ? days(1) : ago(4)))
+        if failed { sample.refresh?.status = .partial }
+        let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+        model.selection = .apps
+        model.selectedItemKey = (scenario == .sofaSafariBehind ? sofa[1] : sofa[0]).key
         return model
     }
 }
