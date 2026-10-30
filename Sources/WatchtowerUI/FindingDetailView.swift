@@ -145,8 +145,8 @@ public struct FindingDetailView: View {
         return versions.count == 1 ? "\(finding.package)@\(versions.first!)" : finding.package
     }
 
-    /// No Mark Resolved button: only a complete scan resolves a finding. The `Update…` button is
-    /// not here: no update adapter exists for lockfiles yet (#10, #11).
+    /// No Mark Resolved button: only a complete scan resolves a finding. `Update…` is on each
+    /// affected path below, because an update changes one project (#10).
     @ViewBuilder private var actions: some View {
         HStack {
             switch finding.status {
@@ -187,7 +187,7 @@ public struct FindingDetailView: View {
                                 Text(path.dependencyPath.map { "Path: " + $0.joined(separator: " › ") }
                                      ?? "Dependency path not available.")
                                     .font(.caption).foregroundStyle(.secondary)
-                                if let block = path.updateBlock, UVUpdate.key(finding: finding, path: path) != nil {
+                                if let block = path.updateBlock, UpdateKeys.forFinding(finding, path) != nil {
                                     Label(block, systemImage: "hand.raised").font(.caption).foregroundStyle(.orange)
                                 }
                             }
@@ -199,7 +199,7 @@ public struct FindingDetailView: View {
                                 }
                                 .controlSize(.small)
                                 .help("Show \(path.lockfile) in Finder")
-                                if UVUpdate.key(finding: finding, path: path) != nil {
+                                if UpdateKeys.forFinding(finding, path) != nil {
                                     let block = updates == nil ? "Updates are not available here." : path.updateBlock
                                     Button("Update…") { Task { await updates?.start(finding: finding, path: path) } }
                                         .controlSize(.small)

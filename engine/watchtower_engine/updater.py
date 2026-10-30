@@ -17,6 +17,7 @@ from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
 from .updates import homebrew as brew_updates
+from .updates import npm as npm_updates
 from .updates import uv as uv_updates
 
 ERROR_NOT_UPDATABLE = "Watchtower can update Homebrew formulae and casks only."
@@ -47,9 +48,12 @@ def _item(store: Store, item_key: str):
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
                 uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-                **platform) -> brew_updates.Plan:
+                npm: str | None = None, get=None, **platform) -> brew_updates.Plan:
     if item_key.startswith(uv_updates.KEY_PREFIX):
         return uv_updates.make_plan(item_key, uv, run, fetch, **(uv_options or {}))
+    if item_key.startswith(npm_updates.KEY_PREFIX):
+        options = {"get": get} if get else {}
+        return npm_updates.make_plan(item_key, npm, run, **options)
     item = _item(store, item_key)
     if item is None or item.source != "homebrew" or item.kind not in ("formula", "cask"):
         raise UpdateError(ERROR_NOT_UPDATABLE)
@@ -74,10 +78,10 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
                brew: str | None = None, run: Callable = subprocess.run,
                runner: brew_updates.RunStreaming = brew_updates.run_streaming,
                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-               **platform) -> tuple[Attempt, dict]:
+               npm: str | None = None, get=None, **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, **platform)
+    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -99,6 +103,8 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
 
     if plan.kind == uv_updates.KIND:
         return _run_uv(store, log, plan, attempt_id, confirm_scripts, line, output, runner)
+    if plan.kind == npm_updates.KIND:
+        return _run_npm(log, attempt_id, plan, confirm_scripts, line, runner, output), plan.to_dict()
 
     try:
         code = brew_updates.upgrade(plan, line, runner)
@@ -129,6 +135,27 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
             error = ERROR_NOT_VERIFIED.format(version=after or "unknown")
         log.finish(attempt_id, "not_verified", after, code, text, error)
     return log.get(attempt_id), plan.to_dict()
+
+
+def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line, runner, output) -> Attempt:
+    """npm: install with --ignore-scripts, then the confirmed scripts. Verify lockfile and node_modules."""
+    try:
+        code, script_error = npm_updates.execute(plan, line, confirm_scripts, runner)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id)
+    ok, after, rows, error = npm_updates.verify(plan)
+    text = "\n".join(output)
+    if code != 0:
+        log.finish(attempt_id, "failed", after, code, text, script_error or ERROR_FAILED.format(code=code), rows)
+    elif ok:
+        log.finish(attempt_id, "verified", after, code, text, None, rows)
+    else:
+        log.finish(attempt_id, "not_verified", after, code, text, error, rows)
+    return log.get(attempt_id)
 
 
 def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,

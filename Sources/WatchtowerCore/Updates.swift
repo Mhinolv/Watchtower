@@ -37,6 +37,19 @@ public struct PlanRow: Codable, Hashable, Sendable {
     }
 }
 
+/// One install script that needs the separate confirmation (npm, #10).
+public struct ScriptDetail: Codable, Hashable, Sendable {
+    public var package: String
+    public var version: String?
+    public var script: String
+
+    public init(package: String, version: String?, script: String) {
+        self.package = package
+        self.version = version
+        self.script = script
+    }
+}
+
 public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var itemKey: String
@@ -59,12 +72,14 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     public var rows: [PlanRow]?
     /// The text of the scripts step, if it is not `<name> needs install scripts: <reasons>.`
     public var scriptsMessage: String?
+    /// The package and script for each line of the scripts step (npm). Nil for Homebrew and uv.
+    public var scriptDetails: [ScriptDetail]?
 
     public init(id: String, itemKey: String, name: String, kind: String, fullName: String,
                 installedVersion: String?, targetVersion: String?, command: [String], alsoChanges: [PackageChange] = [],
                 majorChange: Bool = false, scripts: [String] = [], manualSteps: [String] = [],
                 refusal: String? = nil, detail: String? = nil, rows: [PlanRow]? = nil,
-                scriptsMessage: String? = nil) {
+                scriptsMessage: String? = nil, scriptDetails: [ScriptDetail]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -82,6 +97,7 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         self.detail = detail
         self.rows = rows
         self.scriptsMessage = scriptsMessage
+        self.scriptDetails = scriptDetails
     }
 
     /// `2.4.1 → 2.5.0`.
@@ -192,8 +208,8 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
         case .notVerified:
-            let text = if attempt.kind == "uv", let error = attempt.error {
-                error  // The engine says what is not verified: the lockfile or the environment.
+            let text = if attempt.kind == "uv" || attempt.kind == "npm", let error = attempt.error {
+                error  // The engine says what is not verified: the lockfile or the installed package.
             } else if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
             } else {
@@ -228,6 +244,36 @@ public enum UVUpdate {
 
     /// Nil if `Update…` can open the plan, else why it is off.
     public static func blockReason(_ path: FindingPath) -> String? { path.updateBlock }
+}
+
+public enum NPMUpdate {
+    /// `npm|~/Projects/web/app|express|4.19.0`: the folder of the package-lock.json, the package and the
+    /// fixed version (or `-`). nil if this path has no npm update: another lockfile, ecosystem, or resolved.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "npm", (path.lockfile as NSString).lastPathComponent == "package-lock.json",
+              !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        let folder = (path.lockfile as NSString).deletingLastPathComponent
+        let dir = folder.isEmpty ? path.projectPath : path.projectPath + "/" + folder
+        return "npm|\(dir)|\(finding.package)|\(finding.fixedIn ?? "-")"
+    }
+}
+
+public enum UpdateKeys {
+    /// The engine key for one finding path: uv (#11) or npm (#10). nil if neither adapter fits.
+    public static func forFinding(_ finding: FindingRecord, _ path: FindingPath) -> String? {
+        UVUpdate.key(finding: finding, path: path) ?? NPMUpdate.key(finding: finding, path: path)
+    }
+
+    /// Nil if `Update…` can open a plan for this path, else why it is off.
+    public static func blockReason(_ finding: FindingRecord, _ path: FindingPath) -> String? {
+        if let block = path.updateBlock { return block }
+        if forFinding(finding, path) != nil { return nil }
+        if finding.status == .resolved { return "This finding is resolved." }
+        switch (path.lockfile as NSString).lastPathComponent {
+        case "uv.lock": return "No fixed version is known."
+        default: return "Watchtower updates projects with package-lock.json or uv.lock only."
+        }
+    }
 }
 
 public enum UpdatePolicy {
@@ -336,10 +382,15 @@ public final class UpdateModel {
         await loadPlan(itemKey: item.key, name: item.name)
     }
 
-    /// Open the sheet for one uv dependency of a finding. Nothing runs yet.
+    /// Open the sheet for one npm or uv dependency of a finding. Nothing runs yet.
     public func start(finding: FindingRecord, path: FindingPath) async {
-        guard let key = UVUpdate.key(finding: finding, path: path) else { return }
+        guard let key = UpdateKeys.forFinding(finding, path) else { return }
         await loadPlan(itemKey: key, name: finding.package)
+    }
+
+    /// Open the sheet for an engine key. Nothing runs yet.
+    public func start(itemKey: String, name: String) async {
+        await loadPlan(itemKey: itemKey, name: name)
     }
 
     func loadPlan(itemKey: String, name: String) async {

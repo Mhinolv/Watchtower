@@ -63,6 +63,40 @@ struct PlanStep: View {
     @FocusState private var cancelFocused: Bool
 
     var body: some View {
+        if let refusal = plan.refusal, plan.targetVersion == nil {
+            notSupported(refusal)
+        } else {
+            fullPlan
+        }
+    }
+
+    /// The engine refused before it had a target: title, reason, Cancel. Update stays off.
+    func notSupported(_ refusal: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "hand.raised").font(.system(size: 22)).foregroundStyle(Tone.orange.color)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(refusal).font(.system(size: 14, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(plan.rows ?? [], id: \.label) { row in
+                        Text("\(row.label): \(row.value)").foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            HStack {
+                Spacer()
+                Button("Cancel") { model.close() }
+                    .keyboardShortcut(.cancelAction)
+                    .focused($cancelFocused)
+                Button("Update") {}.disabled(true).help(refusal)
+            }
+        }
+        .onAppear { cancelFocused = true }
+    }
+
+    var fullPlan: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
@@ -74,7 +108,7 @@ struct PlanStep: View {
                     CommandBox(text: plan.commandText)
                 }
                 if let rows = plan.rows, !rows.isEmpty {
-                    // A uv plan: its rows come from the engine (project, environment, files, groups, ...).
+                    // An npm or uv plan: its rows come from the engine (project, files, other packages, ...).
                     ForEach(rows, id: \.label) { row in
                         GridRow {
                             Text(row.label).foregroundStyle(.secondary)
@@ -166,8 +200,8 @@ struct PlanRowValue: View {
                     }
                 }
             }
-        } else if row.value == "Disabled" {
-            SmallBadge(text: "Disabled", tone: .gray)
+        } else if row.value.hasPrefix("Disabled") {
+            SmallBadge(text: row.value, tone: .gray)  // "Disabled", "Disabled (--ignore-scripts)"
         } else {
             Text(row.value).textSelection(.enabled)
         }
@@ -180,8 +214,11 @@ struct CommandBox: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
+            // The owner must see the whole command: wrap, never cut it.
             Text(text)
                 .font(.callout.monospaced())
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button {
@@ -222,6 +259,10 @@ struct ScriptsStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update \(plan.name)").font(.system(size: 16, weight: .bold))
+                Text(plan.versionLine).foregroundStyle(.secondary)
+            }
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 26))
@@ -236,6 +277,21 @@ struct ScriptsStep: View {
                 }
             }
             .accessibilityElement(children: .combine)
+            if let details = plan.scriptDetails, !details.isEmpty {
+                // npm: the package and the script for each line (update-dialog-npm-uv.html, panel 2).
+                Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
+                    ForEach(details, id: \.self) { d in
+                        GridRow {
+                            Text("Package").foregroundStyle(.secondary)
+                            Text("\(d.package) \(d.version ?? "")").font(.callout.monospaced())
+                        }
+                        GridRow {
+                            Text("Script").foregroundStyle(.secondary)
+                            Text(d.script).font(.callout.monospaced())
+                        }
+                    }
+                }
+            }
             HStack {
                 Spacer()
                 Button("Not Now") { model.backToPlan() }

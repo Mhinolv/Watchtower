@@ -454,7 +454,7 @@ struct ProjectDetail: View {
                             Text("\(finding.package) \(path?.version ?? "")")
                             Spacer()
                             SeverityBadge(severity: finding.severity)
-                            if let path, UVUpdate.key(finding: finding, path: path) != nil {
+                            if let path, UpdateKeys.forFinding(finding, path) != nil {
                                 let block = updates == nil ? "Updates are not available here." : path.updateBlock
                                 Button("Update…") { Task { await updates?.start(finding: finding, path: path) } }
                                     .controlSize(.small)
@@ -462,7 +462,7 @@ struct ProjectDetail: View {
                                     .help(block ?? "Show the update plan for \(finding.package). Nothing runs before you confirm.")
                             }
                         }
-                        if let path, let block = path.updateBlock, UVUpdate.key(finding: finding, path: path) != nil {
+                        if let path, let block = path.updateBlock, UpdateKeys.forFinding(finding, path) != nil {
                             Label(block, systemImage: "hand.raised").font(.caption).foregroundStyle(.orange)
                         }
                     }
