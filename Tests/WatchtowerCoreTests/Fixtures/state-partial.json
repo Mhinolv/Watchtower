@@ -256,7 +256,8 @@
       "malware": {
         "advisory_id": "GHSA-mal1-ware-0001"
       },
-      "withdrawn_at": null
+      "withdrawn_at": null,
+      "epss": null
     },
     {
       "id": "SEC-0001",
@@ -309,7 +310,8 @@
         "ransomware": false
       },
       "malware": null,
-      "withdrawn_at": null
+      "withdrawn_at": null,
+      "epss": null
     },
     {
       "id": "SEC-0002",
@@ -345,7 +347,8 @@
       ],
       "kev": null,
       "malware": null,
-      "withdrawn_at": "2026-10-28T08:00:00Z"
+      "withdrawn_at": "2026-10-28T08:00:00Z",
+      "epss": null
     }
   ]
 }

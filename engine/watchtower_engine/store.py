@@ -178,11 +178,12 @@ class Store:
         scan=None,
         kev=None,
         github=None,
+        epss=None,
     ) -> RefreshRecord:
         """Save the result of a refresh in one transaction.
 
         `scan` is the OSV result of this refresh, if any. It updates the findings in the same
-        transaction (see findings.py). `kev` and `github` are the feed data that marks them.
+        transaction (see findings.py). `kev`, `github` and `epss` are the feed data that marks them.
 
         - `last_complete_at` changes only when `status` is `complete`.
         - A source with `complete` coverage gets `last_success_at` = now and its items are replaced.
@@ -209,8 +210,8 @@ class Store:
             self._write_items(now, coverage, items)
             if scan is not None:
                 findings_module.apply_scan(self.db, now, scan)
-            if kev is not None or github is not None:
-                findings_module.apply_enrichment(self.db, kev, github)
+            if kev is not None or github is not None or epss is not None:
+                findings_module.apply_enrichment(self.db, kev, github, epss)
             self.db.execute("COMMIT")
         except BaseException as exc:
             self.db.execute("ROLLBACK")

@@ -89,7 +89,9 @@ class Lookup:
 
 @dataclass
 class Assessment:
-    """What GitHub says about one finding. `*_known` is False if an answer is missing."""
+    """What GitHub says about one finding. `*_known` is False if an answer is missing.
+
+    `withdrawn_at` is set only if every advisory id of the finding is withdrawn."""
 
     malware_id: str | None = None
     malware_known: bool = False
@@ -121,8 +123,14 @@ class GithubData:
                 live = [a["ghsa_id"] for a in found if not a.get("withdrawn_at")]
                 result.malware_id, result.malware_known = (live[0] if live else None), known
             else:
-                dates = [a["withdrawn_at"] for a in found if a.get("withdrawn_at")]
-                result.withdrawn_at, result.withdrawn_known = (max(dates) if dates else None), known
+                # Withdrawn only if every id of the finding is withdrawn (#65). A live duplicate of a
+                # withdrawn advisory leaves the finding live. One live advisory proves "not withdrawn",
+                # even if the answer for another id is missing.
+                per_id = [[adv for adv in (a.advisories or [])] for a in answers if a]
+                live = any(not adv.get("withdrawn_at") for advs in per_id for adv in advs)
+                every = known and all(advs and all(adv.get("withdrawn_at") for adv in advs) for advs in per_id)
+                result.withdrawn_at = max(adv["withdrawn_at"] for advs in per_id for adv in advs) if every else None
+                result.withdrawn_known = known or live
         return result
 
 
@@ -156,7 +164,7 @@ class LocalAdvisories:
     def __init__(self, zips: list[Path], fetched_at: str | None = None):
         self.fetched_at = fetched_at  # The oldest database in use.
         self._zips: list[tuple[zipfile.ZipFile, dict[str, str]]] = []
-        self._cve: dict[str, list[dict]] | None = None
+        self._cve: dict[str, list[dict]] | None = None  # CVE id -> record summaries (#66)
         for path in zips:
             try:
                 z = zipfile.ZipFile(path)
@@ -203,7 +211,11 @@ class LocalAdvisories:
         return None
 
     def by_cve(self) -> dict[str, list[dict]]:
-        """GHSA records by their CVE aliases. Read once, only when a finding has no GHSA id."""
+        """Summaries of GHSA records by their CVE aliases. Read once, only when a finding has no GHSA id.
+
+        The index keeps `_record_summary` fields only, not the full records (#66: the full records
+        used about 400 MB).
+        """
         if self._cve is None:
             self._cve = {}
             for z, names in self._zips:
@@ -212,9 +224,12 @@ class LocalAdvisories:
                         continue
                     data = self._read(z, name)
                     aliases = data.get("aliases") if data else None
-                    for alias in aliases if isinstance(aliases, list) else []:
-                        if isinstance(alias, str) and _CVE.fullmatch(alias):
-                            self._cve.setdefault(alias.upper(), []).append(data)
+                    cves = {a.upper() for a in aliases if isinstance(a, str) and _CVE.fullmatch(a)} \
+                        if isinstance(aliases, list) else set()
+                    if cves:
+                        summary = _record_summary(data)
+                        for cve in cves:
+                            self._cve.setdefault(cve, []).append(summary)
         return self._cve
 
     def malware_aliases(self, advisory_ids: Iterable[str]) -> dict[str, dict]:
@@ -233,20 +248,42 @@ class LocalAdvisories:
         """The `reviewed` and `malware` lists that the API would give for one target. None: not here.
 
         A GHSA id has one type. A reviewed record is not malware, and a malware id has no reviewed record.
+        A GHSA record with a `MAL-` alias can be malware on GitHub, so only the API answers for it (#66).
         """
         if param == "ghsa_id":
+            data = self.entry(value)
+            if data is not None and _has_mal_alias(data):
+                return None
             mal = malware.get(value.lower())
             if mal is not None:
                 return {"reviewed": [], "malware": [_local_summary(value, mal, "malware")]}
-            data = self.entry(value)
             if data is None:
                 return None
             return {"reviewed": [_local_summary(value, data, "reviewed")] if _reviewed(data) else [], "malware": []}
-        found = [d for d in self.by_cve().get(value.upper(), []) if _reviewed(d)]
+        found = self.by_cve().get(value.upper(), [])
+        if any(s["malware_alias"] for s in found):
+            return None
+        found = [s for s in found if s["reviewed"]]
         if not found:
             return None
-        return {"reviewed": [_local_summary("GHSA-" + d["id"][5:].lower(), d, "reviewed") for d in found],
+        return {"reviewed": [{**{k: s[k] for k in _SUMMARY_FIELDS}, "type": "reviewed"} for s in found],
                 "malware": []}
+
+
+_SUMMARY_FIELDS = ("ghsa_id", "cve_id", "severity", "withdrawn_at", "published_at")
+
+
+def _has_mal_alias(data: dict) -> bool:
+    aliases = data.get("aliases")
+    return isinstance(aliases, list) and any(isinstance(a, str) and a.upper().startswith("MAL-") for a in aliases)
+
+
+def _record_summary(data: dict) -> dict:
+    """The fields of one GHSA record that a local answer needs. The CVE index keeps only this."""
+    summary = _local_summary("GHSA-" + data["id"][5:].lower(), data, "reviewed")
+    out = {k: summary[k] for k in _SUMMARY_FIELDS}
+    out["reviewed"], out["malware_alias"] = _reviewed(data), _has_mal_alias(data)
+    return out
 
 
 def _reviewed(data: dict) -> bool:

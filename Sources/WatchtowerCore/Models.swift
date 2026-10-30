@@ -230,6 +230,8 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
     public var malware: MalwareMark?
     /// When the source withdrew the advisory.
     public var withdrawnAt: Date?
+    /// EPSS (#57) for the CVE of the finding. nil: no CVE, EPSS never loaded, or an older engine.
+    public var epss: EpssMark?
 
     public var isOpen: Bool { status == .open }
 
@@ -238,7 +240,7 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
                 deferredUntil: Date? = nil, firstSeen: Date, lastSeen: Date, resolvedAt: Date? = nil,
                 resolvedScanAt: Date? = nil, source: String = "OSV", sourceAt: Date? = nil,
                 paths: [FindingPath] = [], nextSteps: [String] = [], kev: KevMark? = nil,
-                malware: MalwareMark? = nil, withdrawnAt: Date? = nil) {
+                malware: MalwareMark? = nil, withdrawnAt: Date? = nil, epss: EpssMark? = nil) {
         self.id = id
         self.ecosystem = ecosystem
         self.package = package
@@ -259,6 +261,7 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
         self.kev = kev
         self.malware = malware
         self.withdrawnAt = withdrawnAt
+        self.epss = epss
     }
 
     /// Distinct projects that have this finding.
@@ -357,4 +360,31 @@ public enum EngineJSON {
     private struct SchemaProbe: Decodable {
         var schemaVersion: Int
     }
+}
+
+// MARK: - Apps matched to the Homebrew cask catalog (#55)
+
+extension ItemRecord {
+    /// An app that has a public cask, but Homebrew did not install it. The update stays manual.
+    public var isCatalogApp: Bool { source == "apps" && origin == "Homebrew catalog" }
+
+    /// The cask homepage, if it is a web address. Watchtower opens it only when the owner clicks.
+    public var vendorPageURL: URL? {
+        guard let text = attributes?["homepage"], let url = URL(string: text),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
+        return url
+    }
+
+    /// `Homebrew catalog, cask t3-code. Retrieved Oct 29, 08:02.` Nil without a catalog match.
+    public var latestFromText: String? {
+        guard let from = attributes?["latestFrom"] else { return nil }
+        guard let at = sourceAt else { return "\(from)." }
+        return "\(from). Retrieved \(at.formatted(.dateTime.month(.abbreviated).day().hour().minute()))."
+    }
+
+    /// `Bundle ID` or `App name`: how the cask was matched.
+    public var matchedBy: String? { attributes?["matchedBy"] }
+
+    /// Attribute keys that the detail pane shows in its own rows.
+    public static let catalogAttributeKeys: Set<String> = ["cask", "matchedBy", "latestFrom", "homepage"]
 }
