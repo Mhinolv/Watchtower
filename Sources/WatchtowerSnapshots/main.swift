@@ -156,8 +156,15 @@ MainActor.assumeIsolated {
             let (model, incidents) = SampleData.incidentScenario(scenario)
             let name = "\(scenario.rawValue)-\(dark ? "dark" : "light").png"
             do {
-                try render(DashboardView(model: model).environment(incidents), size: CGSize(width: 1280, height: 720),
-                           dark: dark, to: out.appendingPathComponent(name))
+                if scenario == .researchConfirm {
+                    // SwiftUI shows the confirm step as a sheet. Render the sheet itself (#19).
+                    try render(ResearchConfirmSheet(model: incidents).background(Color(nsColor: .windowBackgroundColor)),
+                               size: CGSize(width: 440, height: 0), dark: dark, chrome: false,
+                               to: out.appendingPathComponent(name))
+                } else {
+                    try render(DashboardView(model: model).environment(incidents), size: CGSize(width: 1280, height: 720),
+                               dark: dark, to: out.appendingPathComponent(name))
+                }
                 print(name)
                 written += 1
             } catch {

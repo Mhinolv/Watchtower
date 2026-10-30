@@ -1108,6 +1108,12 @@ struct UpdateDialog_Previews: PreviewProvider {
 extension PreviewEngine: IncidentClient {
     public func incidents() async throws -> IncidentState { SampleData.incidentState() }
 
+    public func researchStatus() async throws -> ResearchStatus { SampleData.researchReady }
+
+    public func runResearch() async throws -> IncidentState {
+        SampleData.incidentState(incidents: SampleData.researchClaims + SampleData.incidentList)
+    }
+
     public func checkSources(progress: @escaping @Sendable (RefreshProgress) -> Void) async throws -> IncidentState {
         SampleData.incidentState()
     }
@@ -1189,7 +1195,36 @@ extension SampleData {
         case hibpNew = "incidents-hibp-new"
         case hibpFailed = "incidents-hibp-failed"
         case hibpNone = "incidents-hibp-none"
+        case researchConfirm = "incidents-research-confirm"
+        case researchRunning = "incidents-research-running"
+        case researchResults = "incidents-research-results"
+        case researchTimeLimit = "incidents-research-time-limit"
+        case researchNotInstalled = "incidents-research-not-installed"
     }
+
+    /// What the confirm sheet lists (#19).
+    public static let researchReady = ResearchStatus(state: "ready", topics: ["GitHub", "Google Gmail", "Apple"],
+                                                     limits: IncidentModel.researchLimits)
+
+    /// Three claims from Claude web research. All are `Unconfirmed`. One names a vendor link to check.
+    public static let researchClaims: [IncidentRecord] = [
+        IncidentRecord(id: "INC-0021", source: "claude", service: "GitHub",
+                       title: "Stolen tokens used to read repository secrets (sample)",
+                       summary: "A news report says that stolen tokens were used against many repositories.",
+                       published: "2026-10-25", status: .unconfirmed, sourceName: "Web research",
+                       url: "https://news.example.com/github-tokens", firstSeen: ago(0.2), lastSeen: ago(0.2)),
+        IncidentRecord(id: "INC-0022", source: "claude", service: "Apple",
+                       title: "Fix for an exploited image parsing flaw (sample)",
+                       summary: "A news report says that Apple fixed a flaw that attackers used.",
+                       published: "2026-10-27", status: .unconfirmed, sourceName: "Web research",
+                       url: "https://news.example.com/apple-fix", cves: ["CVE-2026-86950"], firstSeen: ago(0.2),
+                       lastSeen: ago(0.2), primaryUrl: "https://support.apple.com/en-us/149225"),
+        IncidentRecord(id: "INC-0023", source: "claude", service: "Google / Gmail",
+                       title: "Phishing wave that uses shared documents (sample)",
+                       summary: "A news report describes a phishing wave against Gmail users.",
+                       published: "2026-10-28", status: .unconfirmed, sourceName: "Web research",
+                       url: "https://news.example.com/gmail-phishing", firstSeen: ago(0.2), lastSeen: ago(0.2)),
+    ]
 
     /// The window and the incident model of one scenario. The window shows the `Incidents` section.
     @MainActor
@@ -1227,6 +1262,32 @@ extension SampleData {
             incidents.selectedID = "INC-0010"
         case .hibpNone:
             incidents = IncidentModel(client: engine, state: incidentState())
+            incidents.selectedID = "INC-0001"
+        case .researchConfirm:
+            incidents = IncidentModel(client: engine, state: incidentState(), researchStatus: researchReady)
+            incidents.showsResearchConfirm = true
+        case .researchRunning:
+            // 1 minute 12 seconds into a run. Check Sources stays available.
+            incidents = IncidentModel(client: engine, state: incidentState(), researchStatus: researchReady,
+                                      researchStartedAt: now.addingTimeInterval(-72), clock: { now })
+            incidents.selectedID = "INC-0001"
+        case .researchResults:
+            var state = incidentState(incidents: researchClaims + incidentList)
+            state.research = ResearchRun(state: "done", text: "3 claims saved as Unconfirmed.", claims: 3, new: 3,
+                                         finishedAt: ago(0.2))
+            incidents = IncidentModel(client: engine, state: state, researchStatus: researchReady)
+            incidents.selectedID = "INC-0022"
+        case .researchTimeLimit:
+            var state = incidentState()
+            state.research = ResearchRun(state: "time_limit", text: "Research stopped at 5 minutes. Nothing was saved.",
+                                         finishedAt: ago(0.1))
+            incidents = IncidentModel(client: engine, state: state, researchStatus: researchReady)
+            incidents.selectedID = "INC-0001"
+        case .researchNotInstalled:
+            incidents = IncidentModel(client: engine, state: incidentState(),
+                                      researchStatus: ResearchStatus(state: "not_installed",
+                                                                     text: "Install Claude Code to use Research.",
+                                                                     topics: [], limits: IncidentModel.researchLimits))
             incidents.selectedID = "INC-0001"
         }
         return (dashboard, incidents)
