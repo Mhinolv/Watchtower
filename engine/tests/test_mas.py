@@ -78,12 +78,31 @@ def test_the_real_outdated_list_is_read():
         ("490179405", "Okta Verify", "9.69.0", "9.73.0")]
 
 
-def test_records_without_an_id_or_with_a_bad_id_are_skipped_not_fatal():
-    text = ('{"name":""}\n{"adamID":"--help","bundleID":"a.b","name":"X","version":"1"}\n'
-            '{"adamID":1,"bundleID":"","name":"Y","version":"1"}\n'
-            '{"adamID":2,"bundleID":"c.d","name":"Z","version":"3"}\n')
-    assert [a.adam_id for a in inv.parse_list(text)] == ["2"]
-    assert inv.parse_outdated('{"name":""}\n{"adamID":"x1","name":"A","version":"1","newVersion":"2"}\n') == []
+def test_only_the_blank_record_of_real_mas_is_skipped():
+    blank = '{"name":""}\n'
+    good = '{"adamID":2,"bundleID":"c.d","name":"Z","version":"3"}\n'
+    assert [a.adam_id for a in inv.parse_list(blank + good)] == ["2"]
+    assert inv.parse_outdated(blank + '{"adamID":2,"name":"Z","version":"3","newVersion":"4"}\n')[0].adam_id == "2"
+    assert inv.parse_list(blank) == [] and inv.parse_outdated(blank) == []
+
+
+@pytest.mark.parametrize("record", [
+    '{"error":"x"}', '{"name":"Bear"}', '{"name":"","extra":1}', '{"name":null}', '{}',
+    '{"adamID":"--help","bundleID":"a.b","name":"X","version":"1"}',
+    '{"adamID":1,"bundleID":"","name":"Y","version":"1"}', '{"adamID":"","bundleID":"a.b","name":"Y","version":"1"}'])
+def test_any_other_record_without_a_valid_id_makes_the_parse_fail(record):
+    with pytest.raises(ValueError):
+        inv.parse_list(record)
+    with pytest.raises(ValueError):
+        inv.parse_outdated(record)
+
+
+def test_an_error_object_with_exit_zero_is_not_up_to_date_and_not_an_empty_inventory():
+    error = '{"error":"x"}\n'
+    plan = upd.make_plan("apps/b", "Bear", BEAR, "2.9.4", MAS, FakeMas(outdated=error))
+    assert plan.refusal == "Watchtower cannot read the output of mas."
+    result = inv.read_inventory(MAS, FakeMas(listing=error))
+    assert result.status == "failed" and result.apps == {}
 
 
 def test_an_array_and_an_empty_answer_are_read_too():

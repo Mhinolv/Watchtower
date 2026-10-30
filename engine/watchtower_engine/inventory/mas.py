@@ -167,25 +167,31 @@ def is_adam_id(value: object) -> bool:
     return isinstance(value, str) and re.fullmatch(r"\d+", value) is not None
 
 
-def _has_ids(obj: dict, *keys: str) -> bool:
-    """Real mas 7.0.0 output has records like `{"name":""}`. Records without these ids are skipped."""
-    try:
-        values = [_text(obj, key) for key in keys]
-    except ValueError:
-        return False
-    return is_adam_id(values[0])
+def _is_blank_record(obj: dict) -> bool:
+    """Real mas 7.0.0 starts `mas list --json` with `{"name":""}`. Only this shape is skipped."""
+    return set(obj) == {"name"} and isinstance(obj["name"], str) and not obj["name"].strip()
+
+
+def _adam_id(obj: dict) -> str:
+    value = _text(obj, "adamID")
+    if not is_adam_id(value):
+        raise ValueError("adamID is not digits")
+    return value
 
 
 def parse_list(text: str) -> list[MasApp]:
-    """Read `mas list --json`. Raises ValueError for output that is not in the pinned format."""
-    return [MasApp(_text(o, "adamID"), _text(o, "bundleID"), _text(o, "name"), _text(o, "version"))
-            for o in _objects(text) if _has_ids(o, "adamID", "bundleID")]
+    """Read `mas list --json`. Raises ValueError for output that is not in the pinned format.
+
+    Any record except the blank one of real mas must have an `adamID` of digits, or the parse fails.
+    """
+    return [MasApp(_adam_id(o), _text(o, "bundleID"), _text(o, "name"), _text(o, "version"))
+            for o in _objects(text) if not _is_blank_record(o)]
 
 
 def parse_outdated(text: str) -> list[Outdated]:
     """Read `mas outdated --json`. Raises ValueError for output that is not in the pinned format."""
-    return [Outdated(_text(o, "adamID"), _text(o, "name"), _text(o, "version"), _text(o, "newVersion"))
-            for o in _objects(text) if _has_ids(o, "adamID")]
+    return [Outdated(_adam_id(o), _text(o, "name"), _text(o, "version"), _text(o, "newVersion"))
+            for o in _objects(text) if not _is_blank_record(o)]
 
 
 # Inventory
