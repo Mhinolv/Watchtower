@@ -345,6 +345,13 @@ class Store:
         """Run the on-demand incident check. See `research/records.py`."""
         return incident_records.run_check(self.db, now=self.clock, **kwargs)
 
+    def research(self, **kwargs) -> dict:
+        """Run one Claude web research (#19), then return the incident state. See `research/claude.py`."""
+        from .research import claude
+
+        claude.run_research(self.db, self.data_dir, now=self.clock, **kwargs)
+        return self.incident_state()
+
     def state(self) -> dict:
         """The current state, as the `state` CLI command prints it (without the envelope)."""
         latest = self.latest_refresh()

@@ -84,11 +84,14 @@ public struct IncidentRecord: Codable, Hashable, Sendable, Identifiable {
     public var breach: BreachDetails?
     /// A breach row that the newest check added. nil for an older engine.
     public var isNew: Bool?
+    /// A vendor link that Claude web research named (#19). Not checked: it never confirms the claim by itself.
+    public var primaryUrl: String?
 
     public init(id: String, source: String, service: String, title: String, summary: String = "",
                 published: String?, status: IncidentStatus, sourceName: String, url: String? = nil,
                 cves: [String] = [], firstSeen: Date, lastSeen: Date, breach: BreachDetails? = nil,
-                isNew: Bool? = nil) {
+                isNew: Bool? = nil, primaryUrl: String? = nil) {
+        self.primaryUrl = primaryUrl
         self.id = id
         self.source = source
         self.service = service
@@ -103,6 +106,14 @@ public struct IncidentRecord: Codable, Hashable, Sendable, Identifiable {
         self.lastSeen = lastSeen
         self.breach = breach
         self.isNew = isNew
+    }
+
+    /// A claim from Claude web research (#19). It is `Unconfirmed` until a primary source confirms it.
+    public var isWebResearch: Bool { source == "claude" }
+
+    /// `Primary source: none`, or the vendor link to check.
+    public var primarySourceText: String {
+        primaryUrl.map { "\($0) (not checked)" } ?? "none"
     }
 
     /// The Date column: the breach date for a breach row, else the date of the source.
@@ -189,9 +200,12 @@ public struct IncidentState: Codable, Hashable, Sendable {
     public var sources: [IncidentSource]
     public var review: IncidentReview
     public var gaps: [IncidentGap]
+    /// The last Claude web research run (#19). nil: never run.
+    public var research: ResearchRun?
 
     public init(schemaVersion: Int = 1, incidents: [IncidentRecord], sources: [IncidentSource],
-                review: IncidentReview, gaps: [IncidentGap] = []) {
+                review: IncidentReview, gaps: [IncidentGap] = [], research: ResearchRun? = nil) {
+        self.research = research
         self.schemaVersion = schemaVersion
         self.incidents = incidents
         self.sources = sources
@@ -200,11 +214,72 @@ public struct IncidentState: Codable, Hashable, Sendable {
     }
 }
 
+// MARK: - Claude web research (#19)
+
+/// The outcome of the last research run, as the engine saved it.
+public struct ResearchRun: Codable, Hashable, Sendable {
+    /// `done`, `no_claims`, `time_limit`, `invalid`, `signed_out`, `not_installed`, `failed` or `stopped`.
+    public var state: String
+    public var text: String
+    public var claims: Int
+    public var new: Int
+    public var dropped: Int
+    public var detail: String?
+    public var finishedAt: Date?
+
+    public init(state: String, text: String, claims: Int = 0, new: Int = 0, dropped: Int = 0, detail: String? = nil,
+                finishedAt: Date? = nil) {
+        self.state = state
+        self.text = text
+        self.claims = claims
+        self.new = new
+        self.dropped = dropped
+        self.detail = detail
+        self.finishedAt = finishedAt
+    }
+
+    /// Gray for a normal result, orange for a stop, a limit or a failure.
+    public var tone: Tone { ["done", "no_claims"].contains(state) ? .secondary : .orange }
+}
+
+/// Whether Research can run, and what the confirm sheet lists.
+public struct ResearchStatus: Codable, Hashable, Sendable {
+    /// `ready`, `not_installed` or `signed_out`.
+    public var state: String
+    public var text: String?
+    public var topics: [String]
+    public var limits: String
+    public var timeLimitSeconds: Int
+
+    public init(state: String, text: String? = nil, topics: [String], limits: String, timeLimitSeconds: Int = 300) {
+        self.state = state
+        self.text = text
+        self.topics = topics
+        self.limits = limits
+        self.timeLimitSeconds = timeLimitSeconds
+    }
+
+    public var isReady: Bool { state == "ready" }
+}
+
 // MARK: - Engine calls
 
 public protocol IncidentClient: Sendable {
     func incidents() async throws -> IncidentState
     func checkSources(progress: @escaping @Sendable (RefreshProgress) -> Void) async throws -> IncidentState
+    /// `research-status`: Claude installed and signed in, the topics and the limits (#19).
+    func researchStatus() async throws -> ResearchStatus
+    /// `research-run`: one Claude web research run. Cancel stops it and saves nothing.
+    func runResearch() async throws -> IncidentState
+}
+
+public extension IncidentClient {
+    func researchStatus() async throws -> ResearchStatus {
+        ResearchStatus(state: "not_installed", text: "Install Claude Code to use Research.", topics: [],
+                       limits: IncidentModel.researchLimits)
+    }
+
+    func runResearch() async throws -> IncidentState { try await incidents() }
 }
 
 private struct IncidentProgressLine: Decodable {
@@ -214,6 +289,14 @@ private struct IncidentProgressLine: Decodable {
 extension Engine: IncidentClient {
     public func incidents() async throws -> IncidentState {
         try await call(["incidents"], as: IncidentState.self)
+    }
+
+    public func researchStatus() async throws -> ResearchStatus {
+        try await call(["research-status"], as: ResearchStatus.self)
+    }
+
+    public func runResearch() async throws -> IncidentState {
+        try await call(["research-run"], as: IncidentState.self)
     }
 
     public func checkSources(progress: @escaping @Sendable (RefreshProgress) -> Void) async throws -> IncidentState {
@@ -282,20 +365,112 @@ public final class IncidentModel {
     public private(set) var progress: RefreshProgress?
     public private(set) var lastError: EngineError?
     public var selectedID: String?
+    /// Claude web research (#19): availability, the confirm sheet and a running run.
+    public private(set) var researchStatus: ResearchStatus?
+    public var showsResearchConfirm = false
+    public private(set) var isResearching = false
+    public private(set) var researchStartedAt: Date?
 
     @ObservationIgnored private let client: any IncidentClient
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var researchTask: Task<Void, Never>?
+    @ObservationIgnored let clock: @Sendable () -> Date
 
     public init(client: any IncidentClient, state: IncidentState? = nil, isChecking: Bool = false,
-                progress: RefreshProgress? = nil) {
+                progress: RefreshProgress? = nil, researchStatus: ResearchStatus? = nil,
+                researchStartedAt: Date? = nil, clock: @escaping @Sendable () -> Date = { Date() }) {
         self.client = client
         self.state = state
         self.isChecking = isChecking
         self.progress = progress
+        self.researchStatus = researchStatus
+        self.researchStartedAt = researchStartedAt
+        self.isResearching = researchStartedAt != nil
+        self.clock = clock
     }
 
-    /// Read the saved records. It never starts a check.
+    public nonisolated static let researchLimits = "5 minutes. Web search and web fetch only. No MCP, no hooks."
+
+    /// Read whether Research can run. It starts no research.
+    public func loadResearchStatus() async {
+        researchStatus = try? await client.researchStatus()
+    }
+
+    /// `Research` opens the confirm sheet first. Nothing runs before `Run Research`.
+    public func askResearch() {
+        guard researchStatus?.isReady == true, !isResearching else { return }
+        showsResearchConfirm = true
+    }
+
+    /// `Run Research` in the confirm sheet: one run of at most 5 minutes. `Check Sources` stays available.
+    public func runResearch() {
+        showsResearchConfirm = false
+        guard !isResearching else { return }
+        isResearching = true
+        researchStartedAt = clock()
+        lastError = nil
+        let client = self.client
+        researchTask = Task {
+            do {
+                state = try await client.runResearch()
+            } catch is CancellationError {
+                // Stop ends the Claude process. Nothing is saved.
+            } catch {
+                lastError = (error as? EngineError) ?? .failed(message: "Research did not finish.", detail: "\(error)")
+            }
+            if let saved = try? await client.incidents() { state = saved }
+            isResearching = false
+            researchStartedAt = nil
+            researchTask = nil
+        }
+    }
+
+    public func stopResearch() {
+        researchTask?.cancel()
+    }
+
+    public func waitForResearch() async {
+        await researchTask?.value
+    }
+
+    /// `Researching… 1:12 of 5:00`.
+    public func researchElapsedText(at now: Date? = nil) -> String {
+        let limit = researchStatus?.timeLimitSeconds ?? 300
+        let seconds = min(limit, max(0, Int((now ?? clock()).timeIntervalSince(researchStartedAt ?? clock()))))
+        return "Researching… \(Self.minutes(seconds)) of \(Self.minutes(limit))"
+    }
+
+    /// VoiceOver reads the elapsed time each minute, not each second.
+    public func researchAccessibilityText(at now: Date? = nil) -> String {
+        let seconds = max(0, Int((now ?? clock()).timeIntervalSince(researchStartedAt ?? clock())))
+        let minutes = seconds / 60
+        return "Researching. \(minutes) \(minutes == 1 ? "minute" : "minutes") of 5."
+    }
+
+    private static func minutes(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    /// Why `Research` is off, or nil. The help text of the button.
+    public var researchBlock: String? {
+        guard let status = researchStatus else { return "Checking for Claude Code…" }
+        return status.isReady ? nil : status.text
+    }
+
+    /// `Sign in to Claude Code, then try again.` when Claude Code is installed but not signed in.
+    public var researchNotice: String? {
+        researchStatus?.state == "signed_out" ? researchStatus?.text : nil
+    }
+
+    /// The result line of the last run: `5 claims saved as Unconfirmed.` and the others of the Design notes.
+    public var researchResult: (text: String, tone: Tone)? {
+        guard !isResearching, let run = state?.research else { return nil }
+        return (run.text, run.tone)
+    }
+
+    /// Read the saved records and whether Research can run. It never starts a check or a research run.
     public func load() async {
+        await loadResearchStatus()
         do {
             state = try await client.incidents()
         } catch let error as EngineError {
