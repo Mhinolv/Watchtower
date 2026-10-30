@@ -48,6 +48,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower finding-defer <SEC-id> 7\|30` | `{"schema_version", "finding"}`. The finding is deferred until that many days from now |
 | `watchtower finding-backlog <SEC-id>` | `{"schema_version", "finding"}`. The finding moves to the backlog |
 | `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
+| `watchtower incidents` | `{"schema_version", "incidents", "sources", "review", "gaps"}`: the saved vendor incident records |
+| `watchtower incidents-check` | The same, after a check of the vendor sources. Progress lines go to stderr. SIGTERM stops it and saves nothing |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
@@ -67,6 +69,9 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
+| GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
+| GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
+| GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -121,3 +126,13 @@ A partial, stale or failed scan never removes a path or resolves a finding. The 
 Two feeds add marks to the findings. CISA KEV marks `Known exploited`. GitHub marks `Malware` and `Withdrawn`.
 A mark comes from the advisory ids of the finding only. The engine never infers exposure from a product name.
 If a feed fails, the old marks stay and the Source section of the finding shows the failure and the age of the data. The engine keeps the last answers in `cache/kev/` and `cache/github/` in the data folder.
+
+## Incidents
+
+`Check Sources` (the `Incidents` screen, ⌘6) reads three public vendor sources: the GitHub security blog, the Google Workspace status feed and the Apple security releases page. Each Apple release in the review window is a record with the status `Possible relevance`: the page lists releases, not attacks. It runs only when the owner clicks it. A refresh does not run it, and it does not start a refresh.
+- Each request is one plain GET of a fixed URL. No path, project, package, account or inventory data goes out.
+- Feed text is untrusted. The engine removes markup and control characters, cuts the length, keeps only https links on the host of the source, and refuses a feed with a DOCTYPE or an entity. It never follows a link or reads an instruction in the text.
+- Statuses: `Confirmed` (the vendor's own incident record says so: a status page, in the voice of the vendor), `Possible relevance` (the service matches, the impact on the owner is not known), `Unconfirmed` (no primary source). A blog post or a release page is at most `Possible relevance`: advice or a notice is not a confirmation. Watchtower never says that an account is affected.
+- An incident does not need a CVE. A record is never removed or resolved because a feed stopped listing it. A later check can raise its status, never lower it.
+- A review window ends now and starts 48 hours before the end of the last complete review (7 days back for the first). A review is complete only if every source finished. A failed source makes it partial: its row shows the failure, the other incidents are saved, and the label keeps the end date of the last complete review. Days that no review covers show as a gap.
+- A quiet feed does not prove that no breach happened. The empty result says so.

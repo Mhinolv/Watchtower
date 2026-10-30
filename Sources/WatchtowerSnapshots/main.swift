@@ -146,6 +146,21 @@ MainActor.assumeIsolated {
             }
         }
     }
-    let expected = (SampleData.Scenario.allCases.count + SampleData.UpdateScenario.allCases.count) * 2
+    for scenario in SampleData.IncidentScenario.allCases {
+        for dark in [false, true] {
+            let (model, incidents) = SampleData.incidentScenario(scenario)
+            let name = "\(scenario.rawValue)-\(dark ? "dark" : "light").png"
+            do {
+                try render(DashboardView(model: model).environment(incidents), size: CGSize(width: 1280, height: 720),
+                           dark: dark, to: out.appendingPathComponent(name))
+                print(name)
+                written += 1
+            } catch {
+                FileHandle.standardError.write(Data("\(name): \(error)\n".utf8))
+            }
+        }
+    }
+    let expected = (SampleData.Scenario.allCases.count + SampleData.UpdateScenario.allCases.count
+                    + SampleData.IncidentScenario.allCases.count) * 2
     exit(written == expected ? 0 : 1)
 }
