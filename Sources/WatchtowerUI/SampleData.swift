@@ -71,14 +71,16 @@ public enum SampleData {
                               path("web", "package-lock.json", "4.17.20")],
                       nextSteps: ["Update lodash to 4.17.21 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12")),
+                      kev: KevMark(cve: "CVE-2021-23337", dateAdded: "2026-10-22", dueDate: "2026-11-12"),
+                      epss: epss("CVE-2021-23337", 0.21333, 0.97595)),
         FindingRecord(id: "SEC-0002", package: "minimist", title: "Prototype Pollution in minimist",
                       severity: .critical, advisoryIds: ["CVE-2021-44906", "GHSA-xvch-5gv4-984h", "OSV-2021-1"],
                       fixedIn: "1.2.6", firstSeen: days(3), lastSeen: ago(2), sourceAt: ago(6),
                       paths: [path("web", "package-lock.json", "1.2.5", via: ["mkdirp", "minimist"])],
                       nextSteps: ["Update minimist to 1.2.6 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001")),
+                      malware: MalwareMark(advisoryId: "GHSA-mal1-ware-0001"),
+                      epss: epss("CVE-2021-44906", 0.00182, 0.07828)),
         FindingRecord(id: "SEC-0003", package: "lodash", title: "ReDoS in lodash", severity: .medium,
                       advisoryIds: ["CVE-2020-28500", "GHSA-29mw-wpgm-hmr9"], status: .deferred,
                       deferredUntil: now.addingTimeInterval(7 * 86400), firstSeen: days(9), lastSeen: ago(2),
@@ -95,7 +97,7 @@ public enum SampleData {
                       paths: [path("web", "package-lock.json", "2.1.0")],
                       nextSteps: ["Update yaml-tools to 2.1.1 or later in the lockfile.",
                                   "Restart the dev server after the update."],
-                      withdrawnAt: days(1)),
+                      withdrawnAt: days(1), epss: epss("CVE-2026-20202", 0.00098, 0.00745)),
         FindingRecord(id: "SEC-0008", package: "yaml-tools", title: "Regular expression slowdown in the parser",
                       severity: .low, advisoryIds: ["CVE-2026-20203", "GHSA-bkgg-yaml-0008"], fixedIn: "2.1.2",
                       status: .backlog, firstSeen: days(9), lastSeen: ago(2), sourceAt: ago(6),
@@ -109,12 +111,19 @@ public enum SampleData {
                                           version: "0.25.1",
                                           updateBlock: "No environment found. Watchtower does not create environments.")],
                       nextSteps: ["Update httpx to 0.27.2 or later in the lockfile.",
-                                  "Restart the dev server after the update."]),
+                                  "Restart the dev server after the update."],
+                      epss: epss("CVE-2026-31337", 0.94, 0.99)),
     ]
+
+    /// The EPSS value of a sample finding, from the file of today.
+    static func epss(_ cve: String, _ score: Double?, _ percentile: Double?, fetched: Date? = nil) -> EpssMark {
+        EpssMark(cve: cve, score: score, percentile: percentile, scoreDate: "2026-10-29",
+                 fetchedAt: fetched ?? ago(6))
+    }
 
     public static func coverage(at time: Date, failing: Set<String> = []) -> [CoverageRecord] {
         [("homebrew", "Homebrew"), ("apps", "Applications"), ("macos", "macOS"), ("osv", "OSV"),
-         ("kev", "CISA KEV"), ("github", "GitHub Advisories")].map { source, label in
+         ("kev", "CISA KEV"), ("github", "GitHub Advisories"), ("epss", "EPSS")].map { source, label in
             failing.contains(source)
                 ? CoverageRecord(source: source, label: label, state: .failed, lastSuccessAt: ago(30),
                                  error: "\(label) check did not finish.")
@@ -152,6 +161,10 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case findingEpssScore = "finding-epss-score"
+        case findingEpssNoCve = "finding-epss-no-cve"
+        case findingEpssMissing = "finding-epss-missing"
+        case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
         case sparkleNewer = "sparkle-newer"
@@ -260,7 +273,8 @@ public enum SampleData {
             model.selection = .backlog
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
-             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv:
+             .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv, .findingEpssScore,
+             .findingEpssNoCve, .findingEpssMissing, .findingEpssStale:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -322,9 +336,37 @@ extension SampleData {
                 return c
             }
         }
+        var extra: [FindingRecord] = []
+        if scenario == .findingEpssNoCve || scenario == .findingEpssMissing {
+            // An OSV-only advisory has no CVE. A new CVE may not be in the EPSS file yet.
+            let cves = scenario == .findingEpssMissing ? ["CVE-2026-40404", "GHSA-newc-ve00-0009"] : ["GHSA-abcd-efgh-0009"]
+            extra = [FindingRecord(id: "SEC-0009", package: "tiny-parse", title: "Out-of-bounds read in the parser",
+                                   severity: .medium, advisoryIds: cves, fixedIn: "0.9.2", firstSeen: days(1),
+                                   lastSeen: ago(2), sourceAt: ago(6),
+                                   paths: [path("web", "package-lock.json", "0.9.1")],
+                                   nextSteps: ["Update tiny-parse to 0.9.2 or later in the lockfile.",
+                                               "Restart the dev server after the update."],
+                                   epss: scenario == .findingEpssMissing ? epss("CVE-2026-40404", nil, nil) : nil)]
+            sample.findings += extra
+        }
+        if scenario == .findingEpssStale {
+            // The download failed for 4 days and the file is old. The scores stay.
+            sample.findings = sample.findings.map { f in
+                var f = f
+                if let mark = f.epss { f.epss = epss(mark.cve, mark.score, mark.percentile, fetched: days(4)) }
+                return f
+            }
+            sample.coverage = sample.coverage.map { c in
+                var c = c
+                if c.source == "epss" { c.sourceAt = days(4) }
+                return c
+            }
+        }
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .findings
         switch scenario {
+        case .findingEpssScore, .findingEpssStale: model.selectedItemKey = "SEC-0006"
+        case .findingEpssNoCve, .findingEpssMissing: model.selectedItemKey = "SEC-0009"
         case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
         case .findingMalware: model.selectedItemKey = "SEC-0002"
         case .findingWithdrawn: model.selectedItemKey = "SEC-0005"

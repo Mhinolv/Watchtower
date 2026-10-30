@@ -133,6 +133,9 @@ class Finding:
     malware: dict | None = None
     # When the source withdrew the advisory. None if it did not.
     withdrawn_at: str | None = None
+    # EPSS (#57) for the finding's CVE: {cve, score, percentile, score_date, fetched_at}. `score` is None if the
+    # CVE is not in the file. None if the finding has no CVE or EPSS never loaded.
+    epss: dict | None = None
 
     def to_dict(self) -> dict:
         data = dict(self.__dict__)
@@ -141,7 +144,7 @@ class Finding:
 
 
 # Columns added after the first release of the table (#9). Old stores get them with ALTER TABLE.
-ADDED_COLUMNS = ("kev", "malware", "withdrawn_at")
+ADDED_COLUMNS = ("kev", "malware", "withdrawn_at", "epss")
 
 
 def migrate(db: sqlite3.Connection) -> None:
@@ -292,15 +295,30 @@ def _resolve(db: sqlite3.Connection, now: str, scan, seen: set[tuple[int, str, s
 # Enrichment (#9)
 
 
-def apply_enrichment(db: sqlite3.Connection, kev=None, github=None) -> None:
-    """Set the KEV, malware and withdrawn marks of the findings. Call it inside the refresh transaction.
+def _epss_value(ids: list[str], epss) -> str | None:
+    """The EPSS JSON of one finding: its CVE with the highest score. None if the finding has no CVE."""
+    cves = sorted({i.strip().upper() for i in ids if i.strip().upper().startswith("CVE-")})
+    if not cves:
+        return None
+    scored = [(epss.scores[c], c) for c in cves if c in epss.scores]
+    (score, percentile), cve = max(scored) if scored else ((None, None), cves[0])
+    return json.dumps({"cve": cve, "score": score, "percentile": percentile, "score_date": epss.score_date,
+                       "fetched_at": epss.fetched_at}, sort_keys=True)
+
+
+def apply_enrichment(db: sqlite3.Connection, kev=None, github=None, epss=None) -> None:
+    """Set the KEV, malware, withdrawn and EPSS marks of the findings. Call it inside the refresh transaction.
 
     A feed that has no data leaves the old marks as they are. A mark is cleared only if the feed
-    answered for every advisory id of the finding.
+    answered for every advisory id of the finding. EPSS data from the cache after a failed download still
+    answers: earlier scores are never cleared.
     """
-    for row in db.execute("SELECT seq, advisory_ids, kev, malware, withdrawn_at FROM findings").fetchall():
+    for row in db.execute("SELECT seq, advisory_ids, kev, malware, withdrawn_at, epss FROM findings").fetchall():
         ids = json.loads(row["advisory_ids"])
         kev_value, malware_value, withdrawn = row["kev"], row["malware"], row["withdrawn_at"]
+        epss_value = row["epss"]
+        if epss is not None and epss.loaded:
+            epss_value = _epss_value(ids, epss)
         if kev is not None and kev.loaded:
             hit = next((kev.entries[i.upper()] for i in ids if i.upper() in kev.entries), None)
             kev_value = json.dumps(hit, sort_keys=True) if hit else None
@@ -314,8 +332,8 @@ def apply_enrichment(db: sqlite3.Connection, kev=None, github=None) -> None:
                 withdrawn = verdict.withdrawn_at
             elif verdict.withdrawn_known:
                 withdrawn = None
-        db.execute("UPDATE findings SET kev = ?, malware = ?, withdrawn_at = ? WHERE seq = ?",
-                   (kev_value, malware_value, withdrawn, row["seq"]))
+        db.execute("UPDATE findings SET kev = ?, malware = ?, withdrawn_at = ?, epss = ? WHERE seq = ?",
+                   (kev_value, malware_value, withdrawn, epss_value, row["seq"]))
 
 
 # Owner actions
@@ -406,10 +424,13 @@ def list_findings(db: sqlite3.Connection, now: str) -> list[Finding]:
             kev=json.loads(row["kev"]) if row["kev"] else None,
             malware=json.loads(row["malware"]) if row["malware"] else None,
             withdrawn_at=row["withdrawn_at"],
+            epss=json.loads(row["epss"]) if row["epss"] else None,
         ))
     out.sort(key=lambda f: f.id)
     out.sort(key=lambda f: f.last_seen, reverse=True)
     out.sort(key=lambda f: SEVERITIES.index(f.severity) if f.severity in SEVERITIES else len(SEVERITIES))
-    out.sort(key=lambda f: f.kev is None)  # Malware first, then known exploited, then severity.
+    # Malware first, then known exploited, then EPSS high to low (no value last), then severity.
+    out.sort(key=lambda f: (f.epss is None or f.epss["score"] is None, -((f.epss or {}).get("score") or 0)))
+    out.sort(key=lambda f: f.kev is None)
     out.sort(key=lambda f: f.malware is None)
     return out

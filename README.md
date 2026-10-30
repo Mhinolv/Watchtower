@@ -78,6 +78,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | `mas outdated --json <id>` | The App Store ID of one app. mas asks the App Store. | App Store update plan, after the owner clicks `Check for Update…` |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
+| GET `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | None. A bulk download of the whole public EPSS file (about 3 MB). No CVE list, finding id or inventory data. The URL answers 302 to the file of the day. | EPSS check, each refresh, at most once a day (the cached file is used for 24 hours) |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
@@ -159,6 +160,14 @@ The GitHub check reads the local OSV databases first (`osv/osv-scalibr/<ecosyste
 If a database has the id, the engine uses that record and sends no request. The age of that answer is the age of the database.
 Only the other ids go to the GitHub API. The call list above does not change: no new host and no token.
 If the 40-request limit leaves ids, the coverage is `partial` with `request limit`. A later refresh asks only for those ids, because answers stay valid for 7 days.
+
+### EPSS (exploit chance)
+
+- EPSS (FIRST) gives each CVE a score: the chance of exploit in the next 30 days. Only a bulk download is used: the whole public file, one GET, no per-finding request.
+- The engine keeps the file in `cache/epss/` in the data folder and downloads it again only after one day. The Source row of a finding shows the retrieval time.
+- A finding with a CVE shows the score (`94%`, `2.1%`, `<0.1%`) and the percentile. With several CVEs it shows the highest score. A finding without a CVE shows `EPSS covers CVEs only.`
+- Sort order: malware, known exploited, EPSS high to low, then severity. A finding with no score sorts by severity after the others.
+- Data older than 2 days shows in orange. A failed download makes the EPSS coverage `partial` and keeps the earlier scores.
 
 ## Incidents
 

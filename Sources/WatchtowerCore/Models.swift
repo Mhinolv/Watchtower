@@ -230,6 +230,8 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
     public var malware: MalwareMark?
     /// When the source withdrew the advisory.
     public var withdrawnAt: Date?
+    /// EPSS (#57) for the CVE of the finding. nil: no CVE, EPSS never loaded, or an older engine.
+    public var epss: EpssMark?
 
     public var isOpen: Bool { status == .open }
 
@@ -238,7 +240,7 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
                 deferredUntil: Date? = nil, firstSeen: Date, lastSeen: Date, resolvedAt: Date? = nil,
                 resolvedScanAt: Date? = nil, source: String = "OSV", sourceAt: Date? = nil,
                 paths: [FindingPath] = [], nextSteps: [String] = [], kev: KevMark? = nil,
-                malware: MalwareMark? = nil, withdrawnAt: Date? = nil) {
+                malware: MalwareMark? = nil, withdrawnAt: Date? = nil, epss: EpssMark? = nil) {
         self.id = id
         self.ecosystem = ecosystem
         self.package = package
@@ -259,6 +261,7 @@ public struct FindingRecord: Codable, Hashable, Sendable, Identifiable {
         self.kev = kev
         self.malware = malware
         self.withdrawnAt = withdrawnAt
+        self.epss = epss
     }
 
     /// Distinct projects that have this finding.

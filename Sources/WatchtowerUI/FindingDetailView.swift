@@ -136,6 +136,25 @@ public struct FindingDetailView: View {
                 ForEach(FeedBadge.badges(for: finding), id: \.text) { FeedBadgeView(badge: $0) }
                 FindingStatusBadge(finding: finding)
             }
+            epssRow
+        }
+    }
+
+    /// `Exploit chance (EPSS)`: the score and the percentile, then the note for the state (#57).
+    @ViewBuilder private var epssRow: some View {
+        let epss = model.epssDisplay(for: finding)
+        VStack(alignment: .leading, spacing: 3) {
+            if let text = epss.detailText {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Exploit chance (EPSS)").foregroundStyle(.secondary)
+                    Text(text).textSelection(.enabled)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(epss.voiceOver + ", " + text)
+            }
+            if let note = epss.note {
+                Text(note).font(.callout).foregroundStyle(epss.noteIsProblem ? Color.orange : Color.secondary)
+            }
         }
     }
 
@@ -296,7 +315,7 @@ struct FindingTable: View {
                 .accessibilityLabel("Show findings")
                 .frame(maxWidth: 260)
                 Spacer()
-                Text("Sorted by malware, known exploited, then severity").font(.caption).foregroundStyle(.secondary)
+                Text("Sorted by malware, known exploited, EPSS, then severity").font(.caption).foregroundStyle(.secondary)
             }
             .padding(10)
             let rows = model.visibleFindings
@@ -330,6 +349,14 @@ struct FindingTable: View {
                         }
                     }
                     .width(min: 96, ideal: 118)
+                    TableColumn("EPSS") { f in
+                        let epss = model.epssDisplay(for: f)
+                        Text(epss.listText)
+                            .foregroundStyle(epss.listIsProblem ? Color.orange : Color.primary)
+                            .help(epss.help ?? "")
+                            .accessibilityLabel(epss.voiceOver)
+                    }
+                    .width(min: 48, ideal: 56)
                     TableColumn("Projects") { f in Text(f.projectNames.isEmpty ? "—" : "\(f.projectNames.count)") }
                         .width(min: 44, ideal: 48)
                     TableColumn("Status") { f in FindingStatusBadge(finding: f, full: false) }
