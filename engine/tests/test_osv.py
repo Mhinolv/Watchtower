@@ -227,7 +227,7 @@ def test_lockfile_rows_and_project_notes(tmp_path, projects):
         ("web", "package-lock.json"): ("scanned", None),
     }
     notes = {p.name: p.note for p in result.projects}
-    assert notes == {"api": None, "mono": None, "notes": "No lockfile. Watchtower scans lockfiles only.",
+    assert notes == {"api": None, "mono": None, "notes": "No lockfile. Watchtower scans lockfiles and requirements.txt only.",
                      "web": None}
     assert "old" not in notes  # inactive projects are not scanned
 

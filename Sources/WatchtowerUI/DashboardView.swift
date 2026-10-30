@@ -612,12 +612,22 @@ struct ProjectDetail: View {
                 }
                 Text(project.displayPath).foregroundStyle(.secondary).textSelection(.enabled)
                 let lockfiles = Lockfiles.list(project.manifests)
-                if lockfiles.isEmpty {
-                    Text("No lockfile. Watchtower scans lockfiles only.")
+                let requirements = project.requirements ?? []
+                if lockfiles.isEmpty && requirements.isEmpty {
+                    Text("No lockfile. Watchtower scans lockfiles and requirements.txt only.")
                 } else {
                     ForEach(lockfiles, id: \.self) { path in
                         let name = (path as NSString).lastPathComponent
                         Text(Lockfiles.scanned.contains(name) ? "\(path): scanned" : "\(path): not scanned (not supported yet)")
+                    }
+                    // requirements.txt without a lockfile (#80): exact pins only. Ranges are never versions.
+                    ForEach(requirements) { file in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(file.statusText).foregroundStyle(file.skipped == nil ? Color.primary : Tone.orange.color)
+                            if let ranges = file.rangeText {
+                                Text(ranges).font(.callout).foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
                 let findings = model.findings(in: project)

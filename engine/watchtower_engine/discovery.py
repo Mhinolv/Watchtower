@@ -54,6 +54,8 @@ class Project:
     state: str
     # The resolved folder. The inactive choice is stored under it. Not part of the JSON.
     real_path: str = field(default="", repr=False, compare=False)
+    # requirements.txt files of requirements-only folders (#80): pins, other lines, why skipped.
+    requirements: list[dict] | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.state not in PROJECT_STATES:
@@ -66,7 +68,7 @@ class Project:
             "root": self.root,
             "manifests": list(self.manifests),
             "state": self.state,
-        }
+        } | ({"requirements": self.requirements} if self.requirements is not None else {})
 
 
 @dataclass

@@ -18,6 +18,7 @@ from .. import net
 from ..discovery import Project, display_path
 from ..feeds.osv_database import STALE_AFTER_DAYS, Database, age_days, db_root, update_database
 from ..models import CoverageRecord, utc_now
+from . import requirements_pins
 from .release_pin import Asset, ChecksumError, ScannerUnavailable, asset_for, ensure_scanner, verify
 
 SOURCE = "osv"
@@ -42,7 +43,7 @@ TEXT_UNREADABLE = "OSV-Scanner output was not readable."
 TEXT_NO_SCANNER = "OSV-Scanner is not downloaded. Projects were not scanned."
 TEXT_SCAN_FAILED = "OSV-Scanner stopped with an error."
 TEXT_NOT_UPDATED = "OSV database did not update. Results use the last copy."
-NOTE_NO_LOCKFILE = "No lockfile. Watchtower scans lockfiles only."
+NOTE_NO_LOCKFILE = "No lockfile. Watchtower scans lockfiles and requirements.txt only."
 NOTE_NOT_SUPPORTED = "not supported yet"
 NOTE_NO_DATABASE = "OSV database is not downloaded"
 NOTE_NOT_RUN = "OSV-Scanner did not run"
@@ -55,9 +56,16 @@ class Lockfile:
     status: str  # scanned, not_scanned, not_supported
     note: str | None = None
     full_path: str = field(default="", repr=False)
+    # A requirements.txt (#80): the exact pins go to the scanner in a private file at `scan_path`.
+    pins: list[tuple[str, str]] | None = field(default=None, repr=False)
+    other_lines: int | None = None
+    scan_path: str = field(default="", repr=False)
 
     def to_dict(self) -> dict:
-        return {"path": self.path, "ecosystem": self.ecosystem, "status": self.status, "note": self.note}
+        out = {"path": self.path, "ecosystem": self.ecosystem, "status": self.status, "note": self.note}
+        if self.pins is not None:
+            out |= {"pins": len(self.pins), "other_lines": self.other_lines}
+        return out
 
 
 @dataclass
@@ -129,9 +137,26 @@ def plan(projects: list[Project]) -> list[ProjectScan]:
                                           os.path.join(p.real_path or p.path, rel)))
             elif base in NOT_SUPPORTED:
                 lockfiles.append(Lockfile(rel, None, "not_supported", NOTE_NOT_SUPPORTED))
+        lockfiles += _requirements_rows(p)
         scans.append(ProjectScan(p.name, display_path(p.path), lockfiles,
                                  None if lockfiles else NOTE_NO_LOCKFILE))
     return scans
+
+
+def _requirements_rows(p: Project) -> list[Lockfile]:
+    """requirements.txt in a folder with no lockfile (#80): exact pins only, or `skipped` with the reason."""
+    names = set(SUPPORTED) | set(NOT_SUPPORTED)
+    rows = []
+    for rel in p.manifests:
+        if requirements_pins.requirements_only(rel, p.manifests, names):
+            full = os.path.join(p.real_path or p.path, rel)
+            found = requirements_pins.read(Path(full))
+            if found.skipped:
+                rows.append(Lockfile(rel, None, "skipped", found.skipped))
+            else:
+                rows.append(Lockfile(rel, requirements_pins.ECOSYSTEM, "not_scanned", NOTE_NOT_RUN, full,
+                                     pins=found.pins, other_lines=found.other_lines))
+    return rows
 
 
 # Scanner output
@@ -300,8 +325,10 @@ def collect(
     """Scan the supported lockfiles of the active projects against the local OSV databases."""
     scans = plan(projects)
     lockfiles = [lf for s in scans for lf in s.lockfiles if lf.ecosystem]
+    skipped = sum(1 for s in scans for lf in s.lockfiles if lf.status == "skipped")
     if not lockfiles:
-        return OsvResult(CoverageRecord(SOURCE, LABEL, "complete"), scans, [], [])
+        result = OsvResult(CoverageRecord(SOURCE, LABEL, "complete"), scans, [], [])
+        return _with_skipped(result, skipped)
 
     # 1. The scanner. Check it first, so a bad scanner costs no database download.
     try:
@@ -324,15 +351,21 @@ def collect(
     if not ready:
         return _failed(TEXT_MISSING, db_detail, scans, databases)
 
-    # 3. One offline run for every ready lockfile.
+    # 3. One offline run for every ready lockfile. A requirements.txt goes in as its exact pins only (#80).
+    requirements_pins.clear_pins(data_dir)
+    for index, lf in enumerate(lf for lf in ready if lf.pins):
+        lf.scan_path = str(requirements_pins.write_pins(lf.pins, data_dir, index))
+    inputs = [lf.scan_path or lf.full_path for lf in ready if lf.pins is None or lf.pins]
     try:
-        found = parse_output(run_scanner(scanner, asset, [lf.full_path for lf in ready], data_dir, run))
+        found = parse_output(run_scanner(scanner, asset, inputs, data_dir, run)) if inputs else {}
     except ChecksumError as exc:
         return _failed(TEXT_CHECKSUM, str(exc), scans, databases)
     except UnreadableOutput as exc:
         return _failed(TEXT_UNREADABLE, str(exc), scans, databases)
     except Exception as exc:
         return _failed(TEXT_SCAN_FAILED, repr(exc), scans, databases)
+    finally:
+        requirements_pins.clear_pins(data_dir)
 
     matches = []
     ready_ids = {id(lf) for lf in ready}
@@ -341,7 +374,7 @@ def collect(
             if id(lf) not in ready_ids:
                 continue
             lf.status, lf.note = "scanned", None
-            for row in found.get(os.path.realpath(lf.full_path), []):
+            for row in found.get(os.path.realpath(lf.scan_path or lf.full_path), []):
                 matches.append(Match(project=scan.name, project_path=scan.path, lockfile=lf.path,
                                      dependency_path=None, **row))
 
@@ -358,4 +391,14 @@ def collect(
     else:
         state, error = "complete", None
     coverage = CoverageRecord(SOURCE, LABEL, state, error=error, detail=db_detail, source_at=oldest)
-    return OsvResult(coverage, scans, matches, databases)
+    return _with_skipped(OsvResult(coverage, scans, matches, databases), skipped)
+
+
+def _with_skipped(result: OsvResult, skipped: int) -> OsvResult:
+    """A skipped requirements.txt keeps the coverage `partial` and adds `2 requirements projects skipped.`"""
+    if skipped:
+        c = result.coverage
+        c.error = " ".join(t for t in (c.error, requirements_pins.skipped_text(skipped)) if t)
+        if c.state == "complete":
+            c.state = "partial"
+    return result

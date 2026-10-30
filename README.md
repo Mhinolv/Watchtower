@@ -111,7 +111,9 @@ Watchtower never installs macOS or Safari. The `Open Software Update` button ope
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
-It scans `package-lock.json` and `uv.lock` only. A database older than 7 days makes the OSV coverage `stale`.
+It scans `package-lock.json` and `uv.lock`, and the exact pins of `requirements.txt` in a folder with no lockfile (#80). A database older than 7 days makes the OSV coverage `stale`.
+For a `requirements.txt`, the engine writes only `name==version` lines of its exact pins to a private file in `osv/requirements-pins/`, scans that file and deletes it. Ranges (`flask>=2.0,<3`), unpinned lines, markers and options never reach the scanner, and a range never makes a finding.
+A file with `-r`/`-c` includes or `--hash` lines is not scanned. The Projects detail says so, and the OSV coverage stays `partial` with `N requirements projects skipped.`
 
 ## Updates
 
@@ -163,7 +165,7 @@ An update plan for one direct requirement of a requirements-only project (no loc
 - The file is edited only after the environment shows the target. A copy of the file before the run goes to `update-backups/attempt-<id>/` in the data folder.
 - If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
 - Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
-- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. The OSV scan reads lockfiles only, so a finding does not yet open this plan: the key works from the CLI (`update-plan`).
+- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. A finding from an exact pin opens this plan from `Update…` (#80).
 
 ## Findings
 
