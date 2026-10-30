@@ -134,9 +134,11 @@ def classify(source: Source, title: str, summary: str) -> str | None:
     """The status of an item, or None if it does not read like an incident.
 
     The text is untrusted. It is only searched for words. Only a primary source can confirm.
+    Every item of a notice source (a vendor security release) is a record: it is `possible` unless the text
+    says that the vendor knows of an exploit.
     """
     text = f"{title} {summary}".lower()
-    if not any(word in text for word in INCIDENT_WORDS):
+    if not source.notice and not any(word in text for word in INCIDENT_WORDS):
         return None
     if not source.primary:
         return "unconfirmed"

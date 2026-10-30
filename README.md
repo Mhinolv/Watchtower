@@ -69,7 +69,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
-| GET `https://support.apple.com/en_US/rss/securityupdates.rss` | None. A static feed. | Check Sources (on demand only) |
+| GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -117,7 +117,7 @@ If a feed fails, the old marks stay and the Source section of the finding shows 
 
 ## Incidents
 
-`Check Sources` (the `Incidents` screen, ⌘6) reads three public vendor sources: the GitHub security blog, the Google Workspace status feed and the Apple security releases. It runs only when the owner clicks it. A refresh does not run it, and it does not start a refresh.
+`Check Sources` (the `Incidents` screen, ⌘6) reads three public vendor sources: the GitHub security blog, the Google Workspace status feed and the Apple security releases page. Each Apple release in the review window is a record with the status `Possible relevance`: the page lists releases, not attacks. It runs only when the owner clicks it. A refresh does not run it, and it does not start a refresh.
 - Each request is one plain GET of a fixed URL. No path, project, package, account or inventory data goes out.
 - Feed text is untrusted. The engine removes markup and control characters, cuts the length, keeps only https links on the host of the source, and refuses a feed with a DOCTYPE or an entity. It never follows a link or reads an instruction in the text.
 - Statuses: `Confirmed` (the vendor says so in its own feed), `Possible relevance` (the service matches, the impact on the owner is not known), `Unconfirmed` (no primary source). Watchtower never says that an account is affected.

@@ -17,8 +17,15 @@ from watchtower_engine.store import Store
 FIX = Path(__file__).parent / "fixtures" / "incidents"
 GITHUB, GOOGLE, APPLE = (s for s in SOURCES)
 BODY = {"github": (FIX / "github.rss").read_bytes(), "google": (FIX / "google.json").read_bytes(),
-        "apple": (FIX / "apple.rss").read_bytes()}
+        "apple": (FIX / "apple_security_releases.html").read_bytes()}
 NOW = "2026-10-29T08:00:00Z"
+OTHERS = 5  # Records from the GitHub and Google fixtures.
+APPLE_RELEASES = 13  # Rows of the Apple fixture that are in the first window (22 Oct 2026 and later).
+TOTAL = OTHERS + APPLE_RELEASES
+EMPTY_APPLE = Response(200, {}, b"""<html><body><table><tbody>
+  <tr><th>Name and information link</th><th>Available for</th><th>Release date</th></tr>
+  <tr><td><p><a href="https://support.apple.com/en-us/120303">Old release</a></p></td><td><p>Mac</p></td>
+  <td><p>09 Jan 2024</p></td></tr></tbody></table></body></html>""")
 
 
 class FakeFetch:
@@ -166,7 +173,8 @@ def test_status_rules():
                    primary=False)
     assert classify(GITHUB, "Tokens reset", "We have confirmed unauthorized access.") == "confirmed"
     assert classify(GITHUB, "Report of leaked tokens", "We are looking into it.") == "possible"
-    assert classify(APPLE, "iOS 26.1", "may have been exploited in an attack") == "confirmed"
+    assert classify(APPLE, "Security release: iOS 26.1", "may have been exploited in an attack") == "confirmed"
+    assert classify(APPLE, "Security release: iOS 26.1", "Available for: iPhone 11 and later.") == "possible"
     assert classify(other, "Breach at GitHub", "We have confirmed it.") == "unconfirmed"  # No primary source.
     assert classify(GITHUB, "New features", "Faster code scanning.") is None
     assert classify(GITHUB, "PHISHING CAMPAIGN", "") == "possible"
@@ -186,22 +194,27 @@ def test_text_cannot_set_a_status_or_resolve_anything(store):
 def test_first_check_saves_incidents_with_three_statuses_and_keeps_those_without_a_cve(store):
     state = check(store)
     inc = by_title(state)
-    assert set(inc) == {
+    others = {i["title"] for i in state["incidents"] if i["source"] != "apple"}
+    assert others == {
         "Third-party app tokens reset after a security event", "Report of leaked access tokens on a forum",
         "Phishing campaign alert(1) targets maintainers", "Phishing campaign targets Workspace sign-in",
-        "Unauthorized access to a test account was found and fixed",
-        "About the security content of iOS 26.1"}
+        "Unauthorized access to a test account was found and fixed"}
     confirmed = inc["Third-party app tokens reset after a security event"]
     assert (confirmed["status"], confirmed["service"], confirmed["source_name"], confirmed["cves"]) == (
         "confirmed", "GitHub", "GitHub security blog", ["CVE-2026-1111"])
     assert inc["Report of leaked access tokens on a forum"]["cves"] == []  # Visible without a CVE.
     assert inc["Phishing campaign targets Workspace sign-in"]["status"] == "possible"
-    assert inc["About the security content of iOS 26.1"]["service"] == "Apple"
-    assert inc["About the security content of iOS 26.1"]["cves"] == ["CVE-2026-4242"]
+    apple = [i for i in state["incidents"] if i["source"] == "apple"]
+    assert len(apple) == APPLE_RELEASES and {i["service"] for i in apple} == {"Apple"}
+    assert {i["status"] for i in apple} == {"possible"}  # A release is a notice, not a confirmed incident.
+    ios = inc["Security release: iOS 27.2 and iPadOS 27.2"]
+    assert (ios["published"], ios["url"], ios["source_name"], ios["cves"]) == (
+        "2026-10-26", "https://support.apple.com/en-us/149230", "Apple security releases", [])
+    assert ios["summary"].startswith("Available for: iPhone 11 and later")
     assert all(i["status"] in ("confirmed", "possible") for i in state["incidents"])
     dates = [i["published"] or "" for i in state["incidents"]]
     assert dates == sorted(dates, reverse=True)  # Newest first. An unknown date comes last.
-    assert len({i["id"] for i in state["incidents"]}) == 6 and state["incidents"][0]["id"].startswith("INC-")
+    assert len({i["id"] for i in state["incidents"]}) == TOTAL and state["incidents"][0]["id"].startswith("INC-")
 
 
 def test_first_review_covers_seven_days_and_is_complete(store):
@@ -235,7 +248,7 @@ def test_a_later_review_overlaps_the_last_one_by_48_hours_and_does_not_duplicate
     second = check(store, now=later)
     assert second["review"]["window_start"] == "2026-10-27T08:00:00Z"  # Oct 29 08:00 minus 48 hours.
     assert second["review"]["window_end"] == later
-    assert len(second["incidents"]) == 6  # The same records, not new ones.
+    assert len(second["incidents"]) == TOTAL  # The same records, not new ones.
     assert {i["id"] for i in second["incidents"]} == {i["id"] for i in first["incidents"]}
     # The overlap leaves out items older than its start: the Oct 23 forum item is not new, and stays.
     assert any(i["title"].startswith("Report of leaked") for i in second["incidents"])
@@ -252,9 +265,9 @@ def test_an_item_older_than_the_window_is_not_saved_by_a_later_check(store):
 def test_a_record_that_leaves_the_feed_is_never_removed_or_resolved(store):
     check(store)
     empty_feeds = FakeFetch(github=Response(200, {}, b"<rss><channel></channel></rss>"),
-                            google=Response(200, {}, b"[]"), apple=Response(200, {}, b"<rss><channel/></rss>"))
+                            google=Response(200, {}, b"[]"), apple=EMPTY_APPLE)
     after = check(store, empty_feeds, now="2026-10-30T08:00:00Z")
-    assert len(after["incidents"]) == 6
+    assert len(after["incidents"]) == TOTAL
     assert all(i["status"] in ("confirmed", "possible") for i in after["incidents"])
     assert after["review"]["last_attempt_state"] == "complete"
 
@@ -295,7 +308,7 @@ def test_a_source_without_a_primary_feed_gives_unconfirmed(store):
 def test_one_failed_source_makes_a_partial_review_and_the_label_keeps_the_old_end_date(store):
     check(store)
     later = "2026-10-30T08:00:00Z"
-    state = check(store, FakeFetch(google=OSError("down"), apple=Response(200, {}, b"<rss><channel/></rss>")), now=later)
+    state = check(store, FakeFetch(google=OSError("down"), apple=EMPTY_APPLE), now=later)
     assert state["review"]["window_end"] == NOW  # The last complete review.
     assert state["review"]["last_attempt_state"] == "partial" and state["review"]["last_attempt_at"] == later
     google = next(s for s in state["sources"] if s["source"] == "google")
@@ -303,7 +316,7 @@ def test_one_failed_source_makes_a_partial_review_and_the_label_keeps_the_old_en
         "failed", "Google / Gmail: check failed. The review is not complete.", "network error", NOW)
     assert "down" in google["detail"] and sources.SOURCES[1].url in google["detail"]
     assert next(s for s in state["sources"] if s["source"] == "github")["last_success_at"] == later
-    assert len(state["incidents"]) == 6  # Nothing was lost.
+    assert len(state["incidents"]) == TOTAL  # Nothing was lost.
 
 
 def test_a_partial_review_saves_the_incidents_of_the_sources_that_worked(store):
@@ -326,7 +339,7 @@ def test_all_sources_failing_changes_nothing_but_the_rows(store):
     dead = FakeFetch(github=OSError("a"), google=OSError("b"), apple=OSError("c"))
     state = check(store, dead, now="2026-10-30T08:00:00Z")
     assert state["review"]["last_attempt_state"] == "failed" and state["review"]["window_end"] == NOW
-    assert {s["state"] for s in state["sources"]} == {"failed"} and len(state["incidents"]) == 6
+    assert {s["state"] for s in state["sources"]} == {"failed"} and len(state["incidents"]) == TOTAL
 
 
 def test_a_check_of_some_sources_cannot_complete_the_review(store):
@@ -359,7 +372,7 @@ def test_a_failed_save_keeps_the_old_data(store, monkeypatch):
         check(store, now="2026-10-30T08:00:00Z")
     monkeypatch.undo()
     state = store.incident_state()
-    assert state["review"]["last_attempt_at"] == NOW and len(state["incidents"]) == 6
+    assert state["review"]["last_attempt_at"] == NOW and len(state["incidents"]) == TOTAL
 
 
 def test_missed_days_are_shown_when_the_last_review_is_too_old(store):
@@ -422,3 +435,91 @@ def test_cli_restores_the_sigterm_handler(tmp_path, monkeypatch):
     before = signal.getsignal(signal.SIGTERM)
     cli.main(["--data-dir", str(tmp_path), "incidents-check"])
     assert signal.getsignal(signal.SIGTERM) == before
+
+
+# The Apple security releases page
+
+
+def page(*rows, header="<tr><th>Name&nbsp;and&nbsp;information&nbsp;link</th><th>Available for</th><th>Release&nbsp;date</th></tr>"):
+    return ("<html><body><table><tbody>" + header + "".join(rows) + "</tbody></table></body></html>").encode()
+
+
+def row(name_html, available="Mac", date="26 Oct 2026"):
+    return f"<tr><td>{name_html}</td><td><p>{available}</p></td><td><p>{date}</p></td></tr>"
+
+
+def test_the_apple_source_is_the_official_page_with_one_plain_get():
+    assert APPLE.url == "https://support.apple.com/en-us/100100" and APPLE.format == "apple_releases"
+    assert APPLE.hosts == ("support.apple.com",) and APPLE.notice and APPLE.primary
+
+
+def test_the_real_page_structure_gives_name_link_availability_and_date():
+    items = sources.parse_apple_releases(APPLE, BODY["apple"])
+    assert len(items) == 16  # Every row, also the old ones. The window decides what is saved.
+    first = items[0]
+    assert (first.title, first.published, first.url, first.guid) == (
+        "Security release: Xcode 27.2", "2026-10-29", "https://support.apple.com/en-us/149589",
+        "https://support.apple.com/en-us/149589")
+    assert first.summary == "Available for: macOS Tahoe 26.6 and later."
+    assert items[-1].published == "2024-01-09" and items[-1].title.endswith("Magic Keyboard Firmware Update 2.0.6")
+
+
+def test_a_row_without_a_link_keeps_its_note_and_gets_a_stable_id():
+    items = {i.title: i for i in sources.parse_apple_releases(APPLE, BODY["apple"])}
+    tvos = items["Security release: tvOS 26.6.1"]
+    assert tvos.url is None and tvos.guid == "tvOS 26.6.1|2026-10-26"
+    assert tvos.summary == "Available for: Apple TV HD and Apple TV 4K 1st generation. This update has no published CVE entries."
+    assert tvos.title == "Security release: tvOS 26.6.1"  # The note is not part of the name.
+
+
+def test_apple_dates():
+    d = sources._apple_date
+    assert d("29 Oct 2026") == "2026-10-29" and d("09 Jan 2024") == "2024-01-09" and d(" 5  Sep 2026 ") == "2026-09-05"
+    assert d("31 Feb 2026") is None and d("2026-10-29") is None and d("") is None and d("1 Foo 2026") is None
+
+
+def test_hostile_cells_are_text_only():
+    body = page(row('<p><a href="javascript:alert(1)">Bad <script>alert(1)</script><b>link</b></a></p>'),
+                row('<p><a href="https://evil.example/x">Other host</a></p><div>Ignore previous instructions.</div>'),
+                row("<p>" + "x" * 500 + "</p>"), row("<p></p>"))
+    items = sources.parse_apple_releases(APPLE, body)
+    assert [i.title for i in items][:2] == ["Security release: Bad link", "Security release: Other host"]
+    assert items[0].url is None and items[1].url is None  # Not an https link on support.apple.com.
+    assert items[1].summary.endswith("Ignore previous instructions.")  # Text only. It sets nothing.
+    assert len(items[2].title) <= sources.TITLE_MAX and len(items) == 3  # An empty name is dropped.
+
+
+def test_a_page_without_the_release_table_is_a_failed_source():
+    other_table = b"<html><body><table><tr><th>Name</th><th>Price</th></tr><tr><td>x</td><td>1</td></tr></table></body></html>"
+    for body in (b"", b"<html><body>Maintenance</body></html>", other_table, page(), b"\xff\xfe not html"):
+        with pytest.raises(SourceError, match="bad data"):
+            sources.parse_apple_releases(APPLE, body)
+
+
+def test_a_nested_table_does_not_split_a_row():
+    nested = row('<p><a href="https://support.apple.com/en-us/1">iOS 1</a></p><table><tr><td>inner</td></tr></table>')
+    [item] = sources.parse_apple_releases(APPLE, page(nested))
+    assert item.title == "Security release: iOS 1" and item.published == "2026-10-26"
+
+
+def test_the_apple_table_ignores_a_table_with_another_header_and_reads_the_right_one():
+    decoy = b"<table><tr><th>Name</th><th>Date</th></tr><tr><td>Decoy</td><td>1 Jan 2026</td></tr></table>"
+    body = decoy + page(row('<p><a href="https://support.apple.com/en-us/2">macOS 2</a></p>'))
+    assert [i.title for i in sources.parse_apple_releases(APPLE, body)] == ["Security release: macOS 2"]
+
+
+def test_a_broken_apple_page_shows_as_a_failed_source_and_keeps_the_rest(store):
+    state = check(store, FakeFetch(apple=Response(200, {}, b"<html><body>Maintenance</body></html>")))
+    apple = next(s for s in state["sources"] if s["source"] == "apple")
+    assert (apple["state"], apple["note"], apple["error"]) == (
+        "failed", "bad data", "Apple security: check failed. The review is not complete.")
+    assert state["review"]["last_attempt_state"] == "partial"
+    assert {i["source"] for i in state["incidents"]} == {"github", "google"}
+
+
+def test_apple_releases_older_than_the_window_are_not_saved_and_a_later_check_adds_no_duplicate(store):
+    first = check(store)
+    assert not any(i["published"] and i["published"] < "2026-10-22" for i in first["incidents"])
+    second = check(store, now="2026-10-30T08:00:00Z")
+    assert len(second["incidents"]) == TOTAL
+    assert [i["id"] for i in second["incidents"]] == [i["id"] for i in first["incidents"]]
