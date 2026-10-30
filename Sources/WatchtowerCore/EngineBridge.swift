@@ -261,12 +261,46 @@ public protocol CommandRunner: Sendable {
              onStderrLine: @escaping @Sendable (String) -> Void) async throws -> ProcessResult
 }
 
-public struct ProcessCommandRunner: CommandRunner {
+/// Every engine process that runs now. The app stops them all when it quits (#33):
+/// a refresh engine gets SIGTERM, saves a `cancelled` refresh and stops its own children.
+public final class EngineProcesses: @unchecked Sendable {
+    public static let shared = EngineProcesses()
+    private let lock = NSLock()
+    private var boxes: [ObjectIdentifier: ProcessBox] = [:]
+
     public init() {}
+
+    public var count: Int { lock.withLock { boxes.count } }
+
+    func add(_ box: ProcessBox) { lock.withLock { boxes[ObjectIdentifier(box)] = box } }
+    func remove(_ box: ProcessBox) { lock.withLock { _ = boxes.removeValue(forKey: ObjectIdentifier(box)) } }
+
+    /// Send SIGTERM to every running engine process, then wait up to `wait` seconds for them to end.
+    /// Returns how many processes got the signal.
+    @discardableResult
+    public func terminateAll(wait: TimeInterval = 2) -> Int {
+        let running = lock.withLock { Array(boxes.values) }
+        running.forEach { $0.terminate() }
+        let deadline = Date().addingTimeInterval(wait)
+        while running.contains(where: \.isRunning), Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        return running.count
+    }
+}
+
+public struct ProcessCommandRunner: CommandRunner {
+    let registry: EngineProcesses
+
+    public init(registry: EngineProcesses = .shared) {
+        self.registry = registry
+    }
 
     public func run(_ executable: URL, _ arguments: [String], environment: [String: String],
                     onStderrLine: @escaping @Sendable (String) -> Void) async throws -> ProcessResult {
         let box = ProcessBox()
+        registry.add(box)
+        defer { registry.remove(box) }
         return try await withTaskCancellationHandler {
             try await Task.detached(priority: .userInitiated) {
                 try box.runToEnd(executable, arguments, environment, onStderrLine)
@@ -289,6 +323,8 @@ final class ProcessBox: @unchecked Sendable {
             if let process, process.isRunning { process.terminate() }
         }
     }
+
+    var isRunning: Bool { lock.withLock { process?.isRunning ?? false } }
 
     func runToEnd(_ executable: URL, _ arguments: [String], _ environment: [String: String],
                   _ onStderrLine: @escaping @Sendable (String) -> Void) throws -> ProcessResult {

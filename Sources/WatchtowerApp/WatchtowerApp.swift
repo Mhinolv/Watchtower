@@ -4,6 +4,7 @@ import WatchtowerUI
 
 @main
 struct WatchtowerApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = DashboardModel(engine: Engine())
     @State private var updates = UpdateModel(client: Engine())
     @State private var incidents = IncidentModel(client: Engine())
@@ -55,5 +56,13 @@ struct MenuBarMenu: View {
             openWindow(id: "main")
             NSApplication.shared.activate()
         }
+    }
+}
+
+/// Quit (⌘Q or the menu bar) stops every engine process at once (#33). A refresh engine saves a
+/// `cancelled` refresh, so the next launch never shows it as complete. No confirm alert.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillTerminate(_ notification: Notification) {
+        EngineProcesses.shared.terminateAll(wait: 2)
     }
 }
