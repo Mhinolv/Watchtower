@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -385,3 +386,130 @@ def test_moved_to_another_version_does_not_say_still(tmp_path):
     attempt, _ = run(store, brew, FakeRunner(brew, new_version="2.47.0"), plan(store, brew).id)
     assert attempt.status == "not_verified"
     assert attempt.error == "The command finished, but the installed version is 2.47.0, not 2.47.1."
+
+
+# Real brew output (#50)
+
+ADA_URL_DRY_RUN = (Path(__file__).parent / "fixtures" / "homebrew" / "brew-dry-run-ada-url.txt").read_text()
+
+
+def ada_formula():
+    return formula(version="4.0.0", stable="4.0.0", revision=1, name="ada-url", full_name="ada-url")
+
+
+def test_the_real_dry_run_of_ada_url_parses_into_five_changes():
+    changes = hb.parse_dry_run(ADA_URL_DRY_RUN)
+    assert [(c.name, c.before, c.after, c.change) for c in changes] == [
+        ("icu4c@79", None, "79.1", "install"),
+        ("simdutf", "9.1.0", "9.3.3", "upgrade"),
+        ("ada-url", "4.0.0", "4.0.0_1", "upgrade"),
+        ("node", "26.7.0", "26.13.0_1", "upgrade"),
+        ("jupyterlab", "4.6.3", "4.6.4_3", "upgrade"),
+    ]
+
+
+def test_the_plan_for_ada_url_lists_every_other_package_and_is_not_refused(tmp_path):
+    brew = FakeBrew(ada_formula(), dry_run=ADA_URL_DRY_RUN)
+    p = plan(seeded(tmp_path, key="formula:ada-url", latest="4.0.0_1", installed="4.0.0"), brew,
+             key="homebrew/formula:ada-url")
+    assert p.refusal is None and p.detail is None
+    assert (p.installed_version, p.target_version) == ("4.0.0", "4.0.0_1")
+    assert [(c.name, c.before, c.after, c.change) for c in p.also_changes] == [
+        ("icu4c@79", None, "79.1", "install"),
+        ("simdutf", "9.1.0", "9.3.3", "upgrade"),
+        ("node", "26.7.0", "26.13.0_1", "upgrade"),
+        ("jupyterlab", "4.6.3", "4.6.4_3", "upgrade"),
+    ]
+    assert p.to_dict()["command_text"] == "/fake/brew upgrade --formula ada-url"
+
+
+WARNING_BLOCK = (
+    "Warning: The following taps are not trusted:\n  dopplerhq/doppler\n\nHomebrew is ignoring them.\n"
+    "Trust them with:\n  brew trust --formula hashicorp/tap/terraform\nFor more information, see:\n"
+    "  https://docs.brew.sh/Tap-Trust\n")
+ONE_SECTION = "==> Would upgrade 1 requested outdated package\nada-url 4.0.0 -> 4.0.0_1 (341.1KB)\n"
+
+
+def test_a_warning_block_is_skipped_up_to_the_next_section_wherever_it_sits():
+    # The plan joins stdout and stderr, so the block can come first or last, or sit between sections.
+    assert [c.name for c in hb.parse_dry_run(WARNING_BLOCK + ONE_SECTION)] == ["ada-url"]
+    assert [c.name for c in hb.parse_dry_run(ONE_SECTION + "\n" + WARNING_BLOCK)] == ["ada-url"]
+    middle = ONE_SECTION + WARNING_BLOCK + "==> Would upgrade 1 dependent\nnode 26.7.0 -> 26.13.0_1 (21.4MB)\n"
+    assert [c.name for c in hb.parse_dry_run(middle)] == ["ada-url", "node"]
+
+
+def test_aligned_columns_and_sizes_are_read():
+    text = ("==> Would upgrade 2 dependents\nnode        26.7.0 -> 26.13.0_1  (21.4MB)\n"
+            "jupyterlab  4.6.3  -> 4.6.4_3    (45.2MB)\n")
+    assert [(c.name, c.before, c.after) for c in hb.parse_dry_run(text)] == [
+        ("node", "26.7.0", "26.13.0_1"), ("jupyterlab", "4.6.3", "4.6.4_3")]
+
+
+def test_an_unknown_line_inside_a_section_still_refuses_the_plan(tmp_path):
+    bad_upgrade = ADA_URL_DRY_RUN.replace("simdutf 9.1.0 -> 9.3.3", "simdutf is going to change somehow")
+    bad_install = ADA_URL_DRY_RUN.replace("icu4c@79 79.1", "this is not a package line at all")
+    for number, text in enumerate((bad_upgrade, bad_install)):
+        with pytest.raises(ValueError, match="unknown dry-run line"):
+            hb.parse_dry_run(text)
+        brew = FakeBrew(ada_formula(), dry_run=text)
+        p = plan(seeded(tmp_path / str(number), key="formula:ada-url", latest="4.0.0_1", installed="4.0.0"), brew,
+                 key="homebrew/formula:ada-url")
+        assert p.refusal == "Watchtower cannot read the Homebrew plan."
+        assert "unknown dry-run line" in p.detail
+    with pytest.raises(ValueError):
+        hb.parse_dry_run("some stray line before any section\n")
+
+
+# Second real output, and fetch progress lines (#50 round 2)
+
+GIT_DRY_RUN = (Path(__file__).parent / "fixtures" / "homebrew" / "brew-dry-run-git.txt").read_text()
+PROGRESS = (
+    "✔︎ Bottle Manifest git (2.56.0_2)\n✔︎ Bottle git (2.56.0_2)\n✘ Bottle Manifest curl (8.23.0)\n"
+    "==> Fetching git\n==> Downloading https://ghcr.io/v2/homebrew/core/git/blobs/sha256:abc\n"
+    "Fetching downloads for: git\nDownloading git\n")
+
+
+def test_the_real_dry_run_of_git_parses_into_six_changes():
+    changes = hb.parse_dry_run(GIT_DRY_RUN)
+    assert [(c.name, c.before, c.after, c.change) for c in changes] == [
+        ("libpsl", None, "0.23.3", "install"),
+        ("curl", None, "8.23.0", "install"),
+        ("brotli", "1.2.0", "1.2.1", "upgrade"),
+        ("libngtcp2", "1.25.0", "1.25.0_1", "upgrade"),
+        ("libssh2", "1.11.1_4", "1.11.1_7", "upgrade"),
+        ("git", "2.55.0", "2.56.0_2", "upgrade"),
+    ]
+
+
+def test_fetch_progress_lines_are_skipped_in_every_position():
+    baseline = hb.parse_dry_run(GIT_DRY_RUN)
+    lines = GIT_DRY_RUN.splitlines(keepends=True)
+    cut = next(i for i, line in enumerate(lines) if line.startswith("==> Would install"))
+    for text in (PROGRESS + GIT_DRY_RUN, GIT_DRY_RUN + PROGRESS,
+                 "".join(lines[:cut]) + PROGRESS + "".join(lines[cut:])):
+        assert hb.parse_dry_run(text) == baseline
+    # Progress lines inside a section, after the install and the upgrade headers.
+    inside = GIT_DRY_RUN.replace("libpsl  0.23.3\n", "libpsl  0.23.3\n✔︎ Bottle Manifest libpsl (0.23.3)\n")
+    inside = inside.replace("brotli     1.2.0", "✘ Bottle brotli (1.2.1)\nbrotli     1.2.0")
+    assert hb.parse_dry_run(inside) == baseline
+
+
+def test_the_plan_for_git_lists_the_five_others_when_progress_lines_are_present(tmp_path):
+    git = formula(version="2.55.0", stable="2.56.0", revision=2, name="git", full_name="git")
+    brew = FakeBrew(git, dry_run=PROGRESS + GIT_DRY_RUN)
+    p = plan(seeded(tmp_path, key="formula:git", latest="2.56.0_2", installed="2.55.0"), brew,
+             key="homebrew/formula:git")
+    assert p.refusal is None and p.detail is None
+    assert (p.installed_version, p.target_version) == ("2.55.0", "2.56.0_2")
+    assert [c.name for c in p.also_changes] == ["libpsl", "curl", "brotli", "libngtcp2", "libssh2"]
+
+
+def test_an_unknown_line_next_to_progress_lines_still_refuses_the_plan(tmp_path):
+    text = PROGRESS + GIT_DRY_RUN.replace("brotli     1.2.0    -> 1.2.1", "brotli is going to change somehow")
+    with pytest.raises(ValueError, match="unknown dry-run line"):
+        hb.parse_dry_run(text)
+    git = formula(version="2.55.0", stable="2.56.0", revision=2, name="git", full_name="git")
+    p = plan(seeded(tmp_path, key="formula:git", latest="2.56.0_2", installed="2.55.0"),
+             FakeBrew(git, dry_run=text), key="homebrew/formula:git")
+    assert p.refusal == "Watchtower cannot read the Homebrew plan."
+    assert "unknown dry-run line" in p.detail

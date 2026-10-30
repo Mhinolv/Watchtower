@@ -152,27 +152,47 @@ def candidate_version(kind: str, entry: dict) -> str | None:
     return stable + (f"_{entry['revision']}" if entry.get("revision") else "")
 
 
-_CHANGE_RE = re.compile(r"^(\S+) (\S+) -> (\S+)$")
+_CHANGE_RE = re.compile(r"^(\S+)\s+(\S+)\s+->\s+(\S+)(?:\s+\([^)]*\))?$")
+_SIZE_RE = re.compile(r"\s+\([^)]*\)$")
+# Fetch progress that brew prints the first time: `✔︎ Bottle Manifest git (2.56.0_2)`, `==> Fetching git`.
+_PROGRESS_RE = re.compile(r"^(?:[\u2714\u2718][\ufe0e\ufe0f]?\s|(?:==>\s+)?(?:Fetching|Downloading|Already downloaded)\b)")
 
 
 def parse_dry_run(text: str) -> list[Change]:
-    """Read `brew upgrade --dry-run`. Raises ValueError on a line it does not know."""
+    """Read `brew upgrade --dry-run`. Raises ValueError on a line it does not know.
+
+    A `Warning:` or `Note:` block is prose. It runs to the next `==>` header or change line.
+    Fetch progress lines (`✔︎ Bottle Manifest ...`, `==> Fetching ...`) are skipped.
+    Any other line inside a `==>` section must be a change or a package, or the plan is refused.
+    """
     changes: list[Change] = []
     mode = None
+    in_notice = False
     for raw in text.splitlines():
         line = raw.strip()
-        if not line or "HOMEBREW_" in line or line.startswith(("Warning:", "Note:")):
+        if not line or "HOMEBREW_" in line:
+            continue
+        if _PROGRESS_RE.match(line):
             continue
         if line.startswith("==>"):
             mode = "install" if "install" in line.lower() else "upgrade"
+            in_notice = False
             continue
         m = _CHANGE_RE.match(line)
         if m:
+            in_notice = False
             changes.append(Change(m.group(1), m.group(2), m.group(3), "upgrade"))
             continue
+        if line.startswith(("Warning:", "Note:")):
+            in_notice = True
+            continue
+        if in_notice:
+            continue
         if mode == "install":
-            for part in line.split(","):
+            for part in _SIZE_RE.sub("", line).split(","):
                 words = part.split()
+                if len(words) > 2:
+                    raise ValueError(f"unknown dry-run line: {line!r}")
                 if words:
                     changes.append(Change(words[0], None, words[1] if len(words) > 1 else None, "install"))
             continue
