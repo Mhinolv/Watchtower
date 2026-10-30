@@ -118,6 +118,36 @@ def test_unsafe_or_wrong_documents_are_refused(body):
         parse_rss(GITHUB, body)
 
 
+# #93: the real GitHub feed has `<!DOCTYPE html` text in post bodies (CDATA), first at byte 2366.
+DOCTYPE_TEXT_FEED = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Security</title>
+<item><title>Token breach</title><link>https://github.blog/security/t1/</link><guid>t1</guid>
+<pubDate>Tue, 27 Oct 2026 10:00:00 +0000</pubDate><description><![CDATA[<p>We confirmed it.</p>]]></description>
+<content:encoded><![CDATA[<pre><code><!DOCTYPE html>
+<!ENTITY x "y"><html></html></code></pre>]]></content:encoded></item>
+<item><title>Escaped markup</title><guid>t2</guid><description>&lt;!DOCTYPE html&gt; in text</description></item>
+</channel></rss>"""
+
+
+def test_doctype_text_inside_a_post_body_is_not_a_declaration():
+    items = parse_rss(GITHUB, DOCTYPE_TEXT_FEED)
+    assert [(i.guid, i.title) for i in items] == [("t1", "Token breach"), ("t2", "Escaped markup")]
+    assert items[0].url == "https://github.blog/security/t1/" and items[0].summary == "We confirmed it."
+
+
+DTD_FEED = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE rss [<!ENTITY a "EXPANDED">]><rss><channel/></rss>'
+
+
+@pytest.mark.parametrize("body", [
+    DTD_FEED.encode("utf-16"), DTD_FEED.encode("utf-16-be"),  # A byte search does not see UTF-16 text.
+    b'<?xml version="1.0"?><!--' + b"x" * 200000 + b'--><!DOCTYPE rss [<!ENTITY a "b">]><rss/>',
+    b'<?xml version="1.0"?>\n<!DOCTYPE rss SYSTEM "https://example.com/x.dtd">\n<rss><channel/></rss>',
+])
+def test_a_declaration_in_the_prolog_is_refused_in_any_encoding_and_at_any_offset(body):
+    with pytest.raises(SourceError, match="bad data"):
+        parse_rss(GITHUB, body)
+
+
 def test_google_status_rows_and_bad_rows():
     items = {i.guid: i for i in sources.parse_google_status(GOOGLE, BODY["google"])}
     assert set(items) == {"gw-0001", "gw-0002", "gw-0004"}  # A row without a title is dropped.
