@@ -304,3 +304,89 @@ def test_refresh_saves_the_sparkle_coverage(tmp_path):
         state = run_refresh(s, [Source("apps", "Applications", apps_source)])
     cov = {c["source"]: c for c in state["coverage"]}
     assert cov["sparkle"]["note"] == "1 of 1 read" and cov["sparkle"]["state"] == "complete"
+
+
+# #67: a host name that resolves to a local address. The tests use a fake resolver, never DNS.
+
+import functools
+import socket
+
+
+class FakeResolver:
+    """Answers by host name with a list of addresses. Each call takes the next answer."""
+
+    def __init__(self, *answers):
+        self.answers, self.calls = list(answers), []
+
+    def __call__(self, host, port):
+        self.calls.append((host, port))
+        return self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
+
+
+class Stop(Exception):
+    pass
+
+
+def resolving(resolver):
+    return functools.partial(sparkle.fetch_feed, resolve=resolver)
+
+
+@pytest.mark.parametrize("addresses", [["10.0.0.5"], ["127.0.0.1"], ["169.254.169.254"], ["192.168.1.2", "10.1.1.1"],
+                                       ["::1"], ["fe80::1%en0"], ["fd00::5"], ["100.64.0.1"],
+                                       ["93.184.216.34", "192.168.1.2"]])
+def test_a_host_name_that_resolves_to_a_local_address_is_refused(tmp_path, monkeypatch, addresses):
+    connects = []
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **kw: connects.append(a) or (_ for _ in ()).throw(Stop()))
+    item = app_item()
+    result = run([Target(item, "https://updates.example.com/appcast.xml", "330")], tmp_path,
+                 resolving(FakeResolver(addresses)))
+    assert (item.state, item.note) == ("unknown", NOTE_LOCAL)
+    assert item.error is None
+    assert connects == []  # Refused before any connection.
+    assert result.coverage.note == "0 of 1 read"
+
+
+def test_the_connection_goes_to_the_checked_address_not_a_later_dns_answer(monkeypatch):
+    connects = []
+
+    def create_connection(address, *args, **kwargs):
+        connects.append(address)
+        raise Stop()
+
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    resolver = FakeResolver(["93.184.216.34"], ["127.0.0.1"])  # A second DNS answer would be local.
+    with pytest.raises(Exception):
+        sparkle.fetch_feed("https://updates.example.com/appcast.xml", resolve=resolver)
+    assert resolver.calls == [("updates.example.com", 443)]
+    assert connects == [("93.184.216.34", 443)]
+
+
+def test_tls_still_checks_the_host_name(monkeypatch):
+    wrapped = []
+
+    class Context:
+        def wrap_socket(self, sock, server_hostname=None, **kw):
+            wrapped.append(server_hostname)
+            raise Stop()
+
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **kw: object())
+    conn = sparkle._PinnedHTTPSConnection("updates.example.com", address="93.184.216.34", context=Context())
+    with pytest.raises(Stop):
+        conn.connect()
+    assert wrapped == ["updates.example.com"]
+
+
+def test_a_host_name_that_does_not_resolve_is_a_failed_check(tmp_path):
+    item = app_item()
+    result = run([Target(item, "https://updates.example.com/appcast.xml", "330")], tmp_path,
+                 resolving(FakeResolver([])))
+    assert item.error == sparkle.ERROR_FAILED
+    assert result.coverage.state == "failed"
+
+
+def test_numeric_hosts_are_still_refused_before_any_lookup(tmp_path):
+    resolver = FakeResolver(["93.184.216.34"])
+    item = app_item()
+    run([Target(item, "https://127.1/appcast.xml", "330")], tmp_path, resolving(resolver))
+    assert (item.state, item.note) == ("unknown", NOTE_LOCAL)
+    assert resolver.calls == []
