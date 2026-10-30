@@ -527,3 +527,84 @@ def test_a_redirect_host_is_checked_and_tried_the_same_way(tmp_path, monkeypatch
     assert [h for h, _ in resolver.calls] == ["updates.example.com", "cdn.example.net"]
     assert net.connects == [(A1, 443), ("93.184.216.40", 443), (A2, 443)]
     assert item.latest_version == "3.4.1" and net.wrapped == ["updates.example.com", "cdn.example.net"]
+
+
+# #83: one shared deadline for all address tries of a host. A fake clock and a fake connection, no network.
+
+EIGHT = [f"93.184.216.{i}" for i in range(40, 48)]
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class SlowNetwork(FakeNetwork):
+    """No address answers. Each try waits its full timeout on the fake clock, then fails."""
+
+    def __init__(self, monkeypatch, clock, up=(), body=b""):
+        super().__init__(monkeypatch, up, body)
+        self.clock, self.timeouts = clock, []
+
+    def connect(self, address, timeout=None, source_address=None):
+        self.connects.append(address)
+        self.timeouts.append(timeout)
+        if address[0] in self.up:
+            return FakeSocket(self.body)
+        self.clock.now += timeout
+        raise TimeoutError(f"{address[0]} timed out")
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    fake = FakeClock()
+    monkeypatch.setattr(sparkle, "_now", fake, raising=False)
+    return fake
+
+
+def test_eight_silent_addresses_finish_within_the_host_deadline(tmp_path, monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock)
+    start = clock.now
+    item = app_item()
+    result = run([Target(item, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert clock.now - start <= 30  # The host deadline. Not 8 x 20 s = 160 s.
+    assert net.timeouts == [20, 10]  # The second try gets only the time that is left.
+    assert net.connects == [(EIGHT[0], 443), (EIGHT[1], 443)]  # No try starts after the deadline.
+    assert item.error == "Feed check failed." and result.coverage.state == "failed"
+
+
+def test_no_connect_runs_after_the_deadline(monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock)
+    with pytest.raises(OSError):
+        sparkle.fetch_feed(HOST_URL, resolve=FakeResolver(EIGHT))
+    deadline = 1000.0 + 30  # HOST_DEADLINE_SECONDS
+    assert clock.now == deadline and len(net.connects) == 2
+    assert all(t > 0 for t in net.timeouts)
+
+
+def test_addresses_are_still_tried_in_order_within_the_deadline(tmp_path, monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock, up={EIGHT[1]}, body=appcast("stable.xml"))
+    item = app_item("3.3.0")
+    run([Target(item, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert net.connects == [(EIGHT[0], 443), (EIGHT[1], 443)] and net.timeouts == [20, 10]
+    assert (item.state, item.latest_version, item.error) == ("update_available", "3.4.1", None)
+
+
+def test_fast_failures_try_every_address(tmp_path, monkeypatch, clock):
+    net = FakeNetwork(monkeypatch, up=(), body=b"")  # Refused at once: no time passes.
+    run([Target(app_item(), HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert net.connects == [(a, 443) for a in EIGHT]
+
+
+def test_the_deadline_path_keeps_the_last_good_result(tmp_path, monkeypatch, clock):
+    SlowNetwork(monkeypatch, clock, up={EIGHT[0]}, body=appcast("stable.xml"))
+    run([Target(app_item("3.3.0"), HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)), now=T1)
+    SlowNetwork(monkeypatch, clock)
+    again = app_item("3.3.0")
+    result = run([Target(again, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)), now=T2)
+    assert (again.state, again.latest_version) == ("update_available", "3.4.1")
+    assert again.error == "Feed check failed." and again.attributes["sparkleChecked"] == T1
+    assert "timed out" in result.coverage.detail

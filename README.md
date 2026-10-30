@@ -100,6 +100,7 @@ The Sparkle check reads the appcast of each app that has `SUFeedURL` and no usab
 It refuses an address that is not HTTPS, has a user name, password or secret query value, or points to this Mac or a local network. A redirect must pass the same rules.
 Before each request, the engine resolves the host name. If any address is not global (private, loopback, link-local and others), it refuses the feed (#67).
 It checks every address of the host name first: one local address refuses the host. Then it connects to the checked addresses only, in order, until one connects (at most 8). A second DNS answer cannot change this. TLS still checks the certificate against the host name, and a TLS failure is not retried on the next address. Sparkle feeds do not use a proxy.
+All connect tries for one host share a 30-second deadline (#83). Each try waits at most 20 seconds and never longer than the time that is left. If the deadline passes, the check fails and the last good answer stays.
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
@@ -112,7 +113,11 @@ Watchtower never installs macOS or Safari. The `Open Software Update` button ope
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
-It scans `package-lock.json`, `uv.lock` and `Cargo.lock` (crates.io, #15) only. A database older than 7 days makes the OSV coverage `stale`.
+It scans `package-lock.json`, `uv.lock` and `Cargo.lock` (crates.io, #15), and the exact pins of `requirements.txt` in a folder with no lockfile (#80). A database older than 7 days makes the OSV coverage `stale`.
+For a `requirements.txt`, the engine writes only `name==version` lines of its exact pins to a private file in `osv/requirements-pins/`, scans that file and deletes it. Ranges (`flask>=2.0,<3`), unpinned lines, markers and options never reach the scanner, and a range never makes a finding.
+A file with `-r`/`-c` includes or `--hash` lines is not scanned. The Projects detail says so, and the OSV coverage stays `partial` with `N requirements projects skipped.`
+Project discovery looks for manifests down to 8 folder levels and visits at most 5000 folders in one project, shallow folders first.
+If a project hits that limit, its deeper manifests are not listed. The `Projects` coverage row is then `partial` and names the project (#88).
 
 ## Updates
 
@@ -175,7 +180,7 @@ An update plan for one direct requirement of a requirements-only project (no loc
 - The file is edited only after the environment shows the target. A copy of the file before the run goes to `update-backups/attempt-<id>/` in the data folder.
 - If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
 - Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
-- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. The OSV scan reads lockfiles only, so a finding does not yet open this plan: the key works from the CLI (`update-plan`).
+- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. A finding from an exact pin opens this plan from `Update…` (#80).
 
 ## Findings
 

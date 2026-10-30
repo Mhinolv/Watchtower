@@ -200,12 +200,25 @@ public struct FindingDetailView: View {
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(path.projectPath).bold()
-                                Text(path.lockfile).font(.caption.monospaced()).foregroundStyle(.secondary)
-                                Text("\(finding.package)@\(path.version)")
-                                    .font(.caption.monospaced()).foregroundStyle(.secondary)
-                                Text(path.dependencyPath.map { "Path: " + $0.joined(separator: " › ") }
-                                     ?? "Dependency path not available.")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                Text(path.sourceText).font(.caption.monospaced()).foregroundStyle(.secondary)
+                                if !path.isRequirements {
+                                    Text("\(finding.package)@\(path.version)")
+                                        .font(.caption.monospaced()).foregroundStyle(.secondary)
+                                }
+                                Text(path.dependencyText).font(.caption).foregroundStyle(.secondary)
+                                if !path.evidenceRows.isEmpty {
+                                    // A requirements.txt pin (#80): what the file says, no lockfile, what .venv has.
+                                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
+                                        ForEach(path.evidenceRows, id: \.label) { row in
+                                            GridRow {
+                                                Text(row.label).foregroundStyle(.secondary)
+                                                Text(row.value).foregroundStyle(row.quiet ? .secondary : .primary)
+                                            }
+                                        }
+                                    }
+                                    .font(.caption)
+                                    .padding(.top, 2)
+                                }
                                 if let block = path.updateBlock, UpdateKeys.forFinding(finding, path) != nil {
                                     Label(block, systemImage: "hand.raised").font(.caption).foregroundStyle(.orange)
                                 }
@@ -371,7 +384,9 @@ struct FindingTable: View {
     /// `4.17.20 · npm`. The version is left out if the paths have different versions.
     private func packageDetail(_ f: FindingRecord) -> String {
         let versions = Set(f.paths.map(\.version))
-        return [versions.count == 1 ? versions.first : nil, f.ecosystem].compactMap { $0 }.joined(separator: " · ")
+        // A pin in requirements.txt shows the file in place of a lockfile name (#80).
+        let file = f.paths.contains(where: \.isRequirements) ? "requirements.txt" : nil
+        return [versions.count == 1 ? versions.first : nil, f.ecosystem, file].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder private var emptyState: some View {

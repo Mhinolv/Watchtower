@@ -74,8 +74,7 @@ def test_hidden_folders_and_plain_files_are_not_projects(home):
 
 def test_manifests_one_level_down_and_skip_dependency_folders(home):
     project(home / "Projects", "mono", "Package.swift", "engine/pyproject.toml",
-            "node_modules/dep/package.json", "node_modules/package.json", ".git/go.mod",
-            "a/b/Cargo.toml")
+            "node_modules/dep/package.json", "node_modules/package.json", ".git/go.mod")
     assert discover().projects[0].manifests == ["Package.swift", "engine/pyproject.toml"]
 
 
@@ -248,3 +247,107 @@ def test_inactive_state_applies_by_resolved_path(home):
     project(home / "Projects", "api")
     result = discover(inactive={os.path.realpath(web)})
     assert [(p.name, p.state) for p in result.projects] == [("api", "active"), ("web", "inactive")]
+
+
+# #85: manifests at any depth up to a fixed limit
+
+from watchtower_engine import discovery
+from watchtower_engine.scanners import osv, requirements_pins
+from watchtower_engine.updates import cargo as cargo_updates
+from watchtower_engine.updates import npm as npm_updates
+from watchtower_engine.updates import requirements as requirements_updates
+from watchtower_engine.updates import uv as uv_updates
+
+DEEP = ("Cargo.lock", "app/Cargo.lock", "crates/core/Cargo.lock", "services/api/web/package-lock.json",
+        "tools/a/b/c/uv.lock", "scripts/x/y/requirements.txt", "a/b/c/d/e/Cargo.lock")
+
+
+def test_every_lockfile_below_the_first_level_is_found_with_its_relative_path(home):
+    project(home / "Projects", "mono", *DEEP, "package.json")
+    assert discover().projects[0].manifests == sorted([*DEEP, "package.json"])
+
+
+def test_the_walk_stops_at_the_fixed_depth(home):
+    limit = discovery.MAX_DEPTH
+    at = "/".join(["d"] * limit) + "/Cargo.lock"
+    past = "/".join(["d"] * (limit + 1)) + "/Cargo.lock"
+    project(home / "Projects", "deep", at, past)
+    assert discover().projects[0].manifests == [at]
+
+
+def test_dependency_build_and_hidden_folders_are_skipped_at_any_depth(home):
+    skipped = ["node_modules", ".venv", "venv", "target", ".build", ".git", ".hidden", "build", "dist", "vendor",
+               "Pods", "DerivedData", "__pycache__", "site-packages", ".cache"]
+    files = [f"{d}/Cargo.lock" for d in skipped] + [f"app/{d}/package-lock.json" for d in skipped]
+    files += [f"a/b/{d}/c/uv.lock" for d in skipped]
+    project(home / "Projects", "mono", "app/Cargo.lock", *files)
+    assert discover().projects[0].manifests == ["app/Cargo.lock"]
+
+
+def test_a_symlink_inside_a_project_is_never_followed(home, tmp_path):
+    outside = project(tmp_path / "elsewhere", "secret", "package-lock.json", "deep/er/Cargo.lock")
+    mono = project(home / "Projects", "mono", "app/Cargo.lock", "real/inner/uv.lock")
+    os.symlink(outside, mono / "link-out")  # Leaves the roots.
+    os.symlink(mono / "real", mono / "app" / "link-in")  # Stays inside: still an alias, not a second copy.
+    os.symlink(mono / "gone", mono / "dead")
+    assert discover().projects[0].manifests == ["app/Cargo.lock", "real/inner/uv.lock"]
+
+
+def test_deep_discovery_reads_file_names_only(home, monkeypatch):
+    folder = project(home / "Projects", "p", "a/b/c/Cargo.lock", "a/b/package-lock.json")
+    (folder / "a/b/c/Cargo.lock").write_text("not toml {{")
+    opened = []
+    real_open = open
+
+    def spy(file, *args, **kwargs):
+        opened.append(str(file))
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", spy)
+    monkeypatch.setattr(os, "system", lambda *a: (_ for _ in ()).throw(AssertionError("started a program")))
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("started a program")))
+    assert discover().projects[0].manifests == ["a/b/c/Cargo.lock", "a/b/package-lock.json"]
+    assert not [f for f in opened if f.endswith(("Cargo.lock", "package-lock.json"))]
+
+
+def test_an_unreadable_folder_deep_in_a_project_is_skipped_and_the_project_stays_active(home):
+    folder = project(home / "Projects", "mono", "app/Cargo.lock", "locked/x/uv.lock", "ok/y/package-lock.json")
+    os.chmod(folder / "locked", 0)
+    try:
+        result = discover()
+    finally:
+        os.chmod(folder / "locked", 0o755)
+    assert [(p.state, p.manifests) for p in result.projects] == [("active", ["app/Cargo.lock", "ok/y/package-lock.json"])]
+
+
+def test_a_very_large_project_is_cut_at_a_fixed_number_of_folders_and_shallow_ones_win(home, monkeypatch):
+    monkeypatch.setattr(discovery, "MAX_DIRS", 30)
+    files = ["top/Cargo.lock"] + [f"many/n{i:03d}/package-lock.json" for i in range(100)]
+    project(home / "Projects", "big", *files)
+    manifests = discover().projects[0].manifests
+    assert "top/Cargo.lock" in manifests and 0 < len(manifests) < 101
+
+
+def test_discovery_finds_what_the_osv_scan_scans_and_the_update_targets_are_the_manifest_folders(home):
+    project(home / "Projects", "mono", *DEEP)
+    [found] = discover().projects
+    [scan] = osv.plan([found])
+    # Lockfiles, and requirements.txt files in folders with no lockfile (#80: their exact pins are scanned).
+    names = set(osv.SUPPORTED) | set(osv.NOT_SUPPORTED)
+    assert sorted(lf.path for lf in scan.lockfiles if lf.ecosystem) == sorted(
+        m for m in found.manifests if os.path.basename(m) in osv.SUPPORTED
+        or requirements_pins.requirements_only(m, found.manifests, names))
+    assert "scripts/x/y/requirements.txt" in {lf.path for lf in scan.lockfiles}
+    assert {lf.path for lf in scan.lockfiles} >= {"app/Cargo.lock", "services/api/web/package-lock.json",
+                                                  "tools/a/b/c/uv.lock"}
+    base = found.path
+    cargo = cargo_updates.parse_key(cargo_updates.make_key("serde", "1.0.200", base, "a/b/c/d/e/Cargo.lock"))
+    npm = npm_updates.parse_key(npm_updates.make_key(str(base) + "/services/api/web", "express", "4.19.2"))
+    uv = uv_updates.parse_key(uv_updates.make_key("httpx", "0.27.2", base, "tools/a/b/c/uv.lock"))
+    req = requirements_updates.parse_key(requirements_updates.make_key("requests", "2.32.3", base,
+                                                                         "scripts/x/y/requirements.txt"))
+    assert cargo.root.relative_to(os.path.expanduser(base)).as_posix() == "a/b/c/d/e"
+    assert str(npm[0]).endswith("services/api/web")
+    assert uv.root.relative_to(os.path.expanduser(base)).as_posix() == "tools/a/b/c"
+    assert req.root.relative_to(os.path.expanduser(base)).as_posix() == "scripts/x/y"
+    assert len({cargo.root, uv.root, req.root, npm[0]}) == 4  # Each manifest folder is its own target.

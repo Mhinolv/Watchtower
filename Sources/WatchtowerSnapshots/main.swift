@@ -108,7 +108,7 @@ MainActor.assumeIsolated {
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine()))
                                    .environment(SampleData.dependencyModel(scenario)),
                                size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))
-                } else if scenario == .findingUv {
+                } else if [.findingUv, .findingRequirements, .findingRequirementsRefused].contains(scenario) {
                     // The Update… buttons need an update model in the environment.
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
                                size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))
