@@ -158,6 +158,7 @@ If a feed fails, the old marks stay and the Source section of the finding shows 
 
 The GitHub check reads the local OSV databases first (`osv/osv-scalibr/<ecosystem>/all.zip`, from the OSV scan). They hold the reviewed GHSA records and the malicious-package (`MAL`) records with their GHSA aliases.
 If a database has the id, the engine uses that record and sends no request. The age of that answer is the age of the database.
+A GHSA record that lists a `MAL-` alias can be malware on GitHub. The engine sends that id to the API (#66).
 Only the other ids go to the GitHub API. The call list above does not change: no new host and no token.
 If the 40-request limit leaves ids, the coverage is `partial` with `request limit`. A later refresh asks only for those ids, because answers stay valid for 7 days.
 
