@@ -236,7 +236,8 @@ def claimants(casks: list[dict]) -> dict[str, list[str]]:
 
 def _marketing(version: str | None) -> str | None:
     """The version without a cask build part: `1.3,200` is `1.3`. `latest` has no version."""
-    text = (version or "").split(",")[0].strip()
+    text = (version or "").split(",")[0].split("+")[0].strip()  # `1.3,200` and `2.0.2+b72db03fb` are `1.3`, `2.0.2`.
+    text = re.sub(r"^[vV](?=\d)", "", text)
     return text if re.search(r"\d", text) else None
 
 
@@ -290,16 +291,30 @@ def apply_comparison(item: ItemRecord, installed: str | None, latest: str | None
 # Catalog match
 
 
+def _without_variants(rows: list[dict]) -> list[dict]:
+    """Prefer the casks with no `@` suffix. `slack@beta` is a channel of `slack`, not another app.
+
+    If none is left, the variants stay: Watchtower does not pick one.
+    """
+    stable = [r for r in rows if "@" not in r["name"]]
+    return stable or rows
+
+
 def match_catalog(bundle: "Bundle", catalog: Catalog, copies: int) -> tuple[str, list[dict]] | None:
-    """The public casks for an app: by bundle id first, then by app file name (one copy only)."""
+    """The public casks for an app, with the evidence.
+
+    A bundle id match wins over a name match. Casks list ids of other apps too (a cask that quits Chrome
+    first, a zap path of an old app), so if the app file name also equals a cask's `app` name, only those
+    casks stay. Then the `@` variants drop out. The file name alone matches for one copy only.
+    """
+    by_name = catalog.casks_for_app_name(bundle.filename) if copies == 1 else []
     if bundle.bundle_id:
-        rows = catalog.casks_for_bundle_id(bundle.bundle_id)
-        if rows:
-            return "Bundle ID", rows
-    if copies == 1:
-        rows = catalog.casks_for_app_name(bundle.filename)
-        if rows:
-            return "App name", rows
+        by_id = catalog.casks_for_bundle_id(bundle.bundle_id)
+        if by_id:
+            named = [r for r in by_id if r in by_name]
+            return "Bundle ID", _without_variants(named or by_id)
+    if by_name:
+        return "App name", _without_variants(by_name)
     return None
 
 

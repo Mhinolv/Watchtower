@@ -2776,5 +2776,1930 @@
    }
   },
   "generated_date": "2026-10-30"
+ },
+ {
+  "token": "slack",
+  "full_token": "slack",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Slack"
+  ],
+  "desc": "Team communication and collaboration software",
+  "homepage": "https://slack.com/",
+  "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.53.276/Slack-4.53.276-macOS.dmg",
+  "url_specs": {},
+  "version": "4.53.276",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "f2a0a12038b7f3dee5742ce7ceaa29daf38363dec09249f12812c9c0f960328a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tinyspeck.slackmacgap"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Slack.app"
+    ],
+    "target": "/Applications/Slack.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Logs/DiagnosticReports/Slack_*",
+       "~/Library/Application Scripts/com.tinyspeck.slackmacgap",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.tinyspeck.slackmacgap.sfl*",
+       "~/Library/Application Support/Slack",
+       "~/Library/Caches/com.tinyspeck.slackmacgap*",
+       "~/Library/Containers/com.tinyspeck.slackmacgap*",
+       "~/Library/Cookies/com.tinyspeck.slackmacgap.binarycookies",
+       "~/Library/Group Containers/*.com.tinyspeck.slackmacgap",
+       "~/Library/Group Containers/*.slack",
+       "~/Library/HTTPStorages/com.tinyspeck.slackmacgap*",
+       "~/Library/Logs/Slack",
+       "~/Library/Preferences/ByHost/com.tinyspeck.slackmacgap.ShipIt.*.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap*",
+       "~/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+       "~/Library/WebKit/com.tinyspeck.slackmacgap"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "slack@beta"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/s/slack.rb",
+  "ruby_source_checksum": {
+   "sha256": "4df35de47024d22fae85171d1a6e79a1cdaa73567ff9ca4a958ed7421fa620e9"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "tahoe": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sequoia": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sonoma": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "ventura": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "monterey": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.51.191/Slack-4.51.191-macOS.dmg",
+    "version": "4.51.191",
+    "skip_livecheck": true,
+    "sha256": "1780f8d8dcb0057875f566ecf49623bab8d190e0327e89e0bb3b094a485a73a9"
+   },
+   "arm64_monterey": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.51.191/Slack-4.51.191-macOS.dmg",
+    "version": "4.51.191",
+    "skip_livecheck": true,
+    "sha256": "b22953c06eee150f0324ae71702b2b5a8450efdefbf84439217ef7bfd6a8ab24"
+   },
+   "big_sur": {
+    "url": "https://downloads.slack-edge.com/releases/macos/4.45.69/prod/x64/Slack-4.45.69-macOS.dmg",
+    "version": "4.45.69",
+    "skip_livecheck": true,
+    "sha256": "88ee611b36189ab1e84f39f0fbe0048468d32a24e783303dfe1a3ea0519755e2"
+   },
+   "arm64_big_sur": {
+    "url": "https://downloads.slack-edge.com/releases/macos/4.45.69/prod/arm64/Slack-4.45.69-macOS.dmg",
+    "version": "4.45.69",
+    "skip_livecheck": true,
+    "sha256": "31a3f08f49e27a1c0d6224a5f0677329217599eccab481620266730566f0abd0"
+   },
+   "x86_64_linux": {
+    "url": null,
+    "url_specs": null,
+    "version": null,
+    "sha256": null
+   },
+   "arm64_linux": {
+    "url": null,
+    "url_specs": null,
+    "version": null,
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "slack": 7249
+    },
+    "90d": {
+     "slack": 18140
+    },
+    "365d": {
+     "slack": 83710
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "slack@beta",
+  "full_token": "slack@beta",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Slack"
+  ],
+  "desc": "Team communication and collaboration software",
+  "homepage": "https://slack.com/beta/osx",
+  "url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.53.276/Slack-4.53.276-macOS.dmg",
+  "url_specs": {},
+  "version": "4.53.276",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "f2a0a12038b7f3dee5742ce7ceaa29daf38363dec09249f12812c9c0f960328a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tinyspeck.slackmacgap"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Slack.app"
+    ],
+    "target": "/Applications/Slack.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Scripts/com.tinyspeck.slackmacgap",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.tinyspeck.slackmacgap.sfl*",
+       "~/Library/Application Support/Slack",
+       "~/Library/Caches/com.tinyspeck.slackmacgap",
+       "~/Library/Caches/com.tinyspeck.slackmacgap.ShipIt",
+       "~/Library/Containers/com.tinyspeck.slackmacgap",
+       "~/Library/Containers/com.tinyspeck.slackmacgap.SlackCallsService",
+       "~/Library/Cookies/com.tinyspeck.slackmacgap.binarycookies",
+       "~/Library/Group Containers/*.com.tinyspeck.slackmacgap",
+       "~/Library/Group Containers/*.slack",
+       "~/Library/Logs/Slack",
+       "~/Library/Preferences/ByHost/com.tinyspeck.slackmacgap.ShipIt.*.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap.helper.plist",
+       "~/Library/Preferences/com.tinyspeck.slackmacgap.plist",
+       "~/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+       "~/Library/WebKit/com.tinyspeck.slackmacgap"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "slack"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/s/slack@beta.rb",
+  "ruby_source_checksum": {
+   "sha256": "8b95ce759c44c6a00cd5d7ff1f7d8ba87cd666ac7deaf6d4d8d9e19498ae2e66"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "tahoe": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sequoia": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "sonoma": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "ventura": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": "de4aa109d13651936faad32df94b64f8a28033a94c99eaa9ff1ec266516262ac"
+   },
+   "x86_64_linux": {
+    "url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.53.276/Slack-4.53.276-macOS.dmg",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "slack@beta": 23
+    },
+    "90d": {
+     "slack@beta": 52
+    },
+    "365d": {
+     "slack@beta": 325
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "google-chrome",
+  "full_token": "google-chrome",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Google Chrome"
+  ],
+  "desc": "Web browser",
+  "homepage": "https://www.google.com/chrome/",
+  "url": "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg",
+  "url_specs": {},
+  "version": "156.0.8078.80",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": "8078.48",
+  "bundle_short_version": "156.0.8078.48",
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "no_check",
+  "artifacts": [
+   {
+    "app": [
+     "Google Chrome.app"
+    ],
+    "target": "/Applications/Google Chrome.app"
+   },
+   {
+    "zap": [
+     {
+      "launchctl": [
+       "com.google.keystone.agent",
+       "com.google.keystone.daemon"
+      ],
+      "trash": [
+       "/Library/Caches/com.google.SoftwareUpdate.*",
+       "/Library/Google/Google Chrome Brand.plist",
+       "/Library/Google/GoogleSoftwareUpdate",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.app.*.sfl*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.sfl*",
+       "~/Library/Application Support/Google/Chrome",
+       "~/Library/Caches/com.google.Chrome",
+       "~/Library/Caches/com.google.Chrome.helper.*",
+       "~/Library/Caches/com.google.Keystone",
+       "~/Library/Caches/com.google.Keystone.Agent",
+       "~/Library/Caches/com.google.SoftwareUpdate",
+       "~/Library/Caches/Google/Chrome",
+       "~/Library/Google/Google Chrome Brand.plist",
+       "~/Library/Google/GoogleSoftwareUpdate",
+       "~/Library/LaunchAgents/com.google.keystone.agent.plist",
+       "~/Library/LaunchAgents/com.google.keystone.xpcservice.plist",
+       "~/Library/Logs/GoogleSoftwareUpdateAgent.log",
+       "~/Library/Preferences/com.google.Chrome.plist",
+       "~/Library/Preferences/com.google.Keystone.Agent.plist",
+       "~/Library/Saved Application State/com.google.Chrome.app.*.savedState",
+       "~/Library/Saved Application State/com.google.Chrome.savedState",
+       "~/Library/WebKit/com.google.Chrome"
+      ],
+      "rmdir": [
+       "/Library/Google",
+       "~/Library/Application Support/Google",
+       "~/Library/Caches/Google",
+       "~/Library/Google"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/g/google-chrome.rb",
+  "ruby_source_checksum": {
+   "sha256": "13a858a3a5cef95d3ab38f59df30e559e5536d90c42a126c085582841146e923"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "google-chrome": 25203
+    },
+    "90d": {
+     "google-chrome": 71076
+    },
+    "365d": {
+     "google-chrome": 434065
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "wondershare-uniconverter",
+  "full_token": "wondershare-uniconverter",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "UniConverter"
+  ],
+  "desc": "Video editing software",
+  "homepage": "https://videoconverter.wondershare.com/",
+  "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_arm_18.0.0_full14207.zip",
+  "url_specs": {},
+  "version": "18.0.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "ed3f9b1a5da9f2140397ac30415c1536adef5d02ebae0547511ffdfdbe9731a7",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": [
+       "com.google.Chrome",
+       "com.Wondershare.UniConverter18"
+      ]
+     }
+    ]
+   },
+   {
+    "app": [
+     "Wondershare UniConverter 18.app"
+    ],
+    "target": "/Applications/Wondershare UniConverter 18.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Users/Shared/.Wondershare*.dat",
+       "~/Library/Application Support/com.Wondershare.UniConverter18",
+       "~/Library/Application Support/Wondershare UniConverter 18",
+       "~/Library/Application Support/wondershare",
+       "~/Library/Caches/com.Wondershare.UniConverter18",
+       "~/Library/HTTPStorages/com.Wondershare.UniConverter18",
+       "~/Library/Logs/com.Wondershare.UniConverter18",
+       "~/Library/Logs/Wondershare",
+       "~/Library/Preferences/com.wondershare.helper_compact.plist",
+       "~/Library/Preferences/com.Wondershare.UniConverter18.plist",
+       "~/Library/Saved Application State/com.Wondershare.UniConverter18.savedState",
+       "~/Movies/Wondershare UniConverter18",
+       "~/Pictures/Wondershare UniConverter18"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/w/wondershare-uniconverter.rb",
+  "ruby_source_checksum": {
+   "sha256": "52f6c55bb908b78bc8f20d621f013ed72d42f3102b7a5baf58c28683dc5181ff"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "tahoe": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "sequoia": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "sonoma": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "ventura": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "monterey": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "big_sur": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": "91fc3194c08f35b670b351afe5090d77740754ab46eca61f515007fa7efcf6d3"
+   },
+   "x86_64_linux": {
+    "url": "https://download.wondershare.com/cbs_down/uniconverter-mac_18.0.0_full14207.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "wondershare-uniconverter": 6
+    },
+    "90d": {
+     "wondershare-uniconverter": 24
+    },
+    "365d": {
+     "wondershare-uniconverter": 84
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "visual-studio-code",
+  "full_token": "visual-studio-code",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Microsoft Visual Studio Code",
+   "VS Code"
+  ],
+  "desc": "Open-source code editor",
+  "homepage": "https://code.visualstudio.com/",
+  "url": "https://update.code.visualstudio.com/1.144.0/darwin-arm64/stable",
+  "url_specs": {},
+  "version": "1.144.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "cf2a21dbcb23c4213b91243e3cdd37197e9169f905652587113f16329fc92b87",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": "com.microsoft.VSCode.ShipIt",
+      "quit": "com.microsoft.VSCode"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Visual Studio Code.app"
+    ],
+    "target": "/Applications/Visual Studio Code.app"
+   },
+   {
+    "binary": [
+     "$APPDIR/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/code"
+   },
+   {
+    "binary": [
+     "$APPDIR/Visual Studio Code.app/Contents/Resources/app/bin/code-tunnel"
+    ],
+    "target": "$HOMEBREW_PREFIX/bin/code-tunnel"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.vscode",
+       "~/Library/Application Support/Code",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.vscode.sfl*",
+       "~/Library/Caches/com.microsoft.VSCode",
+       "~/Library/Caches/com.microsoft.VSCode.ShipIt",
+       "~/Library/HTTPStorages/com.microsoft.VSCode",
+       "~/Library/Preferences/ByHost/com.microsoft.VSCode.ShipIt.*.plist",
+       "~/Library/Preferences/com.microsoft.VSCode.helper.plist",
+       "~/Library/Preferences/com.microsoft.VSCode.plist",
+       "~/Library/Saved Application State/com.microsoft.VSCode.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/v/visual-studio-code.rb",
+  "ruby_source_checksum": {
+   "sha256": "19f80e7511013bb32e68e568a9baa37201c0b34f37ca10d6c1ffdcaf662a6a8e"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "tahoe": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "sequoia": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "sonoma": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "ventura": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "monterey": {
+    "url": "https://update.code.visualstudio.com/1.144.0/darwin/stable",
+    "sha256": "a15a04aaa109641bfbe5d1d6204fa96e7ff14e9fd7c495d89fa2376c3edc580b"
+   },
+   "big_sur": {
+    "url": "https://update.code.visualstudio.com/1.106.3/darwin/stable",
+    "version": "1.106.3",
+    "skip_livecheck": true,
+    "sha256": "c41872149a205f3a3be3e5d3a8f04920407a0762531e607f78dc93f4d4813cda"
+   },
+   "arm64_big_sur": {
+    "url": "https://update.code.visualstudio.com/1.106.3/darwin-arm64/stable",
+    "version": "1.106.3",
+    "skip_livecheck": true,
+    "sha256": "35dd438808dde1dd1f65490ffe7713ed64102324c0809efbec0b4eb2809b218b"
+   },
+   "x86_64_linux": {
+    "url": "https://update.code.visualstudio.com//darwin/stable",
+    "version": null,
+    "sha256": null
+   },
+   "arm64_linux": {
+    "url": "https://update.code.visualstudio.com//darwin-arm64/stable",
+    "version": null,
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "visual-studio-code": 36716
+    },
+    "90d": {
+     "visual-studio-code": 94045
+    },
+    "365d": {
+     "visual-studio-code": 479096
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "tidgi",
+  "full_token": "tidgi",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "TidGi"
+  ],
+  "desc": "Personal knowledge-base app",
+  "homepage": "https://github.com/tiddly-gittly/TidGi-Desktop",
+  "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-arm64-0.14.2.zip",
+  "url_specs": {},
+  "version": "0.14.2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "deb71923dfe95b0ab43434705a87d95a5b92cd8ed188653f6da7a18cd7c37d86",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.tidgi"
+     }
+    ]
+   },
+   {
+    "app": [
+     "TidGi.app"
+    ],
+    "target": "/Applications/TidGi.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/TidGi",
+       "~/Library/Caches/com.tidgi.app",
+       "~/Library/Caches/com.tidgi.app.ShipIt",
+       "~/Library/Preferences/com.tidgi.app.plist",
+       "~/Library/Preferences/com.tidgi.plist",
+       "~/Library/Saved Application State/com.microsoft.VSCode.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "12"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": true,
+  "disable_date": "2026-09-01",
+  "disable_reason": "fails_gatekeeper_check",
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": {
+   "date": "2026-09-01",
+   "because": "fails_gatekeeper_check",
+   "replacement_formula": null,
+   "replacement_cask": null
+  },
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/t/tidgi.rb",
+  "ruby_source_checksum": {
+   "sha256": "e4fc6f0a82731c7cc063cdf7476273b8519c02b7346e6810f595188bbe9b1cc3"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "tahoe": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "sequoia": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "sonoma": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "ventura": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "monterey": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": "1be87322ed9925b60f5ea12f124675898845416160e6b3ec42b971d1f9c736ca"
+   },
+   "x86_64_linux": {
+    "url": "https://github.com/tiddly-gittly/TidGi-Desktop/releases/download/v0.14.2/TidGi-darwin-x64-0.14.2.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "tidgi": 0
+    },
+    "90d": {
+     "tidgi": 2
+    },
+    "365d": {
+     "tidgi": 24
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "chatgpt",
+  "full_token": "chatgpt",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "ChatGPT"
+  ],
+  "desc": "OpenAI's official ChatGPT desktop app",
+  "homepage": "https://chatgpt.com/",
+  "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1027.30824.zip",
+  "url_specs": {},
+  "version": "26.1027.30824",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "79018bcdcc141902d9a0e61950ec207f71951941db4165f8a0dc2dc8f0dcc883",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.openai.codex"
+     }
+    ]
+   },
+   {
+    "app": [
+     "ChatGPT.app"
+    ],
+    "target": "/Applications/ChatGPT.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Application Support/CodexComputerUseAuthorizationPlugin",
+       "~/Library/Application Scripts/*.com.openai.sky.CUAService",
+       "~/Library/Application Support/Codex",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.openai.codex.sfl*",
+       "~/Library/Application Support/com.openai.codex",
+       "~/Library/Application Support/OpenAI/Codex",
+       "~/Library/Caches/Codex",
+       "~/Library/Caches/com.openai.codex",
+       "~/Library/Caches/com.openai.sky.CUAService",
+       "~/Library/Group Containers/*.com.openai.sky.CUAService",
+       "~/Library/HTTPStorages/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex.binarycookies",
+       "~/Library/HTTPStorages/com.openai.sky.CUAService",
+       "~/Library/HTTPStorages/com.openai.sky.CUAService.binarycookies",
+       "~/Library/Logs/com.openai.codex",
+       "~/Library/Preferences/com.openai.codex.plist",
+       "~/Library/Preferences/com.openai.sky.CUAService.cli.plist",
+       "~/Library/Preferences/com.openai.sky.CUAService.plist",
+       "~/Library/Saved Application State/com.openai.codex.savedState"
+      ],
+      "rmdir": "~/.codex"
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/c/chatgpt.rb",
+  "ruby_source_checksum": {
+   "sha256": "8b500188086f8464d8a9e65c752d0941495221fe0ca53ac81f67d0e0c33e792a"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "tahoe": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "sequoia": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "sonoma": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "ventura": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": "8c00c0f7c5f974c31d1c20bafd7cf72063fa39d277af50848ffd3d797db7cbbc"
+   },
+   "x86_64_linux": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-x64-26.1027.30824.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "chatgpt": 13455
+    },
+    "90d": {
+     "chatgpt": 33254
+    },
+    "365d": {
+     "chatgpt": 92007
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "codex-app",
+  "full_token": "codex-app",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Codex"
+  ],
+  "desc": "OpenAI's Codex desktop app for managing coding agents",
+  "homepage": "https://openai.com/codex",
+  "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-arm64-26.623.141536.zip",
+  "url_specs": {},
+  "version": "26.623.141536",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "d948dc36b8358f5a2924b033fbf08398eea7860dc9e97cb5ab9b354490283a0a",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.openai.codex"
+     }
+    ]
+   },
+   {
+    "app": [
+     "Codex.app"
+    ],
+    "target": "/Applications/Codex.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/Codex",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.openai.codex.sfl*",
+       "~/Library/Caches/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex",
+       "~/Library/HTTPStorages/com.openai.codex.binarycookies",
+       "~/Library/Logs/com.openai.codex",
+       "~/Library/Preferences/com.openai.codex.plist",
+       "~/Library/Saved Application State/com.openai.codex.savedState"
+      ],
+      "rmdir": "~/.codex"
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "12"
+    ]
+   }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": true,
+  "deprecation_date": "2026-07-12",
+  "deprecation_reason": "discontinued",
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": "chatgpt",
+  "deprecate_args": {
+   "date": "2026-07-12",
+   "because": "discontinued",
+   "replacement_formula": null,
+   "replacement_cask": "chatgpt"
+  },
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/c/codex-app.rb",
+  "ruby_source_checksum": {
+   "sha256": "8a2e6e4da9e768aabe6b03bcdb9381f770938b71c1ce253fa5736ef4c4946432"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "tahoe": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "sequoia": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "sonoma": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "ventura": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "monterey": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": "5a8eb9bca0c021b994e56c93ef3502bdbc105975bcb83f99aef40f2ae56d48cc"
+   },
+   "x86_64_linux": {
+    "url": "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-x64-26.623.141536.zip",
+    "sha256": null
+   },
+   "arm64_linux": {
+    "sha256": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "codex-app": 1268
+    },
+    "90d": {
+     "codex-app": 3198
+    },
+    "365d": {
+     "codex-app": 48393
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "iterm2",
+  "full_token": "iterm2",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "iTerm2"
+  ],
+  "desc": "Terminal emulator as alternative to Apple's Terminal app",
+  "homepage": "https://iterm2.com/",
+  "url": "https://iterm2.com/downloads/stable/iTerm2-3_7_6.zip",
+  "url_specs": {},
+  "version": "3.7.6",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "bb6102e9f57bbe41979ba7c7b1c25d4112e9a5c2142606eeccbe18dc7ee0706f",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.googlecode.iterm2"
+     }
+    ]
+   },
+   {
+    "app": [
+     "iTerm.app"
+    ],
+    "target": "/Applications/iTerm.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Scripts/com.googlecode.iterm2.iTermFileProvider",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.itermai.sfl*",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.sfl*",
+       "~/Library/Application Support/iTerm",
+       "~/Library/Application Support/iTerm2",
+       "~/Library/Caches/com.googlecode.iterm2",
+       "~/Library/Containers/com.googlecode.iterm2.iTermFileProvider",
+       "~/Library/Containers/iTermAI",
+       "~/Library/Cookies/com.googlecode.iterm2.binarycookies",
+       "~/Library/HTTPStorages/com.googlecode.iterm2",
+       "~/Library/HTTPStorages/com.googlecode.iterm2.binarycookies",
+       "~/Library/Preferences/com.googlecode.iterm2.plist",
+       "~/Library/Preferences/com.googlecode.iterm2.private.plist",
+       "~/Library/Saved Application State/com.googlecode.iterm2*.savedState",
+       "~/Library/WebKit/com.googlecode.iterm2"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "iterm2@beta",
+    "iterm2@nightly"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/i/iterm2.rb",
+  "ruby_source_checksum": {
+   "sha256": "fd5303b2bf84d0d996f792437976fce42b0ed87b1df4cd90b55debb093e96a8b"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "iterm2": 18671
+    },
+    "90d": {
+     "iterm2": 49430
+    },
+    "365d": {
+     "iterm2": 305336
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "iterm2@beta",
+  "full_token": "iterm2@beta",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "iTerm2"
+  ],
+  "desc": "Terminal emulator as alternative to Apple's Terminal app",
+  "homepage": "https://iterm2.com/",
+  "url": "https://iterm2.com/downloads/beta/iTerm2-3_7_7beta2.zip",
+  "url_specs": {},
+  "version": "3.7.7beta2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "298db20038167ca24f7d5c804cc7aa18f7c6122ba68e04a070b564ce520ca77f",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "quit": "com.googlecode.iterm2"
+     }
+    ]
+   },
+   {
+    "app": [
+     "iTerm.app"
+    ],
+    "target": "/Applications/iTerm.app"
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.googlecode.iterm2.sfl*",
+       "~/Library/Application Support/iTerm",
+       "~/Library/Application Support/iTerm2",
+       "~/Library/Caches/com.googlecode.iterm2",
+       "~/Library/Preferences/com.googlecode.iterm2.plist",
+       "~/Library/Saved Application State/com.googlecode.iterm2.savedState"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {
+    ">=": [
+     "13"
+    ]
+   }
+  },
+  "conflicts_with": {
+   "cask": [
+    "iterm2",
+    "iterm2@nightly"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/i/iterm2@beta.rb",
+  "ruby_source_checksum": {
+   "sha256": "21387fd1b5812415679c3283981bd7b1504b0709f8aadc1a5fca4639a12b3c0c"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "iterm2@beta": 29
+    },
+    "90d": {
+     "iterm2@beta": 88
+    },
+    "365d": {
+     "iterm2@beta": 540
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "zoom",
+  "full_token": "zoom",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Zoom"
+  ],
+  "desc": "Video communication and virtual meeting platform",
+  "homepage": "https://www.zoom.us/",
+  "url": "https://cdn.zoom.us/prod/7.2.2.88465/arm64/zoomusInstallerFull.pkg",
+  "url_specs": {},
+  "version": "7.2.2.88465",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "ff15d926ef5a714c6683cc23ed628a7c2fc43d080a88ac54af4e200ba03a2456",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": [
+       "us.zoom.updater",
+       "us.zoom.updater.login.check",
+       "us.zoom.ZoomDaemon"
+      ],
+      "signal": [
+       "KILL",
+       "us.zoom.xos"
+      ],
+      "pkgutil": "us.zoom.pkg.videomeeting",
+      "delete": [
+       "/Applications/zoom.us.app",
+       "/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "/Library/Logs/DiagnosticReports/zoom.us*",
+       "/Library/PrivilegedHelperTools/us.zoom.ZoomDaemon"
+      ]
+     }
+    ]
+   },
+   {
+    "pkg": [
+     "zoomusInstallerFull.pkg"
+    ]
+   },
+   {
+    "postflight_steps": [
+     {
+      "steps": [
+       {
+        "name": "/Applications/zoom.us.app",
+        "match": "full",
+        "attempts": 3,
+        "notices": [
+         "The Zoom package postinstall script launches the Zoom app",
+         "Attempting to close zoom.us.app to avoid unwanted user intervention"
+        ],
+        "failure_message": "Unable to forcibly close zoom.us.app",
+        "type": "terminate_process"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "~/.zoomus",
+       "~/Desktop/Zoom",
+       "~/Documents/Zoom",
+       "~/Library/Application Scripts/*.ZoomClient3rd",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings.plist",
+       "~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/us.zoom*.sfl*",
+       "~/Library/Application Support/CrashReporter/zoom.us*",
+       "~/Library/Application Support/zoom.us",
+       "~/Library/Application Support/ZoomUpdater",
+       "~/Library/Caches/us.zoom.xos",
+       "~/Library/Cookies/us.zoom.xos.binarycookies",
+       "~/Library/Group Containers/*.ZoomClient3rd",
+       "~/Library/HTTPStorages/us.zoom.xos",
+       "~/Library/HTTPStorages/us.zoom.xos.binarycookies",
+       "~/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "~/Library/Logs/zoom.us",
+       "~/Library/Logs/zoominstall.log",
+       "~/Library/Logs/ZoomPhone",
+       "~/Library/Preferences/us.zoom.*.plist",
+       "~/Library/Preferences/ZoomChat.plist",
+       "~/Library/Saved Application State/us.zoom.xos.savedState",
+       "~/Library/WebKit/us.zoom.xos"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {},
+  "conflicts_with": {
+   "cask": [
+    "zoom-for-it-admins"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/z/zoom.rb",
+  "ruby_source_checksum": {
+   "sha256": "bc79cb64e1cc629d0ff8059e0c24825ddee46696b11f0fcbe5dee72c578aa47f"
+  },
+  "variations": {
+   "golden_gate": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "tahoe": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "sequoia": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "sonoma": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "ventura": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "monterey": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "big_sur": {
+    "url": "https://cdn.zoom.us/prod/7.2.2.88465/zoomusInstallerFull.pkg",
+    "sha256": "492c91d78e5f6e2a4a4228f6e8c5a9e01103d10dbd3465ededc7284e13548e91"
+   },
+   "x86_64_linux": {
+    "url": "https://cdn.zoom.us/prod/7.2.1.5760/zoom_x86_64.tar.xz",
+    "version": "7.2.1.5760",
+    "sha256": "c2a492de44513d7533f4ddccea380248ca960a69b937327f647a536b88d6959b",
+    "artifacts": [
+     {
+      "binary": [
+       "zoom/ZoomLauncher",
+       {
+        "target": "zoom"
+       }
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zoom"
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.config/zoom",
+         "~/.config/zoom.conf",
+         "~/.config/zoomus.conf",
+         "~/.zoom"
+        ]
+       }
+      ]
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "conflicts_with": null,
+    "auto_updates": null
+   },
+   "arm64_linux": {
+    "url": "https://cdn.zoom.us/prod/7.2.1.5760/zoom_x86_64.tar.xz",
+    "version": "7.2.1.5760",
+    "sha256": null,
+    "artifacts": [
+     {
+      "binary": [
+       "zoom/ZoomLauncher",
+       {
+        "target": "zoom"
+       }
+      ],
+      "target": "$HOMEBREW_PREFIX/bin/zoom"
+     },
+     {
+      "zap": [
+       {
+        "trash": [
+         "~/.config/zoom",
+         "~/.config/zoom.conf",
+         "~/.config/zoomus.conf",
+         "~/.zoom"
+        ]
+       }
+      ]
+     }
+    ],
+    "depends_on": {
+     "arch": [
+      {
+       "type": "intel",
+       "bits": 64
+      }
+     ]
+    },
+    "conflicts_with": null,
+    "auto_updates": null
+   }
+  },
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur",
+   "x86_64_linux"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "zoom": 6261
+    },
+    "90d": {
+     "zoom": 15297
+    },
+    "365d": {
+     "zoom": 64669
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
+ },
+ {
+  "token": "zoom-for-it-admins",
+  "full_token": "zoom-for-it-admins",
+  "old_tokens": [],
+  "tap": "homebrew/cask",
+  "name": [
+   "Zoom for IT Admins"
+  ],
+  "desc": "Video communication and virtual meeting platform",
+  "homepage": "https://www.zoom.us/",
+  "url": "https://cdn.zoom.us/prod/7.2.2.88465/ZoomInstallerIT.pkg",
+  "url_specs": {},
+  "version": "7.2.2.88465",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "installed": null,
+  "installed_time": null,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "outdated": false,
+  "sha256": "422f801771ef0c3db68bdf1a47a9c44e18b6f822b2f5d751adc3242270dc6417",
+  "artifacts": [
+   {
+    "uninstall": [
+     {
+      "launchctl": "us.zoom.ZoomDaemon",
+      "signal": [
+       "KILL",
+       "us.zoom.xos"
+      ],
+      "pkgutil": "us.zoom.pkg.videomeeting",
+      "delete": [
+       "/Applications/zoom.us.app",
+       "/Library/Audio/Plug-Ins/HAL/ZoomAudioDevice.driver",
+       "/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "/Library/Logs/DiagnosticReports/zoom.us*",
+       "/Library/PrivilegedHelperTools/us.zoom.ZoomDaemon"
+      ]
+     }
+    ]
+   },
+   {
+    "pkg": [
+     "ZoomInstallerIT.pkg"
+    ]
+   },
+   {
+    "zap": [
+     {
+      "trash": [
+       "/Library/Preferences/us.zoom.config.plist",
+       "~/.zoomus",
+       "~/Desktop/Zoom",
+       "~/Documents/Zoom",
+       "~/Library/Application Scripts/*.ZoomClient3rd",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings",
+       "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings.plist",
+       "~/Library/Application Support/CrashReporter/zoom.us*",
+       "~/Library/Application Support/zoom.us",
+       "~/Library/Caches/us.zoom.xos",
+       "~/Library/Cookies/us.zoom.xos.binarycookies",
+       "~/Library/Group Containers/*.ZoomClient3rd",
+       "~/Library/HTTPStorages/us.zoom.xos",
+       "~/Library/HTTPStorages/us.zoom.xos.binarycookies",
+       "~/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+       "~/Library/Logs/zoom.us",
+       "~/Library/Logs/zoominstall.log",
+       "~/Library/Logs/ZoomPhone",
+       "~/Library/Mobile Documents/iCloud~us~zoom~videomeetings",
+       "~/Library/Preferences/us.zoom.airhost.plist",
+       "~/Library/Preferences/us.zoom.caphost.plist",
+       "~/Library/Preferences/us.zoom.Transcode.plist",
+       "~/Library/Preferences/us.zoom.xos.Hotkey.plist",
+       "~/Library/Preferences/us.zoom.xos.plist",
+       "~/Library/Preferences/us.zoom.ZoomAutoUpdater.plist",
+       "~/Library/Preferences/ZoomChat.plist",
+       "~/Library/Safari/PerSiteZoomPreferences.plist",
+       "~/Library/SafariTechnologyPreview/PerSiteZoomPreferences.plist",
+       "~/Library/Saved Application State/us.zoom.xos.savedState",
+       "~/Library/WebKit/us.zoom.xos"
+      ]
+     }
+    ]
+   }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+   "macos": {}
+  },
+  "conflicts_with": {
+   "cask": [
+    "zoom"
+   ]
+  },
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "tap_git_head": "af81eb9828cbf001f685e8d9264cddbdbbca6a09",
+  "languages": [],
+  "ruby_source_path": "Casks/z/zoom-for-it-admins.rb",
+  "ruby_source_checksum": {
+   "sha256": "46bb5b1e7971d7433e04028e29619d1ca92f89ccb9240c73f007d60f37831c6f"
+  },
+  "variations": {},
+  "supported_platforms": [
+   "golden_gate",
+   "arm64_golden_gate",
+   "tahoe",
+   "arm64_tahoe",
+   "sequoia",
+   "arm64_sequoia",
+   "sonoma",
+   "arm64_sonoma",
+   "ventura",
+   "arm64_ventura",
+   "monterey",
+   "arm64_monterey",
+   "big_sur",
+   "arm64_big_sur"
+  ],
+  "analytics": {
+   "install": {
+    "30d": {
+     "zoom-for-it-admins": 102
+    },
+    "90d": {
+     "zoom-for-it-admins": 249
+    },
+    "365d": {
+     "zoom-for-it-admins": 959
+    }
+   }
+  },
+  "generated_date": "2026-10-30"
  }
 ]

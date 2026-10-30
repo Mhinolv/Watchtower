@@ -28,6 +28,7 @@ The UI follows `design/system.md` and the approved mockups in `design/mockups/`.
 
 - The Apps check matches each app to the public Homebrew cask catalog. It uses no new call: the catalog is the `cask.json` file above.
 - An installed cask claims its app first. Any other app matches by bundle id (from the cask `uninstall quit` and `zap trash` entries), then by app file name.
+- A cask can list the bundle id of another app. If the app file name also equals a cask's app name, only those casks stay. Casks with an `@` suffix (`slack@beta`) never count as extra matches.
 - One cask gives `Latest`, the source `App · Homebrew catalog`, the `Matched by` evidence and the cask homepage. More than one cask stays `Manual update`. Watchtower does not guess.
 - A newer catalog version shows `Update available`. The update stays manual: `Open Vendor Page` and `Reveal in Finder`. There is no `Update` button.
 - A self-updating cask compares the app's own version, not the Homebrew receipt.

@@ -105,12 +105,56 @@ def test_an_app_newer_than_the_catalog_is_up_to_date_with_a_note(folder, catalog
 
 
 def test_several_casks_for_one_app_stay_manual_and_never_guess(folder, catalog):
-    make_app(folder, "Firefox.app", "org.mozilla.firefox", "150.0")
-    item = items_for(folder, catalog)["Firefox"]
+    # Real: zoom and zoom-for-it-admins both list us.zoom.xos, neither has an app artifact, no `@` suffix.
+    make_app(folder, "zoom.us.app", "us.zoom.xos", "6.0.0")
+    item = items_for(folder, catalog)["zoom.us"]
     assert (item.state, item.latest_version, item.origin) == ("manual", None, "Manual")
     assert item.note == "More than one cask matches. Watchtower does not guess."
-    assert item.detail == "Casks that match: firefox, firefox@beta, firefox@esr."
+    assert item.detail == "Casks that match: zoom, zoom-for-it-admins."
     assert "cask" not in item.attributes
+
+
+def test_variants_with_an_at_suffix_do_not_make_a_match_ambiguous(folder, catalog):
+    # Real: slack and slack@beta both install Slack.app and list the same bundle id. Take slack.
+    make_app(folder, "Slack.app", "com.tinyspeck.slackmacgap", "4.40.0")
+    make_app(folder, "iTerm.app", "com.googlecode.iterm2", "3.5.0")
+    make_app(folder, "Firefox.app", "org.mozilla.firefox", "150.0")
+    items = items_for(folder, catalog)
+    assert [(items[n].attributes["cask"], items[n].state) for n in ("Slack", "iTerm", "Firefox")] == [
+        ("slack", "update_available"), ("iterm2", "update_available"), ("firefox", "update_available")]
+    assert items["Slack"].latest_version == "4.53.276" and items["Slack"].attributes["matchedBy"] == "Bundle ID"
+
+
+def test_only_variants_stay_ambiguous(folder):
+    rows = [{"name": n, "full_name": n, "version": "2.0", "auto_updates": False, "old_names": [], "homepage": None,
+             "app_names": ["tool.app"], "bundle_ids": ["com.example.tool"]} for n in ("tool@beta", "tool@dev")]
+    make_app(folder, "Tool.app", "com.example.tool", "1.0")
+    item = items_for(folder, Catalog("cask", rows=rows, fetched_at=T1, fresh=True))["Tool"]
+    assert item.state == "manual" and item.note == "More than one cask matches. Watchtower does not guess."
+
+
+def test_a_bundle_id_in_another_casks_uninstall_list_does_not_win(folder, catalog):
+    # Real: wondershare-uniconverter lists com.google.Chrome in `uninstall quit`.
+    make_app(folder, "Google Chrome.app", "com.google.Chrome", "150.0.7000.1")
+    item = items_for(folder, catalog)["Google Chrome"]
+    assert (item.attributes["cask"], item.latest_version, item.state) == ("google-chrome", "156.0.8078.80",
+                                                                         "update_available")
+
+
+def test_a_bundle_id_in_another_casks_zap_path_does_not_win(folder, catalog):
+    # Real: tidgi lists com.microsoft.VSCode in a zap trash path.
+    make_app(folder, "Visual Studio Code.app", "com.microsoft.VSCode", "1.100.0")
+    item = items_for(folder, catalog)["Visual Studio Code"]
+    assert (item.attributes["cask"], item.latest_version) == ("visual-studio-code", "1.144.0")
+
+
+def test_casks_that_share_a_bundle_id_are_told_apart_by_the_app_name(folder, catalog):
+    # Real: chatgpt and codex-app both list com.openai.codex.
+    make_app(folder, "ChatGPT.app", "com.openai.codex", "26.1000.1")
+    make_app(folder, "Codex.app", "com.openai.codex", "26.600.1")
+    items = items_for(folder, catalog)
+    assert items["ChatGPT"].attributes["cask"] == "chatgpt"
+    assert items["Codex"].attributes["cask"] == "codex-app"
 
 
 def test_an_app_without_a_match_stays_manual(folder, catalog):
@@ -187,6 +231,7 @@ def test_a_self_updating_cask_with_a_current_app_is_up_to_date(folder, catalog):
     ("0.1.3", "0.1.5", "newer"), ("1.0", "1.0.0", "same"), ("2.0", "1.9.9", "older"), ("1.10", "1.9", "older"),
     ("1.3", "1.3,200", "same"), ("2024.10", "10.2", "unknown"), ("1.0-beta", "1.0", "unknown"),
     ("1.0", "latest", "unknown"), (None, "1.0", "unknown"), ("5", "5", "same"),
+    ("v2.8.2", "2.8.2", "same"), ("2.0.2+b72db03fb", "2.0.2", "same"), ("2.0.1", "v2.8.2", "newer"),
 ])
 def test_compare_versions(installed, latest, result):
     assert compare_versions(installed, latest) == result
