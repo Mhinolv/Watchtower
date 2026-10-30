@@ -169,6 +169,9 @@ public enum SampleData {
         case findingEpssNoCve = "finding-epss-no-cve"
         case findingEpssMissing = "finding-epss-missing"
         case findingEpssStale = "finding-epss-stale"
+        case findingVendor = "finding-vendor"
+        case findingVendorNotAffected = "finding-vendor-not-affected"
+        case findingVendorHistory = "finding-vendor-history"
         case failed
         case chipSelected = "chip-selected"
         case dependenciesRequirements = "dependencies-requirements"
@@ -428,7 +431,8 @@ public enum SampleData {
             return model
         case .findings, .findingOpen, .findingDeferred, .findingResolved, .findingPartial, .findingsEmpty,
              .findingMalware, .findingWithdrawn, .findingFeedFailed, .findingUv, .findingEpssScore,
-             .findingEpssNoCve, .findingEpssMissing, .findingEpssStale:
+             .findingEpssNoCve, .findingEpssMissing, .findingEpssStale, .findingVendor, .findingVendorNotAffected,
+             .findingVendorHistory:
             return findingsModel(scenario, engine: engine, clock: clock)
         case .failed:
             let model = DashboardModel(engine: engine, state: state(status: .failed, finished: ago(1),
@@ -584,12 +588,17 @@ extension SampleData {
                 return c
             }
         }
+        if let notes = vendorNotes(scenario), let i = sample.findings.firstIndex(where: { $0.id == "SEC-0001" }) {
+            sample.findings[i].vendorNotes = notes
+        }
         let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
         model.selection = .findings
+        model.expandsVendorHistory = scenario == .findingVendorHistory
         switch scenario {
         case .findingEpssScore, .findingEpssStale: model.selectedItemKey = "SEC-0006"
         case .findingEpssNoCve, .findingEpssMissing: model.selectedItemKey = "SEC-0009"
-        case .findingOpen, .findingPartial, .findingFeedFailed: model.selectedItemKey = "SEC-0001"
+        case .findingOpen, .findingPartial, .findingFeedFailed, .findingVendor, .findingVendorNotAffected,
+             .findingVendorHistory: model.selectedItemKey = "SEC-0001"
         case .findingMalware: model.selectedItemKey = "SEC-0002"
         case .findingWithdrawn: model.selectedItemKey = "SEC-0005"
         case .findingUv: model.selectedItemKey = "SEC-0006"
@@ -606,6 +615,38 @@ extension SampleData {
 }
 
 extension SampleData {
+    /// Vendor notes (#18) for SEC-0001: a high-confidence backport, a not-affected statement, or a stale note
+    /// with a withdrawn and an old note in the history.
+    static func vendorNotes(_ scenario: Scenario) -> [VendorNote]? {
+        let tracker = "https://security-tracker.debian.org/tracker/CVE-2021-23337"
+        let backport = VendorNote(id: "VN-0002", vendor: "Debian", verdict: "fixed",
+                                  statement: "Fixed by backport in 4.17.20-3.", affectedRange: "< 4.17.20-3",
+                                  confidence: "high", sourceUrl: tracker, retrievedAt: ago(26))
+        switch scenario {
+        case .findingVendor:
+            return [backport]
+        case .findingVendorNotAffected:
+            return [VendorNote(id: "VN-0003", vendor: "Ubuntu", verdict: "not_affected",
+                               statement: "The vulnerable code is not built in this package version.",
+                               affectedRange: "< 4.17.20-2ubuntu1", confidence: "medium",
+                               sourceUrl: "https://ubuntu.com/security/CVE-2021-23337", retrievedAt: ago(5))]
+        case .findingVendorHistory:
+            var stale = backport
+            stale.retrievedAt = days(120)
+            return [stale,
+                    VendorNote(id: "VN-0001", vendor: "Debian", verdict: "not_affected",
+                               statement: "Not affected: the package does not use the template function.",
+                               confidence: "low", sourceUrl: tracker, retrievedAt: days(150),
+                               withdrawnAt: days(121)),
+                    VendorNote(id: "VN-0004", vendor: "Red Hat", verdict: "affected",
+                               statement: "Affected. A fix is planned.", affectedRange: "< 4.17.21",
+                               confidence: "medium", sourceUrl: "https://access.redhat.com/security/cve/CVE-2021-23337",
+                               retrievedAt: days(200))]
+        default:
+            return nil
+        }
+    }
+
     /// The macOS and Safari items with SOFA data (#58), as the engine writes them for each scenario.
     static func sofaItems(_ scenario: Scenario) -> [ItemRecord] {
         let fixed = (1...12).map { "CVE-2026-\(String(format: "%05d", 86940 + $0))" }
@@ -772,6 +813,16 @@ public struct PreviewEngine: EngineClient {
 
     public func reopenFinding(id: String) async throws -> FindingRecord {
         try finding(id) { $0.status = .open }
+    }
+
+    public func checkVendorNote(id: String) async throws -> FindingRecord {
+        try finding("SEC-0001") { f in
+            f.vendorNotes = SampleData.vendorNotes(.findingVendorHistory)?.map { note in
+                var note = note
+                if note.id == id { note.checkedAt = SampleData.now }
+                return note
+            }
+        }
     }
 }
 

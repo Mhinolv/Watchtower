@@ -57,6 +57,9 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower finding-defer <SEC-id> 7\|30` | `{"schema_version", "finding"}`. The finding is deferred until that many days from now |
 | `watchtower finding-backlog <SEC-id>` | `{"schema_version", "finding"}`. The finding moves to the backlog |
 | `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
+| `watchtower vendor-note-add <SEC-id> --vendor V --verdict fixed\|not-affected\|affected --statement S --confidence high\|medium\|low --url URL [--range R] [--retrieved TIME]` | `{"schema_version", "finding"}`. Adds a vendor note. The finding status does not change |
+| `watchtower vendor-note-withdraw <VN-id>` | `{"schema_version", "finding"}`. The note is withdrawn and stays in the history |
+| `watchtower vendor-note-check <VN-id>` | `{"schema_version", "finding"}`. The owner checked the source again. The 90 days start again |
 | `watchtower incidents` | `{"schema_version", "incidents", "sources", "review", "gaps"}`: the saved vendor incident records |
 | `watchtower incidents-check` | The same, after a check of the vendor sources. Progress lines go to stderr. SIGTERM stops it and saves nothing |
 | `watchtower research-status` | `{"schema_version", "state", "text", "topics", "limits", "time_limit_seconds"}`: is Claude Code installed and signed in |
@@ -241,6 +244,15 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - A finding with a CVE shows the score (`94%`, `2.1%`, `<0.1%`) and the percentile. With several CVEs it shows the highest score. A finding without a CVE shows `EPSS covers CVEs only.`
 - Sort order: malware, known exploited, EPSS high to low, then severity. A finding with no score sorts by severity after the others.
 - Data older than 2 days shows in orange. A failed download makes the EPSS coverage `partial` and keeps the earlier scores.
+
+### Vendor assessment (#18)
+
+- A vendor note records what a vendor (for example Debian) says: a backport, not affected, or affected. It has the source URL, the retrieval time and a confidence.
+- The note shows in its own `Vendor assessment` section. It never replaces the OSV or GitHub data.
+- A note never changes the status of a finding. Only a complete scan resolves a finding.
+- The owner adds notes with `vendor-note-add`. The engine sends no request for a note: no new external call.
+- Note text is untrusted. The engine removes control characters, cuts long text and keeps only http and https URLs.
+- A note is never deleted. A withdrawn note stays in `History`. A note older than 90 days shows `Stale`, and the app asks the owner to check the source again.
 
 ## Incidents
 

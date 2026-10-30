@@ -485,6 +485,8 @@ public final class DashboardModel {
     public var selectedItemKey: String?
     public var searchText = ""
     public var findingFilter: FindingFilter = .open
+    /// The `History` of vendor notes starts open (#18). Off in the app. The snapshots turn it on.
+    public var expandsVendorHistory = false
     /// The selected filter chip above the item list.
     public var itemFilter: ItemFilter = .all
 
@@ -744,6 +746,16 @@ public final class DashboardModel {
 
     public func reopen(_ finding: FindingRecord) async {
         await changeFinding("The finding was not opened.") { try await $0.reopenFinding(id: finding.id) }
+    }
+
+    /// The owner checked the source of a stale vendor note again (#18).
+    public func checkVendorNote(_ note: VendorNote) async {
+        await changeFinding("The vendor note was not updated.") { try await $0.checkVendorNote(id: note.id) }
+    }
+
+    /// The vendor notes of a finding, with the clock of the model.
+    public func vendorAssessment(for finding: FindingRecord) -> VendorAssessment {
+        finding.vendorAssessment(now: clock())
     }
 
     private func changeFinding(_ message: String, _ act: (any EngineClient) async throws -> FindingRecord) async {

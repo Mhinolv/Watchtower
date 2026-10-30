@@ -110,6 +110,7 @@ public struct FindingDetailView: View {
                                                     enabled: model.checkRunningVersions))
                 facts
                 source
+                VendorAssessmentSection(model: model, finding: finding)
                 if !finding.nextSteps.isEmpty {
                     section("Next steps") {
                         VStack(alignment: .leading, spacing: 4) {
@@ -314,6 +315,118 @@ public struct FindingDetailView: View {
     }
 }
 
+/// `Vendor assessment` (#18), below `Source`. Vendor text is extra evidence: it never changes the status, and
+/// withdrawn and stale notes stay in the history. All vendor text is plain text from an untrusted page.
+struct VendorAssessmentSection: View {
+    let model: DashboardModel
+    let finding: FindingRecord
+    @State private var showsHistory = false
+    private let time = TimeText()
+
+    var body: some View {
+        let assessment = model.vendorAssessment(for: finding)
+        if !assessment.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Vendor assessment").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                if assessment.showsNotAffectedBanner {
+                    HStack(alignment: .firstTextBaseline) {
+                        Label(VendorAssessment.notAffectedBanner, systemImage: "info.circle")
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        if finding.status == .open {
+                            Menu("Defer") {
+                                Button("7 Days") { Task { await model.deferFinding(finding, days: 7) } }
+                                Button("30 Days") { Task { await model.deferFinding(finding, days: 30) } }
+                            }
+                            .fixedSize()
+                        }
+                    }
+                    .padding(10)
+                    .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                }
+                if let note = assessment.current {
+                    if assessment.asksForCheck {
+                        HStack(alignment: .firstTextBaseline) {
+                            Label(VendorAssessment.stalePrompt, systemImage: "clock.badge.exclamationmark")
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Button("Mark as Checked") { Task { await model.checkVendorNote(note) } }
+                                .help("You opened the source and the note is still correct.")
+                        }
+                    }
+                    noteView(note, assessment: assessment)
+                } else {
+                    Text("No current vendor note. Every note is withdrawn.").foregroundStyle(.secondary)
+                }
+                if !assessment.history.isEmpty {
+                    DisclosureGroup(assessment.historyTitle, isExpanded: $showsHistory) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(assessment.history) { note in
+                                Divider()
+                                noteView(note, assessment: assessment)
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .onAppear { showsHistory = model.expandsVendorHistory || assessment.current == nil }
+        }
+    }
+
+    private func noteView(_ note: VendorNote, assessment: VendorAssessment) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let badges = assessment.badges(note, time: time)
+            if !badges.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(badges, id: \.text) { badge in
+                        Text(badge.text)
+                            .font(.caption.bold())
+                            .foregroundStyle(badge.tone.color)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(badge.tone.color.opacity(0.15)))
+                    }
+                }
+            }
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 6) {
+                ForEach(VendorAssessment.rows(note), id: \.label) { row in textRow(row) }
+                GridRow {
+                    Text("Confidence").foregroundStyle(.secondary)
+                    Text(note.confidenceText)
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.gray.opacity(0.15)))
+                        .accessibilityLabel("Confidence: \(note.confidenceText)")
+                }
+                GridRow {
+                    Text("Source").foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(verbatim: note.sourceUrl).textSelection(.enabled).lineLimit(2)
+                        if let url = note.sourceURL {
+                            Link(destination: url) { Image(systemName: "arrow.up.right.square") }
+                                .help("Open the vendor page")
+                                .accessibilityLabel("Open the vendor page")
+                        }
+                    }
+                }
+                ForEach(VendorAssessment.timeRows(note, time: time), id: \.label) { row in textRow(row) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func textRow(_ row: (label: String, value: String)) -> some View {
+        GridRow {
+            Text(row.label).foregroundStyle(.secondary)
+            Text(verbatim: row.value).textSelection(.enabled)
+        }
+    }
+}
+
 /// The findings table with the filter control above it.
 struct FindingTable: View {
     @Bindable var model: DashboardModel
@@ -349,6 +462,9 @@ struct FindingTable: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(f.package)
                             Text(packageDetail(f)).font(.caption).foregroundStyle(.secondary)
+                            if let vendor = model.vendorAssessment(for: f).listText {
+                                Text(vendor).font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .width(min: 66, ideal: 84)
