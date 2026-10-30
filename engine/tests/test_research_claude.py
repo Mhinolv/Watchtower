@@ -4,6 +4,7 @@
 """
 import json
 import os
+import pwd
 import subprocess
 from pathlib import Path
 
@@ -113,6 +114,29 @@ def test_the_run_has_a_5_minute_limit_a_small_env_and_an_empty_private_folder(st
     assert call["env"]["PATH"] == "/usr/bin:/bin"
     assert call["cwd"] == str(store.data_dir / "research-work") and call["cwd_files"] == []
     assert not (store.data_dir / "research-work").exists()  # Deleted after the run.
+
+
+def test_the_auth_check_names_the_user_when_the_app_env_has_no_user(monkeypatch):
+    # #104: the app starts the engine with only PYTHONPATH, PATH and HOME. Claude Code needs USER to find the login.
+    for k in ("USER", "LOGNAME"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("SECRET_TOKEN", "do-not-pass")
+    monkeypatch.setattr(os, "getuid", lambda: 501)
+    monkeypatch.setattr(pwd, "getpwuid", lambda uid: type("P", (), {"pw_name": "owner" if uid == 501 else "?"})())
+    fake = FakeClaude()
+    assert claude.status(CLAUDE, fake)["state"] == "ready"
+    (call,) = fake.calls
+    assert (call["env"].get("USER"), call["env"].get("LOGNAME")) == ("owner", "owner")
+    assert set(call["env"]) <= {"PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "LANG"}
+
+
+def test_a_user_from_the_env_wins_over_the_process_user(monkeypatch):
+    monkeypatch.setenv("USER", "shell-user")
+    monkeypatch.setenv("LOGNAME", "shell-login")
+    monkeypatch.setattr(os, "getuid", lambda: 501)
+    monkeypatch.setattr(pwd, "getpwuid", lambda uid: type("P", (), {"pw_name": "owner" if uid == 501 else "?"})())
+    env = claude.claude_env()
+    assert (env["USER"], env["LOGNAME"]) == ("shell-user", "shell-login")
 
 
 # Availability

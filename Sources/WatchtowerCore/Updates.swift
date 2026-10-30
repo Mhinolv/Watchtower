@@ -407,6 +407,8 @@ public final class UpdateModel {
     @ObservationIgnored private let client: any UpdateClient
     @ObservationIgnored private var majorConfirmed = false
     @ObservationIgnored private var scriptsConfirmed = false
+    /// The plan of a major-version alert that closed with no Cancel. `Update to …` can still go on (#98).
+    @ObservationIgnored private var closedMajorQuestion: UpdatePlan?
 
     public init(client: any UpdateClient, step: Step = .idle, output: [String] = [], attempts: [UpdateAttempt] = [],
                 checkingStore: Bool = false) {
@@ -449,6 +451,7 @@ public final class UpdateModel {
     func loadPlan(itemKey: String, name: String) async {
         majorConfirmed = false
         scriptsConfirmed = false
+        closedMajorQuestion = nil
         output = []
         step = .loading(name)
         do {
@@ -462,11 +465,19 @@ public final class UpdateModel {
     /// The `Update` button of the plan step. A major version or scripts ask first.
     public func confirm() async {
         guard case .plan(let plan) = step, plan.refusal == nil else { return }
+        closedMajorQuestion = nil
         await advance(plan)
     }
 
+    /// `Update to …` in the major-version alert. SwiftUI closes the alert before this task runs (#98).
     public func confirmMajor() async {
-        guard case .confirmMajor(let plan) = step else { return }
+        let plan: UpdatePlan
+        switch step {
+        case .confirmMajor(let p): plan = p
+        case .plan(let p) where p == closedMajorQuestion: plan = p
+        default: return
+        }
+        closedMajorQuestion = nil
         majorConfirmed = true
         await advance(plan)
     }
@@ -477,8 +488,23 @@ public final class UpdateModel {
         await advance(plan)
     }
 
+    /// The major-version alert is open. The alert sets it to false when it closes.
+    public var majorQuestionShown: Bool {
+        get {
+            if case .confirmMajor = step { return true }
+            return false
+        }
+        set {
+            // Only the major question closes here. A later step, for example the scripts question, stays.
+            guard !newValue, case .confirmMajor(let plan) = step else { return }
+            step = .plan(plan)
+            closedMajorQuestion = plan
+        }
+    }
+
     /// Back from the major or scripts question to the plan. Nothing runs.
     public func backToPlan() {
+        closedMajorQuestion = nil
         switch step {
         case .confirmMajor(let plan), .confirmScripts(let plan): step = .plan(plan)
         default: break
@@ -526,6 +552,7 @@ public final class UpdateModel {
         guard case .result(let attempt, let plan) = step, attempt.status == .planChanged else { return }
         majorConfirmed = false
         scriptsConfirmed = false
+        closedMajorQuestion = nil
         step = .plan(plan)
     }
 
