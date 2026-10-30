@@ -61,7 +61,7 @@ def age_days(fetched_at: str, now: str) -> float:
     return (parse(now) - parse(fetched_at)).total_seconds() / 86400
 
 
-def _read_meta(root: Path) -> dict:
+def read_meta(root: Path) -> dict:
     try:
         data = json.loads((root / META_NAME).read_text())
     except (OSError, ValueError):
@@ -120,7 +120,7 @@ def update_database(
     folder = ensure_private_dir(ensure_private_dir(root / LAYOUT) / ecosystem)
     path = folder / "all.zip"
     _move_old_copy(root, ecosystem, path)
-    meta = _read_meta(root)
+    meta = read_meta(root)
     old = meta.get(ecosystem) if isinstance(meta.get(ecosystem), dict) and path.is_file() else None
     headers = {"If-None-Match": old["etag"]} if old and old.get("etag") else {}
     url = URL.format(ecosystem=ecosystem)

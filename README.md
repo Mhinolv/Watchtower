@@ -67,7 +67,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
-| GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, for the unresolved findings. At most 40 requests for each refresh. Answers are reused for 6 hours |
+| GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
@@ -133,6 +133,11 @@ A partial, stale or failed scan never removes a path or resolves a finding. The 
 Two feeds add marks to the findings. CISA KEV marks `Known exploited`. GitHub marks `Malware` and `Withdrawn`.
 A mark comes from the advisory ids of the finding only. The engine never infers exposure from a product name.
 If a feed fails, the old marks stay and the Source section of the finding shows the failure and the age of the data. The engine keeps the last answers in `cache/kev/` and `cache/github/` in the data folder.
+
+The GitHub check reads the local OSV databases first (`osv/osv-scalibr/<ecosystem>/all.zip`, from the OSV scan). They hold the reviewed GHSA records and the malicious-package (`MAL`) records with their GHSA aliases.
+If a database has the id, the engine uses that record and sends no request. The age of that answer is the age of the database.
+Only the other ids go to the GitHub API. The call list above does not change: no new host and no token.
+If the 40-request limit leaves ids, the coverage is `partial` with `request limit`. A later refresh asks only for those ids, because answers stay valid for 7 days.
 
 ## Incidents
 

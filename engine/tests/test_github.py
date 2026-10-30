@@ -11,7 +11,7 @@ from watchtower_engine.feeds.homebrew import Response
 FIX = Path(__file__).parent / "fixtures" / "github"
 MALWARE = json.loads((FIX / "malware.json").read_text())
 REVIEWED = json.loads((FIX / "reviewed.json").read_text())
-T1, T2, T3 = "2026-10-29T08:00:00Z", "2026-10-29T10:00:00Z", "2026-10-30T08:00:00Z"
+T1, T2, T3 = "2026-10-29T08:00:00Z", "2026-10-29T10:00:00Z", "2026-11-06T08:00:00Z"  # T3: past the 7-day TTL.
 LODASH = ["GHSA-35jh-r3h4-6jhm", "CVE-2021-23337"]
 MAL = ["GHSA-mal1-ware-0001"]
 
@@ -255,7 +255,7 @@ def test_answers_younger_than_the_ttl_are_reused(tmp_path):
     assert fetch.calls == [] and data.state == "complete" and data.fetched_at == T1
     assert data.assess(LODASH).withdrawn_at
     old = FakeFetch()
-    load(tmp_path, [LODASH], old, lambda: T3)  # A day later.
+    load(tmp_path, [LODASH], old, lambda: T3)  # Eight days later.
     assert len(old.calls) == 2
 
 
