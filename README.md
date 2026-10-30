@@ -155,6 +155,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - States from mas output: not signed in (`Sign in to the App Store, then try again.`), needs an administrator (`This update needs an administrator. Use the App Store app.`), Spotlight cannot find apps (`App Store: partial` in Coverage).
 - Success needs the engine to read the installed version again from the app's `Info.plist`. Exit code 0 alone is `Not verified`.
 
+### requirements.txt dependency update (#30)
+
+An update plan for one direct requirement of a requirements-only project (no lockfile) with an existing `.venv`. The item key is `requirements/<package>@<fixed version>|<project path>|requirements.txt`.
+- The one command is `<project>/.venv/bin/python -m pip install --only-binary=:all: <package>==<version>`. Planning never builds: it reads `requirements.txt`, the `.venv` files, one PyPI page and a wheels-only `pip install --dry-run --report -` for the other packages that change. It never runs `setup.py` or a build hook.
+- The file edit is exact and shown in the plan: an exact pin (`requests==2.31.0`) becomes `requests==2.32.3`. Extras, markers and comments stay. A range that allows the target (`>=`, `~=`) stays as it is (`No change`). A range that does not allow it is refused. Pin and range are separate evidence types (`Exact pin`, `Range`, `Unpinned`).
+- The file is edited only after the environment shows the target. A copy of the file before the run goes to `update-backups/attempt-<id>/` in the data folder.
+- If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
+- Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
+- Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. The OSV scan reads lockfiles only, so a finding does not yet open this plan: the key works from the CLI (`update-plan`).
+
 ## Findings
 
 Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.

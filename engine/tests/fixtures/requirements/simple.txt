@@ -1,0 +1,12 @@
+# Application dependencies. Pinned for the release.
+requests==2.31.0
+urllib3[socks]==1.26.18 ; python_version < "3.10"   # pinned for old Pythons
+click>=8.0,<9
+rich~=13.7  # pretty output
+PyYAML
+Flask[async]==3.0.0; sys_platform != "win32"
+-e git+https://github.com/example/tool.git#egg=tool
+tomli @ https://files.example.com/tomli-2.0.1-py3-none-any.whl
+
+# Test only
+pytest>=7.4,!=8.0.0
