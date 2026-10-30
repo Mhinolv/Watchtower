@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "_last-serial": 37059094,
+  "api-version": "1.4"
+ },
+ "project-status": {
+  "status": "active"
+ },
+ "name": "yankedtop",
+ "versions": [
+  "1.0.0",
+  "1.1.0",
+  "2.0.0",
+  "2.0.1.post1"
+ ],
+ "files": [
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "yankedtop-1.0.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+   },
+   "provenance": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 142856,
+   "upload-time": "2026-05-14T19:25:27.735762Z",
+   "url": "https://files.pythonhosted.org/packages/synthetic/yankedtop-1.0.0-py3-none-any.whl"
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "yankedtop-1.1.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+   },
+   "provenance": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 142856,
+   "upload-time": "2026-05-14T19:25:27.735762Z",
+   "url": "https://files.pythonhosted.org/packages/synthetic/yankedtop-1.1.0-py3-none-any.whl"
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "yankedtop-2.0.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+   },
+   "provenance": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 142856,
+   "upload-time": "2026-05-14T19:25:27.735762Z",
+   "url": "https://files.pythonhosted.org/packages/synthetic/yankedtop-2.0.0-py3-none-any.whl",
+   "yanked": true
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "yankedtop-2.0.1.post1-py3-none-any.whl",
+   "hashes": {
+    "sha256": "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+   },
+   "provenance": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 142856,
+   "upload-time": "2026-05-14T19:25:27.735762Z",
+   "url": "https://files.pythonhosted.org/packages/synthetic/yankedtop-2.0.1.post1-py3-none-any.whl",
+   "yanked": true
+  }
+ ]
+}

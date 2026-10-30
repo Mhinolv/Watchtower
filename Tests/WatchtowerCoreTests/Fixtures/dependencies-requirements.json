@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "project": "~/Real/script",
+  "supported": true,
+  "sections": [
+    {
+      "manifest": "requirements.txt",
+      "kind": "requirements",
+      "rows": [
+        {
+          "package": "requests",
+          "declared": "==2.31.0",
+          "evidence": "exact_pin",
+          "installed": "2.32.3",
+          "installed_label": ".venv",
+          "table": null,
+          "latest": "2.34.2",
+          "latest_error": null,
+          "status": "update_available",
+          "finding_id": null,
+          "severity": null,
+          "update_key": "requirements/requests@2.34.2|~/Real/script|requirements.txt",
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        },
+        {
+          "package": "click",
+          "declared": ">=8.0,<9",
+          "evidence": "range",
+          "installed": null,
+          "installed_label": ".venv",
+          "table": null,
+          "latest": "8.5.0",
+          "latest_error": null,
+          "status": "unknown",
+          "finding_id": null,
+          "severity": null,
+          "update_key": null,
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        },
+        {
+          "package": "PyYAML",
+          "declared": "",
+          "evidence": "unpinned",
+          "installed": null,
+          "installed_label": ".venv",
+          "table": null,
+          "latest": "6.0.3",
+          "latest_error": null,
+          "status": "unknown",
+          "finding_id": null,
+          "severity": null,
+          "update_key": null,
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        }
+      ],
+      "refusal": null,
+      "latest_source": {
+        "registry": "PyPI",
+        "retrieved_at": "2026-10-30T07:23:40Z",
+        "error": null
+      },
+      "pending": 0
+    }
+  ],
+  "pending": 0
+}

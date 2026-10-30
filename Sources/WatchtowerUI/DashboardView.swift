@@ -607,41 +607,6 @@ struct SparkleSection: View {
 
 /// The `Dependencies` table of a project (#15). #29 and #30 reuse it for Swift PM and requirements.
 /// `Evidence` keeps exact pins and ranges apart.
-struct DependenciesTable: View {
-    let rows: [DependencyRecord]
-    let note: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Dependencies").font(.headline)
-            if let note {
-                Label(note, systemImage: "hand.raised").font(.callout).foregroundStyle(Tone.orange.color)
-            }
-            if !rows.isEmpty {
-                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
-                    GridRow {
-                        ForEach(["Package", "Declared", "Locked", "Evidence", "Ecosystem"], id: \.self) { title in
-                            Text(title).font(.caption.bold()).foregroundStyle(.secondary)
-                        }
-                    }
-                    Divider()
-                    ForEach(rows) { row in
-                        GridRow {
-                            Text(row.packageText)
-                            Text(row.declared).font(.callout.monospaced())
-                            Text(row.locked ?? "—").font(.callout.monospaced())
-                            Text(row.evidenceText)
-                                .foregroundStyle(row.evidence == "exact_pin" ? Color.primary : Color.secondary)
-                            Text(row.ecosystem).foregroundStyle(.secondary)
-                        }
-                        .textSelection(.enabled)
-                    }
-                }
-            }
-        }
-    }
-}
-
 /// Title, symbol and a quiet shortcut hint for a toolbar button.
 struct ToolbarButtonLabel: View {
     let title: String
@@ -694,9 +659,7 @@ struct ProjectDetail: View {
                         }
                     }
                 }
-                if project.dependencies != nil || project.dependencyNote != nil {
-                    DependenciesTable(rows: project.dependencies ?? [], note: project.dependencyNote)
-                }
+                DependenciesView(model: model, project: project)
                 let findings = model.findings(in: project)
                 if !findings.isEmpty {
                     Text("Findings").font(.headline)

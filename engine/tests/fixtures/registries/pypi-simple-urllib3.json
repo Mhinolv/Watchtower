@@ -1,0 +1,247 @@
+{
+ "files": [
+  {
+   "core-metadata": {
+    "sha256": "532da8b2c7b39b017e837451b0d9c946061a2ec4a9e04d4161e487166a731a53"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "532da8b2c7b39b017e837451b0d9c946061a2ec4a9e04d4161e487166a731a53"
+   },
+   "filename": "urllib3-2.6.2-py3-none-any.whl",
+   "hashes": {
+    "sha256": "ec21cddfe7724fc7cb4ba4bea7aa8e2ef36f607a4bab81aa6ce42a13dc3f03dd"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.6.2/urllib3-2.6.2-py3-none-any.whl/provenance",
+   "requires-python": ">=3.9",
+   "size": 131182,
+   "upload-time": "2025-12-11T15:56:38.584804Z",
+   "url": "https://files.pythonhosted.org/packages/6d/b9/4095b668ea3678bf6a0af005527f39de12fb026516fb3df17495a733b7f8/urllib3-2.6.2-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "urllib3-2.6.2.tar.gz",
+   "hashes": {
+    "sha256": "016f9c98bb7e98085cb2b4b17b87d2c702975664e4f060c6532e64d1c1a5e797"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.6.2/urllib3-2.6.2.tar.gz/provenance",
+   "requires-python": ">=3.9",
+   "size": 432930,
+   "upload-time": "2025-12-11T15:56:40.252555Z",
+   "url": "https://files.pythonhosted.org/packages/1e/24/a2a2ed9addd907787d7aa0355ba36a6cadf1768b934c652ea78acbd59dcd/urllib3-2.6.2.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "e91390cc9af49b019738f1d739b5cd925130c32e9d3e6acc0863c21c5d9882ef"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "e91390cc9af49b019738f1d739b5cd925130c32e9d3e6acc0863c21c5d9882ef"
+   },
+   "filename": "urllib3-2.6.3-py3-none-any.whl",
+   "hashes": {
+    "sha256": "bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.6.3/urllib3-2.6.3-py3-none-any.whl/provenance",
+   "requires-python": ">=3.9",
+   "size": 131584,
+   "upload-time": "2026-01-07T16:24:42.685091Z",
+   "url": "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "urllib3-2.6.3.tar.gz",
+   "hashes": {
+    "sha256": "1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.6.3/urllib3-2.6.3.tar.gz/provenance",
+   "requires-python": ">=3.9",
+   "size": 435556,
+   "upload-time": "2026-01-07T16:24:43.925891Z",
+   "url": "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "66147856d30bbb6bed01c6ce3326d0f48d84ed5f286ac177633a1486b82eace5"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "66147856d30bbb6bed01c6ce3326d0f48d84ed5f286ac177633a1486b82eace5"
+   },
+   "filename": "urllib3-2.7.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.7.0/urllib3-2.7.0-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 131087,
+   "upload-time": "2026-05-07T16:13:17.151740Z",
+   "url": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "urllib3-2.7.0.tar.gz",
+   "hashes": {
+    "sha256": "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.7.0/urllib3-2.7.0.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 433602,
+   "upload-time": "2026-05-07T16:13:18.596909Z",
+   "url": "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "10898c620e8007c030e07fa5622b68358a43010025dfbd78a1cb797699de2bb4"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "10898c620e8007c030e07fa5622b68358a43010025dfbd78a1cb797699de2bb4"
+   },
+   "filename": "urllib3-2.8.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.8.0/urllib3-2.8.0-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 135717,
+   "upload-time": "2026-09-15T19:29:34.577402Z",
+   "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "urllib3-2.8.0.tar.gz",
+   "hashes": {
+    "sha256": "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"
+   },
+   "provenance": "https://pypi.org/integrity/urllib3/2.8.0/urllib3-2.8.0.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 458972,
+   "upload-time": "2026-09-15T19:29:36.253420Z",
+   "url": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz",
+   "yanked": false
+  }
+ ],
+ "meta": {
+  "_last-serial": 41105803,
+  "api-version": "1.4"
+ },
+ "name": "urllib3",
+ "project-status": {
+  "status": "active"
+ },
+ "versions": [
+  "0.2",
+  "1.0",
+  "1.0.1",
+  "1.0.2",
+  "1.1",
+  "1.2",
+  "1.2.1",
+  "1.2.2",
+  "1.3",
+  "1.4",
+  "1.5",
+  "1.6",
+  "1.7",
+  "1.7.1",
+  "1.8",
+  "1.8.2",
+  "1.8.3",
+  "1.9",
+  "1.9.1",
+  "1.10",
+  "1.10.1",
+  "1.10.2",
+  "1.10.3",
+  "1.10.4",
+  "1.11",
+  "1.12",
+  "1.13",
+  "1.13.1",
+  "1.14",
+  "1.15",
+  "1.15.1",
+  "1.16",
+  "1.17",
+  "1.18",
+  "1.18.1",
+  "1.19",
+  "1.19.1",
+  "1.20",
+  "1.21",
+  "1.21.1",
+  "1.22",
+  "1.23",
+  "1.24",
+  "1.24.1",
+  "1.24.2",
+  "1.24.3",
+  "1.25",
+  "1.25.1",
+  "1.25.2",
+  "1.25.3",
+  "1.25.4",
+  "1.25.5",
+  "1.25.6",
+  "1.25.7",
+  "1.25.8",
+  "1.25.9",
+  "1.25.10",
+  "1.25.11",
+  "1.26.0",
+  "1.26.1",
+  "1.26.2",
+  "1.26.3",
+  "1.26.4",
+  "1.26.5",
+  "1.26.6",
+  "1.26.7",
+  "1.26.8",
+  "1.26.9",
+  "1.26.10",
+  "1.26.11",
+  "1.26.12",
+  "1.26.13",
+  "1.26.14",
+  "1.26.15",
+  "1.26.16",
+  "1.26.17",
+  "1.26.18",
+  "1.26.19",
+  "1.26.20",
+  "2.0.0a1",
+  "2.0.0a2",
+  "2.0.0a3",
+  "2.0.0a4",
+  "2.0.0",
+  "2.0.1",
+  "2.0.2",
+  "2.0.3",
+  "2.0.4",
+  "2.0.5",
+  "2.0.6",
+  "2.0.7",
+  "2.1.0",
+  "2.2.0",
+  "2.2.1",
+  "2.2.2",
+  "2.2.3",
+  "2.3.0",
+  "2.4.0",
+  "2.5.0",
+  "2.6.0",
+  "2.6.1",
+  "2.6.2",
+  "2.6.3",
+  "2.7.0",
+  "2.8.0"
+ ]
+}

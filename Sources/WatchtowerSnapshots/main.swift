@@ -103,6 +103,11 @@ MainActor.assumeIsolated {
                 } else if scenario == .settingsInactive {
                     try render(SettingsView(model: model), size: CGSize(width: 560, height: 380), dark: dark,
                                to: out.appendingPathComponent(name))
+                } else if scenario.isDependencies {
+                    // The Update… buttons need an update model and the table needs a dependency model.
+                    try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine()))
+                                   .environment(SampleData.dependencyModel(scenario)),
+                               size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))
                 } else if [.findingUv, .findingRequirements, .findingRequirementsRefused].contains(scenario) {
                     // The Update… buttons need an update model in the environment.
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
@@ -151,8 +156,15 @@ MainActor.assumeIsolated {
             let (model, incidents) = SampleData.incidentScenario(scenario)
             let name = "\(scenario.rawValue)-\(dark ? "dark" : "light").png"
             do {
-                try render(DashboardView(model: model).environment(incidents), size: CGSize(width: 1280, height: 720),
-                           dark: dark, to: out.appendingPathComponent(name))
+                if scenario == .researchConfirm {
+                    // SwiftUI shows the confirm step as a sheet. Render the sheet itself (#19).
+                    try render(ResearchConfirmSheet(model: incidents).background(Color(nsColor: .windowBackgroundColor)),
+                               size: CGSize(width: 440, height: 0), dark: dark, chrome: false,
+                               to: out.appendingPathComponent(name))
+                } else {
+                    try render(DashboardView(model: model).environment(incidents), size: CGSize(width: 1280, height: 720),
+                               dark: dark, to: out.appendingPathComponent(name))
+                }
                 print(name)
                 written += 1
             } catch {

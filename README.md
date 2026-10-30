@@ -59,6 +59,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower finding-reopen <SEC-id>` | `{"schema_version", "finding"}`. A deferred or backlog finding is open again |
 | `watchtower incidents` | `{"schema_version", "incidents", "sources", "review", "gaps"}`: the saved vendor incident records |
 | `watchtower incidents-check` | The same, after a check of the vendor sources. Progress lines go to stderr. SIGTERM stops it and saves nothing |
+| `watchtower research-status` | `{"schema_version", "state", "text", "topics", "limits", "time_limit_seconds"}`: is Claude Code installed and signed in |
+| `watchtower research-run` | The incidents object, after one Claude web research run. It has `research`, the result of the last run. SIGTERM stops it and saves nothing |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
@@ -79,6 +81,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | None. A bulk download of the whole public EPSS file (about 3 MB). No CVE list, finding id or inventory data. The URL answers 302 to the file of the day. | EPSS check, each refresh, at most once a day (the cached file is used for 24 hours) |
+| GET `https://pypi.org/simple/<name>/` (PEP 691 JSON, gzip) and `https://index.crates.io/<path>/<name>` (gzip) | The public package name only: no version, project, path or inventory data. Names from `requirements.txt` and `Cargo.toml`. | Projects detail, when the owner opens a project: one request for each direct dependency, 25 for each engine call, 5 at a time. The app calls again until all rows are checked. Answers are reused for 1 day |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
@@ -88,6 +91,8 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
 | GET `https://haveibeenpwned.com/api/v3/breaches` | None. The public breach list (about 1 MB), no API key. No email address, account name or finding data. The engine keeps only the breaches of GitHub and Google / Gmail. | Check Sources (on demand only) |
+| `claude -p` (Claude Code, headless) with the tools `WebSearch` and `WebFetch` | A fixed prompt with three public topic names: `GitHub`, `Google Gmail`, `Apple`. No path, project, package, account, finding or inventory data. Claude Code sends the prompt to Anthropic, and its web tools search and fetch public pages. | Research (on demand only, after the owner confirms). At most 5 minutes |
+| `claude auth status --json` | Nothing. A local call. The engine reads only `loggedIn`. | Incidents screen, to enable the Research button |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -168,7 +173,7 @@ Watchtower does not edit `Cargo.toml`. If its requirement does not allow the fix
 Watchtower refuses Cargo workspaces, git and path dependencies, and a `Cargo.lock` that is missing or does not match `Cargo.toml`.
 A semver-incompatible change (for example `0.2` to `0.3`) needs its own confirmation. Watchtower copies `Cargo.toml` and `Cargo.lock` to `update-backups/` first.
 The result is `Lockfile updated`, never `Verified`: Watchtower reads `Cargo.lock` again, but no installed crate exists until Cargo builds it.
-The Projects detail shows a `Dependencies` table for Cargo projects. `Evidence` keeps exact pins and ranges apart.
+The Projects detail shows a `Dependencies` table (#81) for `requirements.txt` and `Cargo.toml` files, one section for each manifest (also a manifest in a folder below the project, #85). `Declared` keeps exact pins and ranges apart. `Installed` is the `.venv` version, or the `Cargo.lock` version (`locked`). `Latest` comes from PyPI or crates.io and shows its retrieval time. It is the highest stable release that is not yanked: a pre-release is never shown, and a package with only pre-releases shows `No stable release`. A row that the registry was not asked for yet shows `Not checked yet`: a large project is read in steps of 25 packages, and `Check the rest` continues after a stop. A finding marks a row only if its path names the file of that section (`a/requirements.txt` does not mark `b/requirements.txt`). A row with an open finding shows `Vulnerable` and opens the finding. `Update…` opens the requirements.txt (#30) or Cargo (#15) plan for the latest version. A row that the adapter would refuse has `Update…` off with the plan's reason. The engine command is `watchtower dependencies <project folder>`. Transitive dependencies and npm and uv tables are not listed.
 
 ### Mac App Store apps (mas)
 
@@ -241,3 +246,16 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - The engine keeps a breach only if it is about a watched service: GitHub (domain `github.com` or a subdomain, or the exact name or title `GitHub`) or Google / Gmail (domain `google.com`, `gmail.com`, `googlemail.com` or a subdomain, or the exact name or title `Google` or `Gmail`). A part of a name does not match: `Bitcoin Security Forum Gmail Dump` is not Gmail.
 - A verified breach is `Possible relevance`. A breach that is not verified, or is fabricated, is `Unconfirmed`. The list is untrusted text: markup and control characters are removed and lengths are cut.
 - The review window compares with the day HIBP added the breach. A row added by the newest check shows `New`. A failed fetch keeps the earlier rows and shows `Have I Been Pwned: check failed. Data from <day>.`
+
+### Claude web research (#19)
+
+- The `Research` button runs Claude Code headless (`claude -p`) once. It runs only after the owner confirms the topics and limits in a sheet. A refresh never runs it.
+- The prompt names only the public topics `GitHub`, `Google Gmail` and `Apple`. It never holds source code, paths, credentials, accounts or the inventory.
+- Isolation flags: `--safe-mode` (no CLAUDE.md, skills, plugins, hooks or MCP), `--tools WebSearch,WebFetch`, `--permission-mode dontAsk`, `--strict-mcp-config` with no servers, `--no-session-persistence`, `--disable-slash-commands`.
+- The run starts in an empty private folder (`research-work/` in the data folder, mode `0700`), with a small environment. The engine deletes the folder after the run.
+- The time limit is 5 minutes. At the limit, or on Stop, the engine ends the run and saves nothing.
+- The output is untrusted data. The engine reads only the JSON claims (at most 20), removes markup and control characters, cuts the length and keeps only https links. It never follows a link or an instruction in the text.
+- Each claim is saved as `Unconfirmed` with the source `Web research`. A vendor link is shown as `Primary source: <url> (not checked)`. Only a vendor source check can confirm a claim.
+- The engine keeps the result of the last run (state, counts, time) in the data folder. It does not keep the account email.
+- If Claude Code is not installed or not signed in, the button is off and the screen says why.
+- Each run uses the owner's Claude Code plan. There is no usage cap.

@@ -5,6 +5,7 @@ writes {"schema_version", "error", "detail"} to stderr and exits 1.
 """
 import argparse
 import json
+import os
 import sys
 
 from . import __version__
@@ -79,6 +80,26 @@ def _incidents_check(args) -> int:
     return 0
 
 
+def _research_run(args) -> int:
+    """`research-run`: the incident state with the outcome in `research` on stdout. SIGTERM stops the run:
+    the Claude process ends and nothing is saved."""
+    import signal
+
+    from .research.claude import Stopped
+
+    def stop(signum, frame):
+        raise Stopped()
+
+    previous = signal.signal(signal.SIGTERM, stop)
+    try:
+        with Store(args.data_dir) as store:
+            state = store.research()
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    _emit(sys.stdout, state)
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="watchtower")
     parser.add_argument("--data-dir", help="data folder (default: ~/Library/Application Support/Watchtower)")
@@ -101,6 +122,8 @@ def main(argv=None) -> int:
     sub.add_parser("update-log", help="print the update log as JSON")
     sub.add_parser("incidents", help="print the vendor incident records, sources and review as JSON")
     sub.add_parser("incidents-check", help="check the vendor sources now, save the result, print it as JSON")
+    sub.add_parser("research-status", help="print whether Claude research can run, its topics and limits as JSON")
+    sub.add_parser("research-run", help="run one Claude web research (5 minutes at most), print the incidents as JSON")
     for name, helptext in (("finding-defer", "defer a finding for 7 or 30 days"),
                            ("finding-backlog", "move a finding to the backlog"),
                            ("finding-reopen", "take a deferred or backlog finding back to open")):
@@ -108,6 +131,10 @@ def main(argv=None) -> int:
         fp.add_argument("id", help="finding id, for example SEC-0001")
         if name == "finding-defer":
             fp.add_argument("days", type=int, choices=(7, 30))
+    deps = sub.add_parser("dependencies", help="print the direct dependencies of one project as JSON")
+    deps.add_argument("path", help="project folder")
+    deps.add_argument("--max-lookups", type=int, default=None, metavar="N",
+                      help="ask each registry for at most N packages (rows not asked are pending)")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
@@ -146,6 +173,13 @@ def main(argv=None) -> int:
             return 0
         if args.cmd == "incidents-check":
             return _incidents_check(args)
+        if args.cmd == "research-status":
+            from .research import claude
+
+            _emit(sys.stdout, claude.status())
+            return 0
+        if args.cmd == "research-run":
+            return _research_run(args)
         if args.cmd in ("update-plan", "update-run", "update-log"):
             return _updates(args)
         if args.cmd == "homebrew":
@@ -189,6 +223,20 @@ def main(argv=None) -> int:
             return 0
         if args.cmd == "projects":
             _emit(sys.stdout, list_projects(args.data_dir).to_dict())
+            return 0
+        if args.cmd == "dependencies":
+            from .dependencies import project_dependencies
+            from .store import default_data_dir
+
+            data_dir = args.data_dir or default_data_dir()
+            real = os.path.realpath(os.path.expanduser(args.path))
+            project = next((p for p in list_projects(args.data_dir).projects if p.real_path == real), None)
+            if project is None:
+                _emit(sys.stderr, {"error": "That folder is not a project in the project roots.", "detail": None})
+                return 1
+            limit = {} if args.max_lookups is None else {"max_lookups": max(0, args.max_lookups)}
+            with Store(data_dir) as store:
+                _emit(sys.stdout, project_dependencies(project, store.findings(), data_dir, **limit))
             return 0
         if args.cmd == "project-state":
             project = set_project_active(args.path, args.state == "active", args.data_dir)

@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "project": "~/Projects/crabby",
+  "supported": true,
+  "sections": [
+    {
+      "manifest": "Cargo.toml",
+      "kind": "cargo",
+      "rows": [
+        {
+          "package": "itoa",
+          "declared": "=1.0.9",
+          "evidence": "exact_pin",
+          "installed": "1.0.9",
+          "installed_label": "locked",
+          "table": null,
+          "latest": "1.0.18",
+          "latest_error": null,
+          "status": "update_available",
+          "finding_id": null,
+          "severity": null,
+          "update_key": null,
+          "update_refusal": "Cargo.toml requires itoa \"=1.0.9\". That does not allow 1.0.18. Change it there first.",
+          "latest_pending": false,
+          "latest_note": null
+        },
+        {
+          "package": "serde",
+          "declared": "1.0.190",
+          "evidence": "range",
+          "installed": "1.0.190",
+          "installed_label": "locked",
+          "table": null,
+          "latest": "1.0.229",
+          "latest_error": null,
+          "status": "update_available",
+          "finding_id": null,
+          "severity": null,
+          "update_key": "cargo/serde@1.0.229|~/Projects/crabby|Cargo.lock",
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        },
+        {
+          "package": "smallvec",
+          "declared": "1.11",
+          "evidence": "range",
+          "installed": "1.11.0",
+          "installed_label": "locked",
+          "table": null,
+          "latest": "1.16.4",
+          "latest_error": null,
+          "status": "update_available",
+          "finding_id": null,
+          "severity": null,
+          "update_key": "cargo/smallvec@1.16.4|~/Projects/crabby|Cargo.lock",
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        },
+        {
+          "package": "memchr",
+          "declared": "2.6",
+          "evidence": "range",
+          "installed": "2.8.3",
+          "installed_label": "locked",
+          "table": "dev-dependencies",
+          "latest": "2.8.3",
+          "latest_error": null,
+          "status": "up_to_date",
+          "finding_id": null,
+          "severity": null,
+          "update_key": null,
+          "update_refusal": null,
+          "latest_pending": false,
+          "latest_note": null
+        }
+      ],
+      "refusal": null,
+      "latest_source": {
+        "registry": "crates.io",
+        "retrieved_at": "2026-10-30T07:23:41Z",
+        "error": null
+      },
+      "pending": 0
+    }
+  ],
+  "pending": 0
+}

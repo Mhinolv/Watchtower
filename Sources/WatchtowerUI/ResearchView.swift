@@ -2,7 +2,7 @@ import SwiftUI
 import WatchtowerCore
 
 // The `Incidents` screen (#12). The file name follows the issue. The screen and its sidebar item are
-// `Incidents`, and the button is `Check Sources`: `Research` is kept for the v2 Claude research.
+// `Incidents`. `Check Sources` reads the vendor sources. `Research` runs the optional Claude web research (#19).
 
 /// A status badge for an incident: Confirmed (red), Possible relevance (orange), Unconfirmed (gray).
 struct IncidentStatusBadge: View {
@@ -40,6 +40,7 @@ struct CheckSourcesBar: View {
                 .buttonStyle(.bordered)
                 .help("Check the vendor sources now. This does not start a refresh.")
             }
+            ResearchButton(model: model)
             HStack(spacing: 6) {
                 if label.showsProgress { ProgressView().controlSize(.small) }
                 Text(label.text).foregroundStyle(label.tone.color)
@@ -47,6 +48,77 @@ struct CheckSourcesBar: View {
             .accessibilityElement(children: .combine)
             Spacer()
         }
+    }
+}
+
+/// `Research` (#19): the optional Claude web research. During a run: the elapsed time and `Stop` (⌘.).
+struct ResearchButton: View {
+    let model: IncidentModel
+
+    var body: some View {
+        if model.isResearching {
+            // The timeline only redraws each second. The model clock gives the time, so previews stay fixed.
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(model.researchElapsedText()).monospacedDigit()
+                        .accessibilityLabel(model.researchAccessibilityText())
+                    Button("Stop", systemImage: "stop.fill") { model.stopResearch() }
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(".", modifiers: .command)
+                        .help("Stop the research. Nothing is saved.")
+                }
+                .fixedSize()
+            }
+        } else {
+            Button {
+                model.askResearch()
+            } label: {
+                Label("Research", systemImage: "magnifyingglass")
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.researchBlock != nil)
+            .help(model.researchBlock ?? "Search public web news with Claude. You confirm the topics first.")
+        }
+    }
+}
+
+/// The confirm sheet before every research run: the exact topics sent and the limits.
+public struct ResearchConfirmSheet: View {
+    let model: IncidentModel
+
+    public init(model: IncidentModel) {
+        self.model = model
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Run Claude web research?").font(.title3.bold())
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 10) {
+                GridRow {
+                    Text("Topics sent").foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(model.researchStatus?.topics ?? [], id: \.self) { Text($0) }
+                        Text("Nothing else leaves the Mac.").font(.callout).foregroundStyle(.secondary)
+                    }
+                }
+                GridRow {
+                    Text("Limits").foregroundStyle(.secondary)
+                    Text(model.researchStatus?.limits ?? IncidentModel.researchLimits)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Text("Claims are saved as Unconfirmed. Only a primary source confirms them.")
+                .font(.callout).foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { model.showsResearchConfirm = false }
+                    .keyboardShortcut(.cancelAction)
+                Button("Run Research") { model.runResearch() }
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
     }
 }
 
@@ -96,6 +168,12 @@ public struct IncidentsView: View {
             if let error = model.lastError {
                 Label(error.message, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.orange.color)
             }
+            if let notice = model.researchNotice {
+                Label(notice, systemImage: "person.crop.circle.badge.exclamationmark").foregroundStyle(Tone.orange.color)
+            }
+            if let result = model.researchResult {
+                Label(result.text, systemImage: "magnifyingglass").foregroundStyle(result.tone.color)
+            }
             HStack(alignment: .top, spacing: 12) {
                 ForEach(model.sourceRows()) { SourceCard(row: $0) }
             }
@@ -107,6 +185,7 @@ public struct IncidentsView: View {
         }
         .padding([.horizontal, .top], 16)
         .frame(maxHeight: .infinity, alignment: .top)
+        .sheet(isPresented: $model.showsResearchConfirm) { ResearchConfirmSheet(model: model) }
     }
 
     @ViewBuilder private var table: some View {
@@ -183,6 +262,10 @@ struct IncidentDetail: View {
                     } else {
                         row("Date", incident.published.map { time.day($0) } ?? "Not given by the source")
                         row("Source", incident.sourceName)
+                        if incident.isWebResearch {
+                            // Claude named this link. Watchtower did not check it, so it confirms nothing (#19).
+                            row("Primary source", incident.primarySourceText)
+                        }
                     }
                     row("First seen", time.absolute(incident.firstSeen))
                     if incident.breach == nil {
