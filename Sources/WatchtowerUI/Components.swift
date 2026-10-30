@@ -243,3 +243,34 @@ struct SupportLabel: View {
         .help(status.label)
     }
 }
+
+/// The `Evidence` section of a detail pane (#17): Installed, Lockfile, Running, Container image and Deployment.
+/// Unknown stays `Unknown`. An older running version is orange and says what to do.
+struct EvidenceSection: View {
+    let rows: [EvidenceRow]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Evidence").font(.headline)
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 6) {
+                ForEach(rows, id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        if row.tone == .orange {
+                            Label(row.value, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(Tone.orange.color)
+                        } else {
+                            Text(row.value).textSelection(.enabled)
+                        }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(row.accessibilityText)
+                }
+            }
+            if rows.contains(where: { $0.label == "Container image" }) {
+                Text("Container image is metadata from project files. Watchtower starts no container.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}

@@ -44,6 +44,7 @@ def test_lists_projects_in_both_roots_with_fields(home):
         "root": "~/Projects",
         "manifests": ["package-lock.json", "package.json"],
         "state": "active",
+        "container_images": [],  # The folder was read and has no Dockerfile or compose file (#17).
     }
 
 

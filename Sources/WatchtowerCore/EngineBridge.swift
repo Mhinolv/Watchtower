@@ -33,6 +33,8 @@ public struct ProjectRecord: Codable, Hashable, Sendable, Identifiable {
     public var dependencies: [DependencyRecord]?
     /// Why the table is incomplete or missing, for example `Cargo workspaces are not supported yet.`
     public var dependencyNote: String?
+    /// Image names from the Dockerfile and compose files (#17). Empty: read, none found. nil: not read.
+    public var containerImages: [String]?
 
     public var id: String { path }
     public var isActive: Bool { state != "inactive" }
@@ -40,7 +42,7 @@ public struct ProjectRecord: Codable, Hashable, Sendable, Identifiable {
 
     public init(name: String, path: String, root: String, manifests: [String], state: String,
                 requirements: [RequirementsFile]? = nil, dependencies: [DependencyRecord]? = nil,
-                dependencyNote: String? = nil) {
+                dependencyNote: String? = nil, containerImages: [String]? = nil) {
         self.name = name
         self.path = path
         self.root = root
@@ -49,6 +51,7 @@ public struct ProjectRecord: Codable, Hashable, Sendable, Identifiable {
         self.requirements = requirements
         self.dependencies = dependencies
         self.dependencyNote = dependencyNote
+        self.containerImages = containerImages
     }
 }
 
@@ -208,6 +211,14 @@ public protocol EngineClient: Sendable {
     func deferFinding(id: String, days: Int) async throws -> FindingRecord
     func moveFindingToBacklog(id: String) async throws -> FindingRecord
     func reopenFinding(id: String) async throws -> FindingRecord
+    func settings() async throws -> EngineSettings
+    func setCheckRunningVersions(_ on: Bool) async throws -> EngineSettings
+}
+
+extension EngineClient {
+    // Fakes that do not care about settings keep the default: the check is on.
+    public func settings() async throws -> EngineSettings { EngineSettings() }
+    public func setCheckRunningVersions(_ on: Bool) async throws -> EngineSettings { EngineSettings(checkRunningVersions: on) }
 }
 
 struct FindingResponse: Codable, Sendable {
@@ -294,6 +305,14 @@ public struct Engine: EngineClient {
 
     public func reopenFinding(id: String) async throws -> FindingRecord {
         try await call(["finding-reopen", id], as: FindingResponse.self).finding
+    }
+
+    public func settings() async throws -> EngineSettings {
+        try await call(["settings"], as: SettingsResponse.self).settings
+    }
+
+    public func setCheckRunningVersions(_ on: Bool) async throws -> EngineSettings {
+        try await call(["setting-set", "check-running-versions", on ? "on" : "off"], as: SettingsResponse.self).settings
     }
 
     func call<T: Decodable>(_ args: [String], as type: T.Type,

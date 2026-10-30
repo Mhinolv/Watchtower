@@ -62,6 +62,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower research-status` | `{"schema_version", "state", "text", "topics", "limits", "time_limit_seconds"}`: is Claude Code installed and signed in |
 | `watchtower research-run` | The incidents object, after one Claude web research run. It has `research`, the result of the last run. SIGTERM stops it and saves nothing |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
+| `watchtower settings` | `{"schema_version", "settings"}`: `check_running_versions` (on by default) |
+| `watchtower setting-set check-running-versions on\|off` | The same object, after the change |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
 The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine tests and the Swift tests both check them.
@@ -194,6 +196,15 @@ An update plan for one direct requirement of a requirements-only project (no loc
 - If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
 - Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
 - Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. A finding from an exact pin opens this plan from `Update…` (#80).
+
+## Running versions and container images (#17)
+
+The refresh reads which version of an app, a Homebrew formula or a runtime install runs now. It is separate from the installed version. The detail pane shows it in the `Evidence` section. The `Check running versions` toggle in Settings, tab `General`, is on by default. It saves to `settings.json` in the data folder (mode `0600`).
+- The check runs two read-only system tools: `ps -axo pid=,comm=` (the pid and the executable path, never the arguments) and `lsappinfo list` (the build that LaunchServices registered for each running app). It starts no app, service or program of an item. It reads no browser data, keychain, credential or email. No network call.
+- An app matches by the executable path inside its bundle. A formula matches by the version in its Homebrew `Cellar` path (the oldest process counts). A runtime install matches by a process inside its folder.
+- Item attributes: `runningState` (`known`, `unknown_version`, `none`, `denied`, `not_checked`), `runningVersion`, `runningKind` (`version` or `build`) and `runningChecked`. A denied or skipped check is never `none`, and `none` only means that no process was in the list. The `Deployment` row is always `Unknown`: no check writes it.
+- If the owner turns the check off, no program runs and each probed item has `runningState` `not_checked`. The `running` coverage is `not_run`. The app also hides older running data at once.
+- Container images are metadata from text files in the top folder of an active project: `Dockerfile`, `Dockerfile.*`, `*.Dockerfile`, `compose.y(a)ml` and `docker-compose.y(a)ml` (regular files of at most 256 KB, never a link). Project JSON has `container_images`: a list (empty: read, none found) or no key (not read). Watchtower starts no container, no Docker daemon and no `docker` command, and does not read `~/.docker`.
 
 ## Runtimes, SDKs and editor extensions (#16)
 
