@@ -376,3 +376,153 @@ def test_the_refresh_saves_the_runtimes_source_and_a_failed_one_does_not_stop_it
 
 def test_the_default_sources_include_runtimes(tmp_path):
     assert "runtimes" in [s.source for s in refresh.default_sources(tmp_path)]
+
+
+# Round 2 (#16 QA): special files are never read, and uv Pythons and the python.org framework are listed
+
+import signal
+import stat as stat_module
+
+
+class Hang(BaseException):  # Not an Exception: the inventory catches those.
+    pass
+
+
+@pytest.fixture
+def guard():
+    """Fail a test that blocks, instead of hanging the suite. A FIFO that is opened for reading blocks forever."""
+    def handler(signum, frame):
+        raise Hang("the inventory blocked on a special file")
+    previous = signal.signal(signal.SIGALRM, handler)
+    signal.alarm(8)
+    yield
+    signal.alarm(0)
+    signal.signal(signal.SIGALRM, previous)
+
+
+def fifo(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.mkfifo(path)
+
+
+def test_a_fifo_as_a_manifest_is_never_opened_and_the_version_comes_from_the_folder(machine, guard):
+    home, _ = machine
+    ext = mkdir(home, ".vscode/extensions/evil.ext-1.0.0")
+    fifo(ext / "package.json")
+    fifo(home / ".vscode/extensions/.obsolete")
+    result = collect(machine)
+    assert [(i.name, i.installed_version) for i in by(result, kind="extension")] == [("evil.ext", "1.0.0")]
+
+
+def test_a_fifo_is_not_read_in_any_other_layout(machine, guard):
+    home, system = machine
+    tc = mkdir(home, ".rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib")
+    fifo(tc / "multirust-channel-manifest.toml")
+    mkdir(system, "usr/local/go")
+    fifo(system / "usr/local/go/VERSION")
+    sdk = mkdir(system, "Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk")
+    fifo(sdk / "SDKSettings.plist")
+    jdk = mkdir(system, "Library/Java/JavaVirtualMachines/x.jdk/Contents")
+    fifo(jdk / "Info.plist")
+    app = mkdir(system, "Applications/Xcode.app/Contents")
+    fifo(app / "version.plist")
+    fw = mkdir(system, "Library/Frameworks/Python.framework/Versions/3.13/Resources")
+    fifo(fw / "Info.plist")
+    result = collect(machine)
+    assert result.coverage.state == "partial"
+    unread = sorted((i.name, i.note) for i in result.items if i.installed_version is None)
+    assert unread == [("Java", "Version not found in Info.plist."), ("Python", "Version not found in Info.plist."),
+                      ("Rust", "Version not found in multirust-channel-manifest.toml."),
+                      ("macosx SDK", "Version not found in SDKSettings.plist.")]  # The name comes from the folder.
+    assert by(result, product="go") == []  # A FIFO is no VERSION file: this is not a Go install.
+
+
+def test_a_symlink_to_dev_zero_is_not_followed_and_does_not_fill_the_memory(machine, guard):
+    home, _ = machine
+    ext = mkdir(home, ".vscode/extensions/evil.ext-1.0.0")
+    (ext / "package.json").symlink_to("/dev/zero")
+    result = collect(machine)
+    assert [(i.name, i.installed_version) for i in by(result, kind="extension")] == [("evil.ext", "1.0.0")]
+
+
+def test_a_symlinked_manifest_is_not_followed_even_to_a_real_file(machine, tmp_path):
+    home, _ = machine
+    outside = tmp_path / "outside.json"
+    outside.write_text(json.dumps({"name": "x", "publisher": "evil", "version": "9.9.9", "displayName": "Outside"}))
+    ext = mkdir(home, ".vscode/extensions/acme.tool-1.2.3")
+    (ext / "package.json").symlink_to(outside)
+    [item] = by(collect(machine), kind="extension")
+    assert item.installed_version == "1.2.3" and "displayName" not in item.attributes
+
+
+def test_a_file_over_the_cap_is_not_read(machine):
+    home, _ = machine
+    ext = mkdir(home, ".vscode/extensions/acme.tool-1.2.3")
+    (ext / "package.json").write_text(json.dumps({"version": "9.9.9", "displayName": "x" * (runtimes.MAX_FILE_BYTES + 10)}))
+    [item] = by(collect(machine), kind="extension")
+    assert item.installed_version == "1.2.3"
+
+
+def test_the_reader_takes_regular_files_only_and_caps_every_read(tmp_path, guard):
+    plain = tmp_path / "plain.txt"
+    plain.write_bytes(b"hello")
+    assert runtimes._read_regular(plain) == b"hello"
+    big = tmp_path / "big.bin"
+    big.write_bytes(b"x" * (runtimes.MAX_FILE_BYTES + 1))
+    assert runtimes._read_regular(big) is None
+    assert runtimes._read_regular(tmp_path) is None  # A folder.
+    assert runtimes._read_regular(tmp_path / "missing") is None
+    (tmp_path / "link").symlink_to(plain)
+    assert runtimes._read_regular(tmp_path / "link") is None
+    fifo(tmp_path / "pipe")
+    assert runtimes._read_regular(tmp_path / "pipe") is None
+    (tmp_path / "zero").symlink_to("/dev/zero")
+    assert runtimes._read_regular(tmp_path / "zero") is None
+    assert runtimes._read_regular(Path("/dev/null")) is None  # A character device.
+    assert runtimes._read_regular(tmp_path / "plain.txt", limit=3) is None
+
+
+def test_uv_pythons_are_listed_with_the_version_from_the_folder_name(machine):
+    home, _ = machine
+    uv = home / ".local/share/uv/python"
+    for name in ("cpython-3.11.13-macos-aarch64-none", "cpython-3.12.11-macos-aarch64-none",
+                 "cpython-3.13.0rc2-macos-aarch64-none", "cpython-3.13.1+freethreaded-macos-aarch64-none",
+                 "pypy-3.10.14-macos-aarch64-none", ".temp", "readme-folder"):
+        mkdir(uv, name)
+    (uv / ".lock").write_text("")
+    (uv / "cpython-3.12-macos-aarch64-none").symlink_to("cpython-3.12.11-macos-aarch64-none")  # An alias.
+    result = collect(machine)
+    pythons = {i.installed_version: i for i in by(result, product="python")}
+    assert sorted(pythons) == ["3.11.13", "3.12.11", "3.13.0rc2", "3.13.1"]
+    new = pythons["3.13.1"]
+    assert (new.name, new.origin, new.kind, new.state) == ("Python", "uv", "runtime", "manual")
+    assert new.attributes["eolProduct"] == "python" and new.attributes["path"].endswith("cpython-3.13.1+freethreaded-macos-aarch64-none")
+    assert pythons["3.11.13"].note == "Old copy" and pythons["3.12.11"].note == "Old copy"
+    assert result.coverage.state == "complete"
+
+
+def test_the_python_org_framework_is_listed_by_its_info_plist_and_current_is_skipped(machine):
+    _, system = machine
+    versions = system / "Library/Frameworks/Python.framework/Versions"
+    put(versions / "3.13/Resources/Info.plist", "python-framework-info.plist")
+    (versions / "Current").symlink_to("3.13")
+    mkdir(versions, "3.12/Resources")
+    (versions / "3.12/Resources/Info.plist").write_bytes(plistlib.dumps({"CFBundleVersion": "3.12.9"}))
+    mkdir(versions, "2.7")  # No Info.plist: the folder name is not a full version.
+    result = collect(machine)
+    framework = {i.installed_version: i for i in by(result, origin="python.org")}
+    assert set(framework) == {"3.13.5", "3.12.9", None}
+    assert framework["3.13.5"].attributes["product"] == "python" and framework["3.13.5"].state == "manual"
+    assert framework["3.12.9"].note == "Old copy"
+    assert framework[None].note == "Version not found in Info.plist." and result.coverage.state == "partial"
+
+
+def test_python_copies_of_different_managers_are_one_family(machine):
+    home, system = machine
+    mkdir(home, ".pyenv/versions/3.12.4")
+    mkdir(home, ".local/share/uv/python/cpython-3.12.11-macos-aarch64-none")
+    put(system / "Library/Frameworks/Python.framework/Versions/3.13/Resources/Info.plist", "python-framework-info.plist")
+    result = collect(machine)
+    order = [(i.installed_version, i.origin, i.note) for i in by(result, product="python")]
+    assert order == [("3.13.5", "python.org", runtimes.NOTE_NEWEST), ("3.12.11", "uv", "Old copy"), ("3.12.4", "pyenv", "Old copy")]
+    assert {i.attributes["copies"] for i in by(result, product="python")} == {"3"}

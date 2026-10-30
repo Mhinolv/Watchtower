@@ -6,7 +6,8 @@ container, a keychain or a credential file. A runtime that a project needs is no
 these items never appear in the project list (#2).
 
 Three groups, one item for each install (three Node versions give three items):
-- Runtimes: nvm, fnm, Volta, pyenv, rbenv, rustup, SDKMAN!, asdf, mise, Java virtual machines, Go.
+- Runtimes: nvm, fnm, Volta, pyenv, rbenv, uv Pythons, the python.org framework, rustup, SDKMAN!, asdf, mise,
+  Java virtual machines, Go.
 - SDKs: the macOS, iOS and other SDKs of each Xcode and of the Command Line Tools.
 - Editor extensions: VS Code, VS Code Insiders, Cursor, Windsurf and VSCodium.
 Homebrew installs are not listed here: the Homebrew source has them (#3).
@@ -23,14 +24,16 @@ from __future__ import annotations
 
 import json
 import os
+import plistlib
 import re
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..discovery import display_path
 from ..models import CoverageRecord, ItemRecord
 from .homebrew import SourceResult, version_key
-from .plist import read_plist, text
+from .plist import text
 
 SOURCE = "runtimes"
 LABEL = "Runtimes"
@@ -121,13 +124,54 @@ def _subdirs(entries: list[os.DirEntry]) -> list[os.DirEntry]:
     return out
 
 
-def _read_text(path: Path) -> str | None:
+def _read_regular(path: Path, limit: int = MAX_FILE_BYTES) -> bytes | None:
+    """The bytes of a regular file of at most `limit` bytes, else None.
+
+    Every file here can sit in an untrusted folder (an editor extension, a retained install). The file is opened
+    without following a symlink (`O_NOFOLLOW`) and without blocking (`O_NONBLOCK`, for a FIFO). It must be a
+    regular file: a character device such as /dev/zero, a FIFO, a socket and a folder are refused. The size is
+    checked from the open file, and the read stops at `limit` + 1 bytes, so a file that lies about its size cannot
+    fill the memory.
+    """
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
     try:
-        if path.stat().st_size > MAX_FILE_BYTES:
-            return None
-        return path.read_text(encoding="utf-8", errors="replace")
+        fd = os.open(path, flags)
     except OSError:
         return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            return None
+        data = bytearray()
+        while len(data) <= limit:
+            chunk = os.read(fd, min(65536, limit + 1 - len(data)))
+            if not chunk:
+                break
+            data += chunk
+        return bytes(data) if len(data) <= limit else None
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
+def _read_text(path: Path) -> str | None:
+    data = _read_regular(path)
+    return None if data is None else data.decode("utf-8", errors="replace")
+
+
+def read_plist(path: Path) -> dict:
+    """A property list from a regular file. Raises OSError or ValueError, like `plist.read_plist`."""
+    data = _read_regular(Path(path))
+    if data is None:
+        raise OSError("not a regular file, or too large")
+    try:
+        parsed = plistlib.loads(data)
+    except Exception as exc:  # plistlib raises several error types for bad input
+        raise ValueError(f"not a property list: {exc!r}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("property list is not a dictionary")
+    return parsed
 
 
 def _read_json(path: Path) -> dict | None:
@@ -170,6 +214,8 @@ HOME_DIRS = (
     VersionDir("~/.rbenv", ".rbenv/versions", "ruby", "rbenv"),
 )
 
+_UV_PYTHON = re.compile(r"^cpython-(\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?)(?:\+[a-z]+)?-")
+
 
 def _product_install(product: str, version: str | None, path: Path, source: str, error: str | None = None) -> Install:
     name, eol = PRODUCTS[product]
@@ -188,6 +234,36 @@ def scan_version_dir(home: Path, spec: VersionDir, scan: Scan) -> None:
         path = Path(entry.path)
         scan.installs.append(_product_install(spec.product, version, path / spec.inner if spec.inner else path,
                                               spec.source))
+
+
+def scan_uv_pythons(home: Path, scan: Scan) -> None:
+    """uv Pythons: `~/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none`. The folder name has the version.
+
+    uv also keeps a symlink such as `cpython-3.12-macos-aarch64-none`: an alias, not a copy. Hidden entries
+    (`.lock`, `.temp`) and other implementations (`pypy-…`) are skipped.
+    """
+    for entry in _subdirs(list_dir(home / ".local/share/uv/python", "~/.local/share/uv", "runtime", scan)):
+        m = _UV_PYTHON.match(entry.name)
+        if m:
+            scan.installs.append(_product_install("python", m.group(1), Path(entry.path), "uv"))
+
+
+def scan_python_framework(system: Path, scan: Scan) -> None:
+    """The python.org installer: `/Library/Frameworks/Python.framework/Versions/3.13` (`Current` is a symlink).
+
+    The folder name has only the minor version. `Resources/Info.plist` has the full one (`CFBundleVersion`).
+    """
+    root = system / "Library/Frameworks/Python.framework/Versions"
+    for entry in _subdirs(list_dir(root, "/Library/Frameworks/Python.framework", "runtime", scan)):
+        path = Path(entry.path)
+        version = None
+        try:
+            info = read_plist(path / "Resources" / "Info.plist")
+            version = plain_version(text(info.get("CFBundleVersion")) or "")
+        except (OSError, ValueError):
+            pass
+        scan.installs.append(_product_install("python", version, path, "python.org",
+                                              None if version else NOTE_NO_VERSION.format(file="Info.plist")))
 
 
 def scan_tool_versions(home: Path, root: str, label: str, source: str, scan: Scan) -> None:
@@ -419,6 +495,8 @@ def collect(home: str | os.PathLike | None = None, system_root: str | os.PathLik
     scan = Scan()
     steps = [
         *(lambda s=spec: scan_version_dir(home_path, s, scan) for spec in HOME_DIRS),
+        lambda: scan_uv_pythons(home_path, scan),
+        lambda: scan_python_framework(system, scan),
         lambda: scan_tool_versions(home_path, ".asdf/installs", "~/.asdf", "asdf", scan),
         lambda: scan_tool_versions(home_path, ".local/share/mise/installs", "~/.local/share/mise", "mise", scan),
         lambda: scan_sdkman(home_path, scan),
