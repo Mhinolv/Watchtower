@@ -121,6 +121,8 @@ public enum UpdateStatus: String, Codable, Sendable, CaseIterable {
     case running, verified, failed, refused, interrupted
     case notVerified = "not_verified"
     case planChanged = "plan_changed"
+    /// A Cargo update (#15): the lockfile is checked, but no installed crate can be read.
+    case lockfileUpdated = "lockfile_updated"
 
     public var text: String {
         switch self {
@@ -131,6 +133,7 @@ public enum UpdateStatus: String, Codable, Sendable, CaseIterable {
         case .planChanged: "Plan changed"
         case .refused: "Not run"
         case .interrupted: "Interrupted"
+        case .lockfileUpdated: "Lockfile updated"
         }
     }
 }
@@ -195,6 +198,7 @@ public struct UpdateResultStyle: Equatable, Sendable {
     public var detail: String? {
         switch symbol {
         case "checkmark.seal": "Watchtower read the version again after the command."
+        case "checkmark.circle": "Watchtower read Cargo.lock again. Cargo builds the crate on next use."
         case "xmark.octagon": "Watchtower did not confirm any change."
         case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified:"):
             "Watchtower does not count this update as done."
@@ -208,7 +212,7 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
         case .notVerified:
-            let text = if ["uv", "npm", "requirements"].contains(attempt.kind), let error = attempt.error {
+            let text = if ["uv", "npm", "cargo", "requirements"].contains(attempt.kind), let error = attempt.error {
                 error  // The engine says what is not verified: the lockfile or the installed package.
             } else if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
@@ -228,6 +232,8 @@ public struct UpdateResultStyle: Equatable, Sendable {
                                     "The update was interrupted. Refresh to see the installed version.")
         case .running:
             (symbol, tone, text) = ("hourglass", .secondary, "Running…")
+        case .lockfileUpdated:
+            (symbol, tone, text) = ("checkmark.circle", .green, "Lockfile updated.")
         }
     }
 }
@@ -244,6 +250,16 @@ public enum UVUpdate {
 
     /// Nil if `Update…` can open the plan, else why it is off.
     public static func blockReason(_ path: FindingPath) -> String? { path.updateBlock }
+}
+
+public enum CargoUpdate {
+    /// `cargo/smallvec@1.6.1|~/Projects/tool|Cargo.lock` (#15). nil if this path has no Cargo update:
+    /// another lockfile, another ecosystem, or no fixed version.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "crates.io", (path.lockfile as NSString).lastPathComponent == "Cargo.lock",
+              let fixed = finding.fixedIn, !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        return "cargo/\(finding.package)@\(fixed)|\(path.projectPath)|\(path.lockfile)"
+    }
 }
 
 public enum NPMUpdate {
@@ -270,10 +286,10 @@ public enum RequirementsUpdate {
 }
 
 public enum UpdateKeys {
-    /// The engine key for one finding path: uv (#11), npm (#10) or requirements (#30). nil if no adapter fits.
+    /// The engine key for one finding path: uv (#11), npm (#10), Cargo (#15) or requirements (#30). nil if no adapter fits.
     public static func forFinding(_ finding: FindingRecord, _ path: FindingPath) -> String? {
         UVUpdate.key(finding: finding, path: path) ?? NPMUpdate.key(finding: finding, path: path)
-            ?? RequirementsUpdate.key(finding: finding, path: path)
+            ?? CargoUpdate.key(finding: finding, path: path) ?? RequirementsUpdate.key(finding: finding, path: path)
     }
 
     /// Nil if `Update…` can open a plan for this path, else why it is off.
@@ -282,8 +298,8 @@ public enum UpdateKeys {
         if forFinding(finding, path) != nil { return nil }
         if finding.status == .resolved { return "This finding is resolved." }
         switch (path.lockfile as NSString).lastPathComponent {
-        case "uv.lock", "requirements.txt": return "No fixed version is known."
-        default: return "Watchtower updates projects with package-lock.json, uv.lock or requirements.txt only."
+        case "uv.lock", "Cargo.lock", "requirements.txt": return "No fixed version is known."
+        default: return "Watchtower updates projects with package-lock.json, uv.lock, Cargo.lock or requirements.txt only."
         }
     }
 }

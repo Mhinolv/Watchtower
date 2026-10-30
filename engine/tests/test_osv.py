@@ -101,7 +101,7 @@ def projects(home):
     files = {
         "web": {"package.json": "{}", "package-lock.json": (FIX / "package-lock.json").read_text()},
         "api": {"pyproject.toml": "", "uv.lock": (FIX / "uv.lock").read_text()},
-        "mono": {"app/package-lock.json": (FIX / "package-lock.json").read_text(), "Cargo.lock": ""},
+        "mono": {"app/package-lock.json": (FIX / "package-lock.json").read_text(), "Gemfile.lock": ""},
         "notes": {"README.md": ""},
         "old": {"package-lock.json": "{}"},
     }
@@ -222,7 +222,7 @@ def test_lockfile_rows_and_project_notes(tmp_path, projects):
     result = scan(data, projects, asset)
     assert lockfile_rows(result) == {
         ("api", "uv.lock"): ("scanned", None),
-        ("mono", "Cargo.lock"): ("not_supported", "not supported yet"),
+        ("mono", "Gemfile.lock"): ("not_supported", "not supported yet"),
         ("mono", "app/package-lock.json"): ("scanned", None),
         ("web", "package-lock.json"): ("scanned", None),
     }
@@ -235,7 +235,7 @@ def test_lockfile_rows_and_project_notes(tmp_path, projects):
 def test_no_supported_lockfile_needs_no_scanner_or_download(tmp_path, home):
     root = home / "Projects"
     (root / "rusty").mkdir(parents=True)
-    (root / "rusty" / "Cargo.lock").write_text("")
+    (root / "rusty" / "Gemfile.lock").write_text("")
     download = FakeDownload()
     result = osv.collect(tmp_path / "data", discover((str(root),)).projects, asset=Asset("x", "0" * 64),
                          download=download, now=lambda: NOW)

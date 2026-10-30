@@ -220,3 +220,29 @@ def test_the_pins_file_is_private(tmp_path):
     assert oct(path.stat().st_mode & 0o777) == "0o600"
     assert oct(path.parent.stat().st_mode & 0o777) == "0o700"
     assert path.read_text() == "requests==2.31.0\n"
+
+
+# Nested folders (#85 discovery walks 8 levels and gives paths relative to the project)
+
+
+def test_a_deeply_nested_requirements_file_makes_a_finding_with_its_relative_path(tmp_path, home):
+    project(home, "mono", {"web/package.json": "{}", "web/package-lock.json": "{}",
+                           "services/api/scripts/requirements.txt": MIXED})
+    found = discover((str(home / "Real"),)).projects
+    assert "services/api/scripts/requirements.txt" in found[0].manifests
+    result, log = scan(tmp_path, [home / "Real"])
+    lf = rows(result)[("mono", "services/api/scripts/requirements.txt")]
+    assert (lf.status, lf.ecosystem, len(lf.pins)) == ("scanned", "PyPI", 3)
+    assert any(text == "requests==2.31.0\nurllib3==1.26.18\nJinja2==3.1.2\n"
+               for c in calls(log) for text in c["inputs"].values())
+    with Store(tmp_path / "data", clock=Clock(*[f"2026-10-29T10:{m:02d}:00Z" for m in range(60)])) as store:
+        state = finish(store, result)
+    path = next(f for f in state["findings"] if f["package"] == "requests")["paths"][0]
+    assert (path["project_path"], path["lockfile"]) == ("~/Real/mono", "services/api/scripts/requirements.txt")
+    assert path["evidence"] == {"declared": "requests==2.31.0", "evidence": "Exact pin", "installed": None}
+    assert path["update_block"] == "No environment found. Watchtower does not create environments."
+    key = ru.make_key("requests", "2.32.4", path["project_path"], path["lockfile"])
+    assert ru.parse_key(key).file == "services/api/scripts/requirements.txt"
+    summary = {p.name: p.to_dict() for p in list_projects(tmp_path / "data", roots=(str(home / "Real"),)).projects}
+    assert summary["mono"]["requirements"] == [{"file": "services/api/scripts/requirements.txt", "pins": 3,
+                                                "other_lines": 3, "skipped": None}]

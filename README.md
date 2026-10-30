@@ -71,7 +71,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://formulae.brew.sh/api/formula.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if formulae are installed |
 | GET `https://formulae.brew.sh/api/cask.json` | None. The full public catalog. A cached `If-None-Match` ETag. | Homebrew check, if casks are installed. Apps check, if any app is found (#55) |
 | GET `https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_<arch>` | None. The pinned release asset. | OSV scan, if the verified scanner is missing |
-| GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
+| GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI,crates.io}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
 | GET `https://registry.npmjs.org/<package>` and `/<package>/<version>` | The package name and a version only. | npm update plan, after the owner clicks `Update…` |
 | `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
 | `mas version` and `mas list --json` | Nothing. Local calls. mas reads the Spotlight index. | Apps inventory, each refresh, only if an app has an App Store receipt |
@@ -98,7 +98,7 @@ It never launches an app. For the cask links, `watchtower apps` also runs the `b
 The Sparkle check reads the appcast of each app that has `SUFeedURL` and no usable Homebrew answer (#14).
 It refuses an address that is not HTTPS, has a user name, password or secret query value, or points to this Mac or a local network. A redirect must pass the same rules.
 Before each request, the engine resolves the host name. If any address is not global (private, loopback, link-local and others), it refuses the feed (#67).
-It connects to the address that it checked, so a second DNS answer cannot change it. TLS still checks the certificate against the host name. Sparkle feeds do not use a proxy.
+It checks every address of the host name first: one local address refuses the host. Then it connects to the checked addresses only, in order, until one connects (at most 8). A second DNS answer cannot change this. TLS still checks the certificate against the host name, and a TLS failure is not retried on the next address. Sparkle feeds do not use a proxy.
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
@@ -111,7 +111,7 @@ Watchtower never installs macOS or Safari. The `Open Software Update` button ope
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
 The scanner runs with `--offline` against the local databases in `osv/` in the data folder, so the scan sends nothing.
-It scans `package-lock.json` and `uv.lock`, and the exact pins of `requirements.txt` in a folder with no lockfile (#80). A database older than 7 days makes the OSV coverage `stale`.
+It scans `package-lock.json`, `uv.lock` and `Cargo.lock` (crates.io, #15), and the exact pins of `requirements.txt` in a folder with no lockfile (#80). A database older than 7 days makes the OSV coverage `stale`.
 For a `requirements.txt`, the engine writes only `name==version` lines of its exact pins to a private file in `osv/requirements-pins/`, scans that file and deletes it. Ranges (`flask>=2.0,<3`), unpinned lines, markers and options never reach the scanner, and a range never makes a finding.
 A file with `-r`/`-c` includes or `--hash` lines is not scanned. The Projects detail says so, and the OSV coverage stays `partial` with `N requirements projects skipped.`
 
@@ -146,6 +146,17 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - uv runs with `UV_PYTHON_DOWNLOADS=never` and without `UV_*` variables of the owner. Watchtower never creates or rebuilds an environment. It refuses a project with no `.venv`, a workspace, a git or path dependency, a package that is not a direct dependency, and a requirement in `pyproject.toml` that does not allow the target.
 - Watchtower does not edit `pyproject.toml`. Before the run it copies `pyproject.toml` and `uv.lock` to `update-backups/attempt-<id>/` in the data folder.
 - Success needs both: `uv.lock` and the installed package in `.venv` show the target. A new lock with the old installed version stays `Not verified`. A changed file other than `uv.lock`, or a replaced environment, is also `Not verified`.
+
+### Cargo dependency update (#15)
+
+`Update…` on a Cargo finding plans one direct dependency in one Cargo project. Watchtower shows the exact command and runs it only after you confirm:
+`cargo update --manifest-path <Cargo.toml> -p <crate>@<locked> --precise <fixed version>`.
+The plan runs the same command with `--dry-run` to list the other packages that change. `cargo update` writes only `Cargo.lock`. It compiles nothing, so no build script runs.
+Watchtower does not edit `Cargo.toml`. If its requirement does not allow the fixed version (for example an exact pin `=1.0.9`), the plan stops and says so.
+Watchtower refuses Cargo workspaces, git and path dependencies, and a `Cargo.lock` that is missing or does not match `Cargo.toml`.
+A semver-incompatible change (for example `0.2` to `0.3`) needs its own confirmation. Watchtower copies `Cargo.toml` and `Cargo.lock` to `update-backups/` first.
+The result is `Lockfile updated`, never `Verified`: Watchtower reads `Cargo.lock` again, but no installed crate exists until Cargo builds it.
+The Projects detail shows a `Dependencies` table for Cargo projects. `Evidence` keeps exact pins and ranges apart.
 
 ### Mac App Store apps (mas)
 

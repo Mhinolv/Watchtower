@@ -401,6 +401,7 @@ def get(db: sqlite3.Connection, now: str, finding_id: str) -> Finding:
 def list_findings(db: sqlite3.Connection, now: str) -> list[Finding]:
     """All findings, urgent first: severity, then newest `last_seen`, then id."""
     from .updates import npm as npm_updates  # Not at the top: the modules import the store.
+    from .updates import cargo as cargo_updates
     from .updates import requirements as req_updates
     from .updates import uv as uv_updates
 
@@ -411,6 +412,7 @@ def list_findings(db: sqlite3.Connection, now: str) -> list[Finding]:
                         json.loads(p["dependency_path"]) if p["dependency_path"] is not None else None,
                         uv_updates.block_reason(p["project_path"], p["lockfile"])
                         or npm_updates.block_reason(p["project_path"], p["lockfile"])
+                        or cargo_updates.block_reason(p["project_path"], p["lockfile"])
                         or req_updates.block_reason(p["project_path"], p["lockfile"]),
                         req_updates.path_evidence(p["project_path"], p["lockfile"], row["package"]))
             for p in db.execute(

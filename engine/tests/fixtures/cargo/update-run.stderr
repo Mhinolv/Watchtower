@@ -1,0 +1,4 @@
+    Updating crates.io index
+    Updating serde v1.0.190 -> v1.0.210
+    Updating serde_derive v1.0.190 -> v1.0.210 (available: v1.0.229)
+note: pass `--verbose` to see 2 unchanged dependencies behind latest
