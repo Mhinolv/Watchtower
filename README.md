@@ -65,6 +65,8 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://osv-vulnerabilities.storage.googleapis.com/{npm,PyPI}/all.zip` | The ecosystem name only. A cached `If-None-Match` ETag. | OSV scan, each refresh, for ecosystems with lockfiles |
 | GET `https://registry.npmjs.org/<package>` and `/<package>/<version>` | The package name and a version only. | npm update plan, after the owner clicks `Update…` |
 | `npm install --package-lock-only` in a temp copy of `package.json` and `package-lock.json` | What npm sends to its registry (package names and versions). It uses your npm config. | npm update plan |
+| `mas version` and `mas list --json` | Nothing. Local calls. mas reads the Spotlight index. | Apps inventory, each refresh, only if an app has an App Store receipt |
+| `mas outdated --json <id>` | The App Store ID of one app. mas asks the App Store. | App Store update plan, after the owner clicks `Check for Update…` |
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
@@ -123,6 +125,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - uv runs with `UV_PYTHON_DOWNLOADS=never` and without `UV_*` variables of the owner. Watchtower never creates or rebuilds an environment. It refuses a project with no `.venv`, a workspace, a git or path dependency, a package that is not a direct dependency, and a requirement in `pyproject.toml` that does not allow the target.
 - Watchtower does not edit `pyproject.toml`. Before the run it copies `pyproject.toml` and `uv.lock` to `update-backups/attempt-<id>/` in the data folder.
 - Success needs both: `uv.lock` and the installed package in `.venv` show the target. A new lock with the old installed version stays `Not verified`. A changed file other than `uv.lock`, or a replaced environment, is also `Not verified`.
+
+### Mac App Store apps (mas)
+
+- An app with an App Store receipt shows `App Store` as its source. The `Latest` column stays `—`.
+- Pinned `mas`: 7.0.0 (`mas list --json` needs 7.0.0). Watchtower accepts 7.x from 7.0.0. Another version shows `mas <version> is not supported.`
+- The inventory runs `mas version` and `mas list --json` only. It never runs `mas outdated`.
+- `Check for Update…` runs `mas outdated --json <id>` in the plan step. If the app is current, the sheet says `<name> is up to date (<version>).`
+- The one command is `mas update <id>`. App Store updates use no package scripts, so the plan says `Not used by App Store updates.`
+- States from mas output: not signed in (`Sign in to the App Store, then try again.`), needs an administrator (`This update needs an administrator. Use the App Store app.`), Spotlight cannot find apps (`App Store: partial` in Coverage).
+- Success needs the engine to read the installed version again from the app's `Info.plist`. Exit code 0 alone is `Not verified`.
 
 ## Findings
 

@@ -13,10 +13,12 @@ import subprocess
 from typing import Callable
 
 from .feeds.homebrew import http_fetch
+from .inventory import mas as mas_inventory
 from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
 from .updates import homebrew as brew_updates
+from .updates import mas as mas_updates
 from .updates import npm as npm_updates
 from .updates import uv as uv_updates
 
@@ -48,13 +50,16 @@ def _item(store: Store, item_key: str):
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
                 uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-                npm: str | None = None, get=None, **platform) -> brew_updates.Plan:
+                npm: str | None = None, get=None, mas: str | None = None, **platform) -> brew_updates.Plan:
     if item_key.startswith(uv_updates.KEY_PREFIX):
         return uv_updates.make_plan(item_key, uv, run, fetch, **(uv_options or {}))
     if item_key.startswith(npm_updates.KEY_PREFIX):
         options = {"get": get} if get else {}
         return npm_updates.make_plan(item_key, npm, run, **options)
     item = _item(store, item_key)
+    if mas_updates.is_store_item(item):
+        return mas_updates.make_plan(item_key, item.name, (item.attributes or {}).get("adamId"),
+                                     item.installed_version, mas or mas_inventory.find_mas(), run)
     if item is None or item.source != "homebrew" or item.kind not in ("formula", "cask"):
         raise UpdateError(ERROR_NOT_UPDATABLE)
     brew = brew or find_brew()
@@ -78,10 +83,10 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
                brew: str | None = None, run: Callable = subprocess.run,
                runner: brew_updates.RunStreaming = brew_updates.run_streaming,
                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-               npm: str | None = None, get=None, **platform) -> tuple[Attempt, dict]:
+               npm: str | None = None, get=None, mas: str | None = None, **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, **platform)
+    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -105,6 +110,9 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
         return _run_uv(store, log, plan, attempt_id, confirm_scripts, line, output, runner)
     if plan.kind == npm_updates.KIND:
         return _run_npm(log, attempt_id, plan, confirm_scripts, line, runner, output), plan.to_dict()
+
+    if plan.kind == mas_updates.KIND:
+        return _run_mas(store, log, plan, attempt_id, line, output, runner, run), plan.to_dict()
 
     try:
         code = brew_updates.upgrade(plan, line, runner)
@@ -135,6 +143,39 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
             error = ERROR_NOT_VERIFIED.format(version=after or "unknown")
         log.finish(attempt_id, "not_verified", after, code, text, error)
     return log.get(attempt_id), plan.to_dict()
+
+
+def _run_mas(store: Store, log: UpdateLog, plan, attempt_id: int, line, output: list[str], runner, run) -> Attempt:
+    """Run `mas update <id>`, then read the installed version again. Success needs the planned version."""
+    try:
+        code = mas_updates.execute(plan, line, runner)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id)
+    item = _item(store, plan.item_key)
+    path = (item.attributes or {}).get("path") if item else None
+    try:
+        after = mas_updates.read_installed(path, plan.full_name, plan.command[0], run)
+    except Exception as exc:
+        output.append(f"version re-read failed: {exc!r}")
+        after = None
+    text = "\n".join(output)
+    if code != 0:
+        log.finish(attempt_id, "failed", after, code, text,
+                   mas_updates.failure_message(text) or ERROR_FAILED.format(code=code))
+    elif after == plan.target_version:
+        log.finish(attempt_id, "verified", after, code, text)
+        _mark_item_updated(store, plan, after)
+    else:
+        if after is not None and after != plan.installed_version:
+            error = ERROR_OTHER_VERSION.format(version=after, target=plan.target_version)
+        else:
+            error = ERROR_NOT_VERIFIED.format(version=after or "unknown")
+        log.finish(attempt_id, "not_verified", after, code, text, error)
+    return log.get(attempt_id)
 
 
 def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line, runner, output) -> Attempt:

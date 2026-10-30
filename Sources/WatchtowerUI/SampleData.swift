@@ -42,6 +42,10 @@ public enum SampleData {
                  latest: "3.4.0", sourceAt: time),
             item("com.tinyspeck.slackmacgap", "apps", "Slack", .upToDate, kind: "app", installed: "4.41.97",
                  latest: "4.41.97", sourceAt: time),
+            ItemRecord(id: "com.apple.iWork.Keynote", source: "apps", name: "Keynote", state: .unknown, kind: "app",
+                       installedVersion: "11.0", latestVersion: nil, origin: "App Store",
+                       note: "Watchtower checks App Store versions only when you click Check for Update…",
+                       attributes: ["adamId": "409183694", "path": "/Applications/Keynote.app"]),
             item("com.example.legacy", "apps", "Legacy Tool", .manual, kind: "app", installed: "1.2", latest: nil),
             item("md.obsidian", "apps", "Obsidian", .error, kind: "app", installed: "1.7.4", latest: nil,
                  error: "Version could not be read.", detail: "Info.plist has no CFBundleShortVersionString"),
@@ -508,6 +512,21 @@ extension SampleData {
         case npmVerified = "update-npm-verified"
         case npmLockfileOnly = "update-npm-lockfile-only"
         case npmNotSupported = "update-npm-not-supported"
+        case masChecking = "update-mas-checking"
+        case masPlan = "update-mas-plan"
+        case masCurrent = "update-mas-current"
+        case masSignedOut = "update-mas-signed-out"
+        case masAdmin = "update-mas-admin"
+    }
+
+    /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
+    public static func masPlan(name: String = "Keynote", installed: String? = "11.0", target: String? = "12.0",
+                               refusal: String? = nil) -> UpdatePlan {
+        UpdatePlan(id: "5d0c8e17a2b64f93", itemKey: "apps/com.apple.iWork.Keynote", name: name, kind: "mas",
+                   fullName: "409183694", installedVersion: installed, targetVersion: target,
+                   command: ["/opt/homebrew/bin/mas", "update", "409183694"], majorChange: refusal == nil,
+                   refusal: refusal,
+                   rows: [PlanRow(label: "Scripts", value: "Not used by App Store updates.")])
     }
 
     public static func npmPlan(scripts: Bool = false) -> UpdatePlan {
@@ -563,6 +582,13 @@ extension SampleData {
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())
         case .npmLockfileOnly: .result(npmAttempt(installed: "4.17.1"), npmPlan())
+        case .masChecking: .loading("Keynote")
+        case .masPlan: .plan(masPlan())
+        case .masCurrent: .plan(masPlan(name: "Numbers", installed: "5.2", target: nil,
+                                        refusal: "Numbers is up to date (5.2)."))
+        case .masSignedOut: .plan(masPlan(installed: nil, target: nil, refusal: "Sign in to the App Store, then try again."))
+        case .masAdmin: .plan(masPlan(installed: nil, target: nil,
+                                      refusal: "This update needs an administrator. Use the App Store app."))
         case .npmNotSupported:
             .plan(UpdatePlan(id: "0", itemKey: "npm|~/Projects/monorepo|acme-router|-", name: "acme-router",
                              kind: "npm", fullName: "acme-router", installedVersion: nil, targetVersion: nil,
@@ -573,7 +599,7 @@ extension SampleData {
         let model = UpdateModel(client: engine, step: scenario == .log ? .idle : step,
                                 output: ["==> Upgrading 1 outdated package:", "git 2.46.0 -> 2.47.1",
                                          "==> Pouring git--2.47.1.arm64_sequoia.bottle.tar.gz"],
-                                attempts: attempts)
+                                attempts: attempts, checkingStore: scenario == .masChecking)
         if scenario == .log { model.selectedAttemptID = 3 }
         return model
     }
