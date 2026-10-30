@@ -86,6 +86,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
+| GET `https://haveibeenpwned.com/api/v3/breaches` | None. The public breach list (about 1 MB), no API key. No email address, account name or finding data. The engine keeps only the breaches of GitHub and Google / Gmail. | Check Sources (on demand only) |
 
 The Homebrew check also runs one local command: `brew info --json=v2 --installed`, with `HOMEBREW_NO_AUTO_UPDATE=1`.
 It never runs `brew update`, `brew upgrade` or install scripts.
@@ -185,3 +186,11 @@ If the 40-request limit leaves ids, the coverage is `partial` with `request limi
 - An incident does not need a CVE. A record is never removed or resolved because a feed stopped listing it. A later check can raise its status, never lower it.
 - A review window ends now and starts 48 hours before the end of the last complete review (7 days back for the first). A review is complete only if every source finished. A failed source makes it partial: its row shows the failure, the other incidents are saved, and the label keeps the end date of the last complete review. Days that no review covers show as a gap.
 - A quiet feed does not prove that no breach happened. The empty result says so.
+
+### Have I Been Pwned (breach list)
+
+- `Check Sources` also reads the public Have I Been Pwned breach list: `GET https://haveibeenpwned.com/api/v3/breaches`. It needs no key.
+- **No email address or account name is ever sent, searched or checked.** The request is the fixed URL. Watchtower never calls the account endpoints. The owner checks an account on haveibeenpwned.com.
+- The engine keeps a breach only if it is about a watched service: GitHub (domain `github.com` or a subdomain, or the exact name or title `GitHub`) or Google / Gmail (domain `google.com`, `gmail.com`, `googlemail.com` or a subdomain, or the exact name or title `Google` or `Gmail`). A part of a name does not match: `Bitcoin Security Forum Gmail Dump` is not Gmail.
+- A verified breach is `Possible relevance`. A breach that is not verified, or is fabricated, is `Unconfirmed`. The list is untrusted text: markup and control characters are removed and lengths are cut.
+- The review window compares with the day HIBP added the breach. A row added by the newest check shows `New`. A failed fetch keeps the earlier rows and shows `Have I Been Pwned: check failed. Data from <day>.`

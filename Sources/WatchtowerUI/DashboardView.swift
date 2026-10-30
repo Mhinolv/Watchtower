@@ -353,7 +353,7 @@ struct DetailPane: View {
     var body: some View {
         if section == .incidents {
             if let incident = incidents?.selectedIncident {
-                IncidentDetail(incident: incident)
+                IncidentDetail(incident: incident, breachRows: incidents?.breachRows(incident) ?? [])
             } else {
                 ContentUnavailableView("No selection", systemImage: "sidebar.right",
                                        description: Text("Select an incident to see its record."))
