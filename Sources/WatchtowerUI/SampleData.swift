@@ -1052,6 +1052,8 @@ extension SampleData {
         case reqVerified = "update-req-verified"
         case reqNotVerified = "update-req-not-verified"
         case reqInclude = "update-req-include"
+        case reqPinPlan = "update-req-pin-plan"
+        case reqPinUpdated = "update-req-pin-updated"
     }
 
     /// A requirements-only project plan (#30). `refusal` is the explicit state from the engine.
@@ -1102,6 +1104,32 @@ extension SampleData {
             resultRows: [PlanRow(label: "requirements.txt", value: verified ? "requests==2.32.3" : "requests==2.31.0",
                                  ok: verified),
                          PlanRow(label: "Installed (.venv)", value: "requests \(installed)", ok: verified)])
+    }
+
+    /// A pin-only plan (#96): `.venv` does not have litellm, so Update edits the pin and runs nothing.
+    public static func reqPinPlan() -> UpdatePlan {
+        UpdatePlan(id: "7a9c0e3b5d1f2468", itemKey: "requirements/litellm@1.84.0|~/Real/script|requirements.txt",
+                   name: "litellm", kind: "requirements", fullName: "litellm", installedVersion: nil,
+                   targetVersion: "1.84.0", command: [],
+                   rows: [PlanRow(label: "Project", value: "~/Real/script"),
+                          PlanRow(label: "Environment", value: ".venv (exists)"),
+                          PlanRow(label: "requirements.txt", value: "litellm==1.52.2 → litellm==1.84.0"),
+                          PlanRow(label: "Evidence", value: "Exact pin (==1.52.2)"),
+                          PlanRow(label: "Installed (.venv)",
+                                  value: "Not installed. Watchtower changes the pin in requirements.txt only and installs nothing."),
+                          PlanRow(label: "Lockfile", value: "No lockfile.")])
+    }
+
+    public static func reqPinAttempt() -> UpdateAttempt {
+        UpdateAttempt(
+            id: 9, itemKey: "requirements/litellm@1.84.0|~/Real/script|requirements.txt", name: "litellm",
+            kind: "requirements", command: [], beforeVersion: nil, targetVersion: "1.84.0", afterVersion: nil,
+            status: .pinUpdated, exitCode: nil,
+            output: "No command runs. litellm is not installed: Watchtower edits requirements.txt only.\n"
+                + "Edited requirements.txt: litellm==1.52.2 → litellm==1.84.0",
+            error: nil, manualSteps: [], startedAt: ago(0.1), finishedAt: ago(0.09),
+            resultRows: [PlanRow(label: "requirements.txt", value: "litellm==1.84.0", ok: true),
+                         PlanRow(label: "Installed (.venv)", value: "litellm not installed")])
     }
 
     /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
@@ -1171,6 +1199,8 @@ extension SampleData {
         case .reqVerified: .result(reqAttempt(verified: true), reqPlan())
         case .reqNotVerified: .result(reqAttempt(verified: false), reqPlan())
         case .reqInclude: .plan(reqPlan(refusal: "requirements.txt with -r includes or hashes is not supported."))
+        case .reqPinPlan: .plan(reqPinPlan())
+        case .reqPinUpdated: .result(reqPinAttempt(), reqPinPlan())
         case .npmPlan: .plan(npmPlan())
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())

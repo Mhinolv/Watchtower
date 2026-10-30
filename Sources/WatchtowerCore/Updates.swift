@@ -100,10 +100,13 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         self.scriptDetails = scriptDetails
     }
 
-    /// `2.4.1 → 2.5.0`.
+    /// `2.4.1 → 2.5.0`. A requirements.txt package that `.venv` does not have: `not installed → 1.84.0` (#96).
     public var versionLine: String {
-        "\(installedVersion ?? "?") → \(targetVersion ?? "?")"
+        "\(installedVersion ?? (kind == "requirements" ? "not installed" : "?")) → \(targetVersion ?? "?")"
     }
+
+    /// The command, or what Watchtower does when no command runs (a requirements.txt pin only, #96).
+    public var commandDisplay: String { UpdateCommand.display(command) }
 
     /// `2.x → 3.0 can break your setup.`
     public var majorWarning: String {
@@ -123,6 +126,8 @@ public enum UpdateStatus: String, Codable, Sendable, CaseIterable {
     case planChanged = "plan_changed"
     /// A Cargo update (#15): the lockfile is checked, but no installed crate can be read.
     case lockfileUpdated = "lockfile_updated"
+    /// A requirements.txt pin of a package that `.venv` does not have (#96): the file is checked, nothing is installed.
+    case pinUpdated = "pin_updated"
 
     public var text: String {
         switch self {
@@ -134,6 +139,7 @@ public enum UpdateStatus: String, Codable, Sendable, CaseIterable {
         case .refused: "Not run"
         case .interrupted: "Interrupted"
         case .lockfileUpdated: "Lockfile updated"
+        case .pinUpdated: "Pin updated"
         }
     }
 }
@@ -187,6 +193,15 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
     }
 
     public var commandText: String { command.joined(separator: " ") }
+
+    /// The command, or what Watchtower did when no command ran (a requirements.txt pin only, #96).
+    public var commandDisplay: String { UpdateCommand.display(command) }
+}
+
+enum UpdateCommand {
+    static func display(_ command: [String]) -> String {
+        command.isEmpty ? "No command runs. Watchtower edits requirements.txt only." : command.joined(separator: " ")
+    }
 }
 
 /// Symbol, color and text for the result step.
@@ -198,6 +213,8 @@ public struct UpdateResultStyle: Equatable, Sendable {
     public var detail: String? {
         switch symbol {
         case "checkmark.seal": "Watchtower read the version again after the command."
+        case "checkmark.circle" where text.hasPrefix("requirements.txt now pins"):
+            "Watchtower read requirements.txt again. Nothing was installed."
         case "checkmark.circle": "Watchtower read Cargo.lock again. Cargo builds the crate on next use."
         case "xmark.octagon": "Watchtower did not confirm any change."
         case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified:"):
@@ -234,6 +251,9 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("hourglass", .secondary, "Running…")
         case .lockfileUpdated:
             (symbol, tone, text) = ("checkmark.circle", .green, "Lockfile updated.")
+        case .pinUpdated:
+            (symbol, tone, text) = ("checkmark.circle", .green,
+                                    "requirements.txt now pins \(attempt.name) \(attempt.targetVersion ?? "?").")
         }
     }
 }

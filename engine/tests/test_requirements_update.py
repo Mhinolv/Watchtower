@@ -330,7 +330,8 @@ def test_a_package_index_option_is_refused(tmp_path, store):
     (False, True, "No environment found. Watchtower does not create environments."),
     (True, False, "The environment has no pip. Watchtower does not install tools into it."),
 ])
-def test_no_environment_and_no_pip_are_refused_and_nothing_creates_one(tmp_path, store, env, pip, refusal):
+def test_no_environment_and_no_pip_are_refused_and_nothing_creates_one(tmp_path, store, env, pip, refusal, monkeypatch):
+    monkeypatch.setattr(ru, "find_uv", lambda: None, raising=False)  # No uv on this Mac.
     root = make_project(tmp_path, env=env, pip=pip)
     p = plan(store)
     assert p.refusal == refusal
@@ -358,9 +359,10 @@ def test_other_requirements_are_refused(tmp_path, store, name, text, refusal):
     assert plan(store, key=key).refusal == refusal
 
 
-def test_a_package_that_is_not_installed_is_refused(tmp_path, store):
-    make_project(tmp_path, installed={"click": "8.1.7"})
-    assert plan(store).refusal == "The environment has no requests. Watchtower does not install new packages."
+def test_a_range_that_is_not_installed_is_refused(tmp_path, store):
+    make_project(tmp_path, installed={"requests": "2.31.0"})
+    key = ru.make_key("click", "8.5.0", "~/Real/script")
+    assert plan(store, key=key).refusal == "The environment has no click. Watchtower does not install new packages."
 
 
 def test_a_target_that_the_environment_already_has_is_refused(tmp_path, store):
@@ -557,6 +559,204 @@ def test_a_crashing_runner_is_a_failed_attempt(tmp_path, store):
 
     attempt, _ = run(store, crash, plan(store).id)
     assert attempt.status == "failed" and "no such file" in attempt.output
+
+
+# A .venv with no pip: uv (#96)
+
+UV_DRY = (FIX / "uv-dry-run-requests-2.32.3.txt").read_text()
+UV_DRY_LITELLM = (FIX / "uv-dry-run-litellm-1.84.0.txt").read_text()
+
+
+def fake_uv(tmp_path):
+    """A path that stands in for the uv binary. Nothing starts it: the runs are fakes."""
+    path = tmp_path / "bin" / "uv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("#!/bin/sh\nexit 99\n")
+    path.chmod(0o755)
+    return str(path)
+
+
+class FakeUvDry:
+    """Answers `uv pip install --dry-run`. uv writes the plan to stderr. Never starts a process."""
+
+    def __init__(self, uv, err=UV_DRY, code=0):
+        self.uv, self.err, self.code, self.calls = uv, err, code, []
+
+    def __call__(self, args, **kwargs):
+        self.calls.append((list(args), kwargs))
+        assert args[:3] == [self.uv, "pip", "install"] and "--dry-run" in args
+        assert "--only-binary=:all:" in args and not any(a.startswith("--no-binary") for a in args)
+        assert kwargs["env"]["UV_PYTHON_DOWNLOADS"] == "never"
+        assert not {k for k in kwargs["env"] if k.startswith("UV_")} - {"UV_PYTHON_DOWNLOADS", "UV_NO_PROGRESS"}
+        return subprocess.CompletedProcess(args, self.code, "", "error: boom" if self.code else self.err)
+
+
+def test_a_venv_with_no_pip_plans_with_uv_into_that_venv(tmp_path, store):
+    root = make_project(tmp_path, pip=False)
+    uv = fake_uv(tmp_path)
+    dry = FakeUvDry(uv)
+    p = plan(store, dry, uv=uv)
+    python = str(root / ".venv" / "bin" / "python")
+    assert p.refusal is None and p.installed_version == "2.31.0" and p.target_version == "2.32.3"
+    assert p.command == [uv, "pip", "install", "--python", python, "--only-binary=:all:", "requests==2.32.3"]
+    assert dry.calls[0][0] == [uv, "pip", "install", "--dry-run", "--python", python, "--only-binary=:all:",
+                               "requests==2.32.3"]
+    assert rows(p)["Other packages"]["value"] == "No other packages change."
+    assert rows(p)["Build"]["value"] == "Disabled (wheels only)"
+    assert not (root / ".venv" / "lib" / "python3.12" / "site-packages" / "pip").exists()  # uv installs no pip.
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+def test_the_uv_dry_run_lists_the_other_packages_that_change(tmp_path, store):
+    root = make_project(tmp_path, text="litellm==1.52.2\n", installed={"litellm": "1.52.2", "zipp": "3.20.0"}, pip=False)
+    uv = fake_uv(tmp_path)
+    key = ru.make_key("litellm", "1.84.0", "~/Real/script")
+    err = UV_DRY_LITELLM.replace(" + fastuuid", " - litellm==1.52.2\n - zipp==3.20.0\n + fastuuid")
+    p = plan(store, FakeUvDry(uv, err), FakePyPI(wheel_page("litellm", "1.84.0")), key, uv=uv)
+    assert p.refusal is None and p.installed_version == "1.52.2" and p.major_change is False
+    assert rows(p)["Other packages"]["value"] == "6 packages change"
+    assert rows(p)["Other packages"]["items"] == ["fastuuid 0.14.0 (new)", "importlib-metadata 8.9.0 (new)",
+                                                  "jiter 0.18.0 (new)", "openai 2.54.0 (new)", "tiktoken 0.14.0 (new)",
+                                                  "zipp 3.20.0 → 4.1.2"]
+
+
+@pytest.mark.parametrize("err,code", [("", 0), ("Would make no changes\n", 0), (UV_DRY, 2),
+                                      (UV_DRY.replace("requests==2.32.3", "requests==2.32.2"), 0)])
+def test_a_failed_or_odd_uv_dry_run_is_refused(tmp_path, store, err, code):
+    make_project(tmp_path, pip=False)
+    uv = fake_uv(tmp_path)
+    assert plan(store, FakeUvDry(uv, err, code), uv=uv).refusal == "Watchtower cannot read the requirements plan."
+
+
+def test_a_venv_with_no_pip_and_no_uv_still_refuses_and_shows_the_installed_version(tmp_path, store, monkeypatch):
+    monkeypatch.setattr(ru, "find_uv", lambda: None, raising=False)
+    make_project(tmp_path, pip=False)
+    dry = FakeDry()
+    p = plan(store, dry)
+    assert p.refusal == "The environment has no pip. Watchtower does not install tools into it."
+    assert p.installed_version == "2.31.0"  # The dialog shows `2.31.0 → 2.32.3`, not `? → 2.32.3`.
+    assert dry.calls == []
+
+
+def test_a_refused_plan_still_shows_the_installed_version(tmp_path, store):
+    make_project(tmp_path, text="--index-url https://example.invalid/simple\n" + SIMPLE)
+    p = plan(store)
+    assert p.refusal.startswith("requirements.txt sets a package index") and p.installed_version == "2.31.0"
+
+
+def test_a_venv_with_pip_keeps_the_pip_command_when_uv_exists(tmp_path, store):
+    root = make_project(tmp_path)
+    p = plan(store, uv=fake_uv(tmp_path))
+    assert p.command[:4] == [str(root / ".venv" / "bin" / "python"), "-m", "pip", "install"]
+
+
+def test_a_source_build_with_uv_is_refused(tmp_path, store):
+    make_project(tmp_path, text="pycrypto==2.6.0\n", installed={"pycrypto": "2.6.0"}, pip=False)
+    uv = fake_uv(tmp_path)
+    dry = FakeUvDry(uv)
+    key = ru.make_key("pycrypto", "2.6.1", "~/Real/script")
+    p = plan(store, dry, FakePyPI(PYPI_PYCRYPTO), key, uv=uv)
+    assert p.refusal == "pycrypto needs a source build. Watchtower builds from source with pip only."
+    assert dry.calls == [] and p.scripts_command is None
+
+
+def test_a_uv_update_is_verified_from_the_venv_and_runs_with_the_uv_environment(tmp_path, store):
+    root = make_project(tmp_path, pip=False)
+    uv = fake_uv(tmp_path)
+    p = plan(store, FakeUvDry(uv), uv=uv)
+    runner = FakePip(root)
+    attempt, _ = run_update(store, KEY, p.id, run=FakeUvDry(uv), fetch=FakePyPI(), runner=runner,
+                            uv_options={**MAC, "uv": uv})
+    assert attempt.status == "verified" and attempt.after_version == "2.32.3"
+    assert runner.calls[0][0] == p.command and runner.calls[0][0][:3] == [uv, "pip", "install"]
+    env = runner.calls[0][1]
+    assert env["UV_PYTHON_DOWNLOADS"] == "never" and not any(k.startswith("PIP_") for k in env)
+    assert (root / "requirements.txt").read_text() == SIMPLE.replace("requests==2.31.0", "requests==2.32.3")
+
+
+def test_a_uv_run_that_leaves_the_old_version_is_not_verified(tmp_path, store):
+    root = make_project(tmp_path, pip=False)
+    uv = fake_uv(tmp_path)
+    p = plan(store, FakeUvDry(uv), uv=uv)
+    runner = FakePip(root, mode="nothing")  # Exit code 0, but .venv still has 2.31.0.
+    attempt, _ = run_update(store, KEY, p.id, run=FakeUvDry(uv), fetch=FakePyPI(), runner=runner,
+                            uv_options={**MAC, "uv": uv})
+    assert attempt.status == "not_verified" and attempt.error == "Not verified: the environment still has 2.31.0."
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+# A pinned package that is not installed: the pin only (#96, owner decision)
+
+PIN_ONLY_ROW = "Not installed. Watchtower changes the pin in requirements.txt only and installs nothing."
+
+
+def test_a_pinned_package_that_is_not_installed_plans_a_pin_only_change(tmp_path, store, monkeypatch):
+    monkeypatch.setattr(ru, "find_uv", lambda: None)  # No pip and no uv: the pin only needs neither.
+    root = make_project(tmp_path, installed={"click": "8.1.7"}, pip=False)
+    dry, pypi = FakeDry(), FakePyPI()
+    p = plan(store, dry, pypi)
+    assert p.refusal is None and p.command == [] and p.installed_version is None and p.target_version == "2.32.3"
+    assert [x["label"] for x in p.rows] == ["Project", "Environment", "requirements.txt", "Evidence",
+                                            "Installed (.venv)", "Lockfile"]
+    r = rows(p)
+    assert r["requirements.txt"]["value"] == "requests==2.31.0 → requests==2.32.3"
+    assert r["Installed (.venv)"]["value"] == PIN_ONLY_ROW
+    assert p.major_change is False and p.scripts == [] and p.manual_steps == []
+    assert dry.calls == [] and pypi.calls == []  # No pip, no uv, no PyPI.
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+def test_a_pin_only_change_keeps_extras_markers_and_marks_a_major_pin(tmp_path, store):
+    make_project(tmp_path, installed={"click": "8.1.7"})
+    key = ru.make_key("Flask", "4.0.1", "~/Real/script")
+    p = plan(store, key=key)
+    assert p.refusal is None and p.major_change is True
+    assert rows(p)["requirements.txt"]["value"] == "Flask[async]==3.0.0 → Flask[async]==4.0.1"
+
+
+def test_a_pin_that_already_has_the_target_is_refused_when_not_installed(tmp_path, store):
+    make_project(tmp_path, text="requests==2.32.3\n", installed={"click": "8.1.7"})
+    assert plan(store).refusal == "requirements.txt already pins requests 2.32.3 or newer."
+
+
+def test_a_continued_pin_line_that_is_not_installed_is_refused(tmp_path, store):
+    make_project(tmp_path, text=(FIX / "continued.txt").read_text(), installed={"click": "8.1.7"})
+    assert plan(store).refusal == "The line of requests continues on the next line. Watchtower cannot edit it."
+
+
+def test_a_pin_only_update_edits_the_file_installs_nothing_and_is_pin_updated(tmp_path, store):
+    root = make_project(tmp_path, installed={"click": "8.1.7"}, pip=False)
+    p = plan(store)
+    runner = FakePip(root)
+    attempt, checked = run(store, runner, p.id)
+    assert runner.calls == []  # Nothing ran: no pip, no uv.
+    assert attempt.status == "pin_updated" and attempt.error is None
+    assert (attempt.before_version, attempt.after_version, attempt.exit_code) == (None, None, None)
+    assert attempt.command == []
+    assert (root / "requirements.txt").read_text() == SIMPLE.replace("requests==2.31.0", "requests==2.32.3")
+    assert attempt.result_rows == [{"label": "requirements.txt", "value": "requests==2.32.3", "ok": True},
+                                   {"label": "Installed (.venv)", "value": "requests not installed"}]
+    assert "Edited requirements.txt: requests==2.31.0 → requests==2.32.3" in attempt.output
+    assert "No command runs." in attempt.output
+    assert not (root / ".venv" / "lib" / "python3.12" / "site-packages" / "requests-2.32.3.dist-info").exists()
+    assert list((tmp_path / "data" / "update-backups").glob("attempt-*/requirements.txt"))
+
+
+def test_a_pin_only_update_whose_edit_fails_is_not_verified(tmp_path, store, monkeypatch):
+    root = make_project(tmp_path, installed={"click": "8.1.7"})
+    p = plan(store)
+    monkeypatch.setattr(ru, "apply_edit", lambda path, name, target: False)
+    attempt, _ = run(store, FakePip(root), p.id)
+    assert attempt.status == "not_verified" and attempt.error == "Not verified: requirements.txt still says requests==2.31.0."
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+def test_a_package_installed_after_the_plan_changes_the_plan(tmp_path, store):
+    root = make_project(tmp_path, installed={"click": "8.1.7"})
+    p = plan(store)
+    put_dist(root, "requests", "2.31.0")
+    attempt, _ = run(store, FakePip(root), p.id)
+    assert attempt.status == "plan_changed"
 
 
 # Findings

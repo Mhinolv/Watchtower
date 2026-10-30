@@ -80,3 +80,46 @@ private let requests = FindingRecord(
             == "1 line uses a range. Watchtower scans exact pins only.")
     #expect(RequirementsFile(file: "requirements.txt", pins: 4, otherLines: 0).rangeText == nil)
 }
+
+// MARK: - A pinned package that is not installed (#96)
+
+private func requirementsPlan(installed: String?, command: [String]) -> UpdatePlan {
+    UpdatePlan(id: "p", itemKey: "requirements/litellm@1.84.0|~/Projects/podcastfy|requirements.txt", name: "litellm",
+               kind: "requirements", fullName: "litellm", installedVersion: installed, targetVersion: "1.84.0",
+               command: command)
+}
+
+@Test func aRequirementsPlanSaysNotInstalledInsteadOfAQuestionMark() {
+    #expect(requirementsPlan(installed: nil, command: []).versionLine == "not installed → 1.84.0")
+    #expect(requirementsPlan(installed: "1.52.2", command: ["/uv", "pip", "install"]).versionLine == "1.52.2 → 1.84.0")
+    let brew = UpdatePlan(id: "b", itemKey: "homebrew/formula:git", name: "git", kind: "formula", fullName: "git",
+                          installedVersion: nil, targetVersion: "2.47.1", command: ["brew"])
+    #expect(brew.versionLine == "? → 2.47.1")
+}
+
+@Test func aPinOnlyPlanShowsThatNoCommandRuns() {
+    #expect(requirementsPlan(installed: nil, command: []).commandDisplay
+            == "No command runs. Watchtower edits requirements.txt only.")
+    #expect(requirementsPlan(installed: "1.52.2", command: ["/uv", "pip", "install"]).commandDisplay == "/uv pip install")
+}
+
+@Test func pinUpdatedIsItsOwnResultNotVerified() throws {
+    let json = #"""
+    {"schema_version": 1, "attempts": [{"id": 12,
+     "item_key": "requirements/litellm@1.84.0|~/Projects/podcastfy|requirements.txt",
+     "name": "litellm", "kind": "requirements", "command": [], "before_version": null,
+     "target_version": "1.84.0", "after_version": null, "status": "pin_updated", "exit_code": null,
+     "output": "No command runs.", "error": null, "manual_steps": [], "confirmed_major": false,
+     "confirmed_scripts": false, "plan_id": "p", "started_at": "2026-10-30T10:00:00Z",
+     "finished_at": "2026-10-30T10:00:01Z",
+     "result_rows": [{"label": "requirements.txt", "value": "litellm==1.84.0", "ok": true},
+                     {"label": "Installed (.venv)", "value": "litellm not installed"}]}]}
+    """#
+    struct Log: Decodable { var attempts: [UpdateAttempt] }
+    let attempt = try #require(try EngineJSON.decode(Log.self, from: Data(json.utf8)).attempts.first)
+    #expect(attempt.status == .pinUpdated && attempt.status.text == "Pin updated")
+    #expect(attempt.commandDisplay == "No command runs. Watchtower edits requirements.txt only.")
+    let style = UpdateResultStyle(attempt)
+    #expect(style.text == "requirements.txt now pins litellm 1.84.0." && style.tone == .green)
+    #expect(style.detail == "Watchtower read requirements.txt again. Nothing was installed.")
+}

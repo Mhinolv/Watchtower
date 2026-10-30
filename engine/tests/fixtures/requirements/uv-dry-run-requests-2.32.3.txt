@@ -1,0 +1,7 @@
+Using Python 3.11.13 environment at: .venv
+Resolved 5 packages in 25ms
+Would download 1 package
+Would uninstall 1 package
+Would install 1 package
+ - requests==2.31.0
+ + requests==2.32.3

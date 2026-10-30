@@ -71,8 +71,8 @@ def _requirements_rows(base: Path, manifest: str) -> tuple[list[dict], str | Non
         refusal = req_updates.REFUSE_INDEX
     elif not uv_updates.has_environment(root):
         refusal = req_updates.REFUSE_NO_ENV
-    elif not req_updates.has_pip(root):
-        refusal = req_updates.REFUSE_NO_PIP
+    elif not req_updates.has_pip(root) and req_updates.find_uv() is None:
+        refusal = req_updates.REFUSE_NO_PIP  # With uv, the plan installs into the .venv with uv (#96).
     counts: dict[str, int] = {}
     for e in parsed.entries:
         counts[registries.normalize(e.name)] = counts.get(registries.normalize(e.name), 0) + 1

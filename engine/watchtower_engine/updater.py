@@ -213,16 +213,27 @@ def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line,
 
 def _run_requirements(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,
                       line: Callable[[str], None], output: list[str], runner) -> Attempt:
-    """Run one pip install, edit requirements.txt only if the environment shows the target, read both again."""
+    """Run one pip (or uv pip) install, edit requirements.txt only if the environment shows the target, read both again."""
     req = req_updates.parse_key(plan.item_key)
     before = uv_updates.snapshot(req.root)
     backup = req_updates.backup_file(req.path, store.data_dir, attempt_id)
     if backup:
         line(f"Backup of requirements.txt: {backup}")
+    if req_updates.is_pin_only(plan):
+        # The package is not installed: edit the pin only and run nothing (owner decision on #96).
+        line(req_updates.PIN_ONLY_LINE.format(name=req.name))
+        edit_failed = not req_updates.apply_edit(req.path, req.name, plan.target_version)
+        if not edit_failed:
+            line(f"Edited requirements.txt: {next(r['value'] for r in plan.rows if r['label'] == 'requirements.txt')}")
+        outcome = req_updates.read_outcome(req, before, uv_updates.snapshot(req.root))
+        status, error = req_updates.pin_verdict(outcome, req.name, edit_failed)
+        log.finish(attempt_id, status, outcome.installed, None, "\n".join(output), error,
+                   req_updates.pin_result_rows(outcome, req.name))
+        return log.get(attempt_id)
     command = req_updates.command_to_run(plan, confirm_scripts)
     line("$ " + " ".join(command))
     try:
-        code = runner(command, req_updates.pip_env(), line)
+        code = runner(command, req_updates.run_env(command), line)
     except Interrupted:
         log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
         raise

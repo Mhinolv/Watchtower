@@ -116,7 +116,12 @@ struct PlanStep: View {
             Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 12) {
                 GridRow {
                     Text("Command").foregroundStyle(.secondary)
-                    CommandBox(text: plan.commandText)
+                    if plan.command.isEmpty {
+                        // A requirements.txt pin only (#96): nothing to copy or run.
+                        Text(plan.commandDisplay)
+                    } else {
+                        CommandBox(text: plan.commandText)
+                    }
                 }
                 if let rows = plan.rows, !rows.isEmpty {
                     // An npm or uv plan: its rows come from the engine (project, files, other packages, ...).
@@ -397,13 +402,13 @@ struct ResultStep: View {
                     }
                 }
             }
-            if attempt.status == .verified || attempt.status == .lockfileUpdated, !attempt.manualSteps.isEmpty {
+            if [.verified, .lockfileUpdated, .pinUpdated].contains(attempt.status), !attempt.manualSteps.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Manual steps").font(.headline)
                     ForEach(attempt.manualSteps, id: \.self) { Text("• \($0)") }
                 }
             }
-            if !attempt.output.isEmpty, ![.verified, .notVerified, .lockfileUpdated].contains(attempt.status) {
+            if !attempt.output.isEmpty, ![.verified, .notVerified, .lockfileUpdated, .pinUpdated].contains(attempt.status) {
                 DisclosureGroup("Show output", isExpanded: $showsOutput) {
                     OutputText(text: attempt.output)
                 }
@@ -495,7 +500,7 @@ struct UpdateLogDetail: View {
                 let style = UpdateResultStyle(attempt)
                 Label(style.text, systemImage: style.symbol).foregroundStyle(style.tone.color)
                 Text("Command").font(.headline)
-                Text(attempt.commandText).font(.callout.monospaced()).textSelection(.enabled)
+                Text(attempt.commandDisplay).font(.callout.monospaced()).textSelection(.enabled)
                 Text("Output").font(.headline)
                 Text(attempt.output.isEmpty ? "No output." : attempt.output)
                     .font(.caption.monospaced())

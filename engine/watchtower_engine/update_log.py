@@ -14,8 +14,9 @@ from .models import owner_error
 from .store import Store
 
 # `lockfile_updated`: a Cargo update (#15). The lockfile is checked, nothing installed can be read.
+# `pin_updated`: a requirements.txt pin of a package that `.venv` does not have (#96). Nothing was installed.
 STATUSES = ("running", "verified", "not_verified", "failed", "plan_changed", "refused", "interrupted",
-            "lockfile_updated")
+            "lockfile_updated", "pin_updated")
 OUTPUT_MAX_CHARS = 256 * 1024
 
 _SCHEMA = """
