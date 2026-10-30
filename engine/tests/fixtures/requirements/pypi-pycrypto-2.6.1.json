@@ -1,0 +1,30 @@
+{
+ "info": {
+  "name": "pycrypto",
+  "version": "2.6.1"
+ },
+ "urls": [
+  {
+   "comment_text": "",
+   "core-metadata": false,
+   "digests": {
+    "blake2b_256": "60db645aa9af249f059cc3a368b118de33889219e0362141e75d4eaf6f80f163",
+    "md5": "55a61a054aa66812daf5161a0d5d7eda",
+    "sha256": "f2ce1e989b272cfcb677616763e0a2e7ec659effa67a88aa92b3a65528f60a3c"
+   },
+   "downloads": -1,
+   "filename": "pycrypto-2.6.1.tar.gz",
+   "has_sig": false,
+   "md5_digest": "55a61a054aa66812daf5161a0d5d7eda",
+   "packagetype": "sdist",
+   "python_version": "source",
+   "requires_python": null,
+   "size": 446240,
+   "upload_time": "2014-06-20T08:10:20",
+   "upload_time_iso_8601": "2014-06-20T08:10:20.813938Z",
+   "url": "https://files.pythonhosted.org/packages/60/db/645aa9af249f059cc3a368b118de33889219e0362141e75d4eaf6f80f163/pycrypto-2.6.1.tar.gz",
+   "yanked": false,
+   "yanked_reason": null
+  }
+ ]
+}

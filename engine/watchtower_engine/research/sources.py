@@ -414,7 +414,7 @@ def _reason(exc: BaseException) -> str:
 
 
 def fetch_items(source: Source, fetch: "Fetch | None" = None) -> list[Item]:
-    """One plain GET of the source. Raises SourceError with a short reason."""
+    """One plain GET of the source. Raises SourceError with a short reason, `bad data` for any parser failure."""
     if fetch is None:
         from ..feeds.homebrew import http_fetch
         fetch = http_fetch
@@ -431,4 +431,11 @@ def fetch_items(source: Source, fetch: "Fetch | None" = None) -> list[Item]:
         raise SourceError(f"HTTP {resp.status}")
     if len(resp.body) > MAX_BYTES:
         raise SourceError("too large")
-    return PARSERS[source.format](source, resp.body)
+    try:
+        return PARSERS[source.format](source, resp.body)
+    except (SourceError, Cancelled):
+        raise
+    except Exception as exc:
+        # The body is untrusted. A deeply nested JSON body raises RecursionError, a cut one JSONDecodeError, and
+        # a strange one anything else. Each fails only this source: the other sources still finish (#76).
+        raise SourceError("bad data") from exc
