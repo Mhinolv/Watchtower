@@ -24,6 +24,10 @@ line or file changes: extras, markers and comments stay. A range (`requests>=2.0
 target stays as it is: the plan says `No change`. A range that does not allow the target is refused.
 The file is edited only after the environment shows the target.
 
+A pinned package that is not installed in `.venv` (owner decision on #96): Update changes the pin in
+requirements.txt only. No command runs: no pip, no uv, no PyPI request. Success is `pin_updated`: the file
+shows the new pin and `.venv` still has no such package.
+
 Refused: `-r` includes, constraint files, hashes (`--hash`), a package index option, editable and URL
 requirements for the package, a package that is not named exactly once, a missing `.venv`, a `.venv` with no pip
 and no uv.
@@ -70,6 +74,7 @@ REFUSE_CURRENT = "The environment already has {name} {version} or newer."
 REFUSE_SPEC = "requirements.txt requires \"{requirement}\". That does not allow {target}. Change it there first."
 REFUSE_WHEELS = "Watchtower cannot check whether {name} {target} needs a source build."
 REFUSE_NO_FILES = "PyPI has no files for {name} {target}."
+REFUSE_PIN_CURRENT = "requirements.txt already pins {name} {version} or newer."
 REFUSE_UV_BUILD = "{name} needs a source build. Watchtower builds from source with pip only."
 
 BUILD_REASON = "{name} needs a source build: no wheel for this platform."
@@ -79,6 +84,11 @@ ERROR_ENV_STILL = "Not verified: the environment still has {version}."
 ERROR_ENV_UNKNOWN = "Not verified: Watchtower cannot read the installed version."
 ERROR_FILE_STILL = "Not verified: requirements.txt still says {text}."
 ERROR_EDIT = "pip installed {name} {target}, but Watchtower could not edit requirements.txt."
+ERROR_PIN_INSTALLED = "Not verified: the environment now has {name} {version}."
+
+PIN_ONLY_ROW = "Not installed. Watchtower changes the pin in requirements.txt only and installs nothing."
+PIN_ONLY_LINE = "No command runs. {name} is not installed: Watchtower edits requirements.txt only."
+STATUS_PIN = "pin_updated"
 
 
 def pip_env() -> dict:
@@ -446,14 +456,6 @@ def make_plan(
     plan.rows.append(_row("Environment", ".venv (exists)" if env_ok else ".venv (missing)"))
     if not env_ok or not os.access(python, os.X_OK):
         return refuse(REFUSE_NO_ENV)
-    if not has_pip(req.root):
-        uv = uv or find_uv()
-        if uv is None:
-            return refuse(REFUSE_NO_PIP)
-        plan.command = [uv]
-    else:
-        uv = None
-
     if normalize(req.name) in parsed.sources:
         return refuse(REFUSE_SOURCE.format(name=req.name))
     found = entries_for(parsed, req.name)
@@ -463,7 +465,16 @@ def make_plan(
         return refuse(REFUSE_MULTIPLE.format(name=req.name))
     entry = found[0]
     if current is None:
-        return refuse(REFUSE_NOT_INSTALLED.format(name=req.name))
+        if pinned_version(entry.spec) is None:
+            return refuse(REFUSE_NOT_INSTALLED.format(name=req.name))
+        return _pin_only_plan(plan, req, entry, refuse)
+    if not has_pip(req.root):
+        uv = uv or find_uv()
+        if uv is None:
+            return refuse(REFUSE_NO_PIP)
+        plan.command = [uv]
+    else:
+        uv = None
     if version_key(req.target) <= version_key(current):
         return refuse(REFUSE_CURRENT.format(name=req.name, version=req.target))
     ev = entry.evidence
@@ -525,6 +536,30 @@ def make_plan(
         digest.update(f"{part}\0".encode())
     plan.fingerprint = digest.hexdigest()[:24]
     return plan
+
+
+def _pin_only_plan(plan: Plan, req: Request, entry: Entry, refuse: Callable) -> Plan:
+    """The plan for a pinned package that `.venv` does not have: edit the pin, install nothing, run nothing."""
+    pin = pinned_version(entry.spec)
+    plan.command = []
+    plan.rows.append(_row("requirements.txt", planned_text(entry, req.target)))
+    plan.rows.append(_row("Evidence", f"Exact pin ({entry.spec})"))
+    plan.rows.append(_row("Installed (.venv)", PIN_ONLY_ROW))
+    if entry.first != entry.last:
+        return refuse(REFUSE_MULTILINE.format(name=req.name))
+    if version_key(req.target) <= version_key(pin):
+        return refuse(REFUSE_PIN_CURRENT.format(name=req.name, version=pin))
+    plan.rows.append(_row("Lockfile", "No lockfile."))
+    plan.major_change = is_major_change(pin, req.target)
+    digest = hashlib.sha256()
+    for part in (_file_hash(req.path), _file_hash(req.root / ".venv" / "pyvenv.cfg"), "not installed", req.target):
+        digest.update(f"{part}\0".encode())
+    plan.fingerprint = digest.hexdigest()[:24]
+    return plan
+
+
+def is_pin_only(plan: Plan) -> bool:
+    return plan.kind == KIND and not plan.command
 
 
 # Run
@@ -592,6 +627,28 @@ def verdict(outcome: Outcome, target: str, name: str, code: int, edit_failed: bo
     if not outcome.file_ok:
         return "not_verified", ERROR_FILE_STILL.format(text=outcome.file_text)
     return "verified", None
+
+
+def pin_verdict(outcome: Outcome, name: str, edit_failed: bool) -> tuple[str, str | None]:
+    """The log status and error text for a pin-only update: the file shows the pin and nothing was installed."""
+    if outcome.stray:
+        return "not_verified", ERROR_FAILED_FILES.format(files=", ".join(outcome.stray))
+    if outcome.env_replaced:
+        return "not_verified", ERROR_ENV
+    if outcome.installed is not None:
+        return "not_verified", ERROR_PIN_INSTALLED.format(name=name, version=outcome.installed)
+    if edit_failed or not outcome.file_ok:
+        return "not_verified", ERROR_FILE_STILL.format(text=outcome.file_text)
+    return STATUS_PIN, None
+
+
+def pin_result_rows(outcome: Outcome, name: str) -> list[dict]:
+    rows = [_row("requirements.txt", outcome.file_text, ok=outcome.file_ok)]
+    if outcome.installed is None:
+        rows.append(_row("Installed (.venv)", f"{name} not installed"))
+    else:
+        rows.append(_row("Installed (.venv)", f"{name} {outcome.installed}", ok=False))
+    return rows
 
 
 def command_to_run(plan: Plan, confirm_scripts: bool) -> list[str]:

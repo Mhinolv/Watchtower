@@ -359,9 +359,10 @@ def test_other_requirements_are_refused(tmp_path, store, name, text, refusal):
     assert plan(store, key=key).refusal == refusal
 
 
-def test_a_package_that_is_not_installed_is_refused(tmp_path, store):
-    make_project(tmp_path, installed={"click": "8.1.7"})
-    assert plan(store).refusal == "The environment has no requests. Watchtower does not install new packages."
+def test_a_range_that_is_not_installed_is_refused(tmp_path, store):
+    make_project(tmp_path, installed={"requests": "2.31.0"})
+    key = ru.make_key("click", "8.5.0", "~/Real/script")
+    assert plan(store, key=key).refusal == "The environment has no click. Watchtower does not install new packages."
 
 
 def test_a_target_that_the_environment_already_has_is_refused(tmp_path, store):
@@ -682,6 +683,80 @@ def test_a_uv_run_that_leaves_the_old_version_is_not_verified(tmp_path, store):
                             uv_options={**MAC, "uv": uv})
     assert attempt.status == "not_verified" and attempt.error == "Not verified: the environment still has 2.31.0."
     assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+# A pinned package that is not installed: the pin only (#96, owner decision)
+
+PIN_ONLY_ROW = "Not installed. Watchtower changes the pin in requirements.txt only and installs nothing."
+
+
+def test_a_pinned_package_that_is_not_installed_plans_a_pin_only_change(tmp_path, store, monkeypatch):
+    monkeypatch.setattr(ru, "find_uv", lambda: None)  # No pip and no uv: the pin only needs neither.
+    root = make_project(tmp_path, installed={"click": "8.1.7"}, pip=False)
+    dry, pypi = FakeDry(), FakePyPI()
+    p = plan(store, dry, pypi)
+    assert p.refusal is None and p.command == [] and p.installed_version is None and p.target_version == "2.32.3"
+    assert [x["label"] for x in p.rows] == ["Project", "Environment", "requirements.txt", "Evidence",
+                                            "Installed (.venv)", "Lockfile"]
+    r = rows(p)
+    assert r["requirements.txt"]["value"] == "requests==2.31.0 → requests==2.32.3"
+    assert r["Installed (.venv)"]["value"] == PIN_ONLY_ROW
+    assert p.major_change is False and p.scripts == [] and p.manual_steps == []
+    assert dry.calls == [] and pypi.calls == []  # No pip, no uv, no PyPI.
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+def test_a_pin_only_change_keeps_extras_markers_and_marks_a_major_pin(tmp_path, store):
+    make_project(tmp_path, installed={"click": "8.1.7"})
+    key = ru.make_key("Flask", "4.0.1", "~/Real/script")
+    p = plan(store, key=key)
+    assert p.refusal is None and p.major_change is True
+    assert rows(p)["requirements.txt"]["value"] == "Flask[async]==3.0.0 → Flask[async]==4.0.1"
+
+
+def test_a_pin_that_already_has_the_target_is_refused_when_not_installed(tmp_path, store):
+    make_project(tmp_path, text="requests==2.32.3\n", installed={"click": "8.1.7"})
+    assert plan(store).refusal == "requirements.txt already pins requests 2.32.3 or newer."
+
+
+def test_a_continued_pin_line_that_is_not_installed_is_refused(tmp_path, store):
+    make_project(tmp_path, text=(FIX / "continued.txt").read_text(), installed={"click": "8.1.7"})
+    assert plan(store).refusal == "The line of requests continues on the next line. Watchtower cannot edit it."
+
+
+def test_a_pin_only_update_edits_the_file_installs_nothing_and_is_pin_updated(tmp_path, store):
+    root = make_project(tmp_path, installed={"click": "8.1.7"}, pip=False)
+    p = plan(store)
+    runner = FakePip(root)
+    attempt, checked = run(store, runner, p.id)
+    assert runner.calls == []  # Nothing ran: no pip, no uv.
+    assert attempt.status == "pin_updated" and attempt.error is None
+    assert (attempt.before_version, attempt.after_version, attempt.exit_code) == (None, None, None)
+    assert attempt.command == []
+    assert (root / "requirements.txt").read_text() == SIMPLE.replace("requests==2.31.0", "requests==2.32.3")
+    assert attempt.result_rows == [{"label": "requirements.txt", "value": "requests==2.32.3", "ok": True},
+                                   {"label": "Installed (.venv)", "value": "requests not installed"}]
+    assert "Edited requirements.txt: requests==2.31.0 → requests==2.32.3" in attempt.output
+    assert "No command runs." in attempt.output
+    assert not (root / ".venv" / "lib" / "python3.12" / "site-packages" / "requests-2.32.3.dist-info").exists()
+    assert list((tmp_path / "data" / "update-backups").glob("attempt-*/requirements.txt"))
+
+
+def test_a_pin_only_update_whose_edit_fails_is_not_verified(tmp_path, store, monkeypatch):
+    root = make_project(tmp_path, installed={"click": "8.1.7"})
+    p = plan(store)
+    monkeypatch.setattr(ru, "apply_edit", lambda path, name, target: False)
+    attempt, _ = run(store, FakePip(root), p.id)
+    assert attempt.status == "not_verified" and attempt.error == "Not verified: requirements.txt still says requests==2.31.0."
+    assert (root / "requirements.txt").read_text() == SIMPLE
+
+
+def test_a_package_installed_after_the_plan_changes_the_plan(tmp_path, store):
+    root = make_project(tmp_path, installed={"click": "8.1.7"})
+    p = plan(store)
+    put_dist(root, "requests", "2.31.0")
+    attempt, _ = run(store, FakePip(root), p.id)
+    assert attempt.status == "plan_changed"
 
 
 # Findings
