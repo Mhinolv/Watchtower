@@ -451,11 +451,12 @@ struct ItemDetail: View {
                     if let support { supportRows(support) }
                     ForEach(SparkleDetail.otherAttributes(item).filter {
                         !ItemRecord.catalogAttributeKeys.contains($0.key) && !SofaDetail.keys.contains($0.key)
-                            && !SupportStatus.keys.contains($0.key)
+                            && !SupportStatus.keys.contains($0.key) && !RunningEvidence.keys.contains($0.key)
                     }, id: \.key) { pair in
                         row(pair.key, pair.value)
                     }
                 }
+                EvidenceSection(rows: Evidence.rows(for: item, enabled: model.checkRunningVersions))
                 if let sparkle {
                     SparkleSection(detail: sparkle)
                 }

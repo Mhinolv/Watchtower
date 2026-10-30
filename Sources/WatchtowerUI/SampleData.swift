@@ -203,6 +203,11 @@ public enum SampleData {
         case appSelfUpdating = "app-self-updating"
         case appAmbiguous = "app-ambiguous"
         case appNoHomepage = "app-no-homepage"
+        case evidenceFull = "evidence-full"
+        case evidenceNotChecked = "evidence-not-checked"
+        case evidenceDenied = "evidence-denied"
+        case evidenceOlder = "evidence-older"
+        case evidenceFinding = "evidence-finding"
 
         /// Scenarios that render the menu bar popover, not the window.
         public var isMenuBar: Bool { rawValue.hasPrefix("menubar-") }
@@ -246,6 +251,22 @@ public enum SampleData {
                                     "latestFrom": "Homebrew catalog, cask hopper-disassembler",
                                     "homepage": "https://www.hopperapp.com/"])
         }
+    }
+
+    /// The app of the #17 snapshots. `Zoom` runs the installed version, an older one, or the probe is denied.
+    static func evidenceApp(_ scenario: Scenario) -> ItemRecord {
+        var attributes = ["path": "/Applications/Zoom.app", "bundleId": "us.zoom.xos"]
+        switch scenario {
+        case .evidenceDenied:
+            attributes["runningState"] = "denied"
+        case .evidenceOlder:
+            attributes.merge(["runningState": "known", "runningVersion": "2.4.1", "runningKind": "version"]) { _, new in new }
+        default:
+            attributes.merge(["runningState": "known", "runningVersion": "2.5.0", "runningKind": "version"]) { _, new in new }
+        }
+        if scenario != .evidenceDenied { attributes["runningChecked"] = "2026-10-29T09:12:00Z" }
+        return ItemRecord(id: "us.zoom.xos", source: "apps", name: "Zoom", state: .manual, kind: "app",
+                          installedVersion: "2.5.0", origin: "Manual", sourceAt: ago(0.1), attributes: attributes)
     }
 
     /// The installs of the #16 snapshots: three groups, old copies, an unreadable version, a root error.
@@ -415,6 +436,26 @@ public enum SampleData {
                                                                     failing: ["homebrew", "apps", "macos", "osv"]),
                                        projects: projects, clock: clock)
             model.selection = .apps
+            return model
+        case .evidenceFull, .evidenceNotChecked, .evidenceDenied, .evidenceOlder:
+            var current = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            let item = evidenceApp(scenario)
+            current.items.append(item)
+            let model = DashboardModel(engine: engine, state: current, projects: projects,
+                                       checkRunningVersions: scenario != .evidenceNotChecked, clock: clock)
+            model.selection = .apps
+            model.selectedItemKey = item.key
+            return model
+        case .evidenceFinding:
+            // The project `web` has a Dockerfile; `api` was read and has none.
+            var withImages = projects
+            withImages[0].containerImages = ["node:20.11"]
+            withImages[1].containerImages = []
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2), findings: findings),
+                                       projects: withImages, clock: clock)
+            model.selection = .findings
+            model.selectedItemKey = "SEC-0001"
             return model
         case .appCatalogNewer, .appSelfUpdating, .appAmbiguous, .appNoHomepage:
             var current = state(status: .complete, finished: ago(2), lastComplete: ago(2))

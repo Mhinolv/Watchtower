@@ -1,0 +1,8 @@
+    1 /sbin/launchd
+  402 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow
+12710 /Applications/Cloudflare WARP.app/Contents/MacOS/Cloudflare WARP
+45533 /Applications/Caffeine.app/Contents/MacOS/Caffeine
+51111 /opt/homebrew/Cellar/node/22.8.0/bin/node
+51112 /opt/homebrew/Cellar/node/22.9.0/bin/node
+52000 /opt/homebrew/opt/redis/bin/redis-server
+60000 /Users/me/.nvm/versions/node/v20.11.0/bin/node

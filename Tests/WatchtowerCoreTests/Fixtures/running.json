@@ -1,0 +1,355 @@
+{
+ "denied": [
+  {
+   "attributes": {
+    "build": "31",
+    "path": "/Applications/Caffeine.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "denied"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Slack",
+   "installed_version": "1.2.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Slack",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "build": "20269008.2115",
+    "path": "/Applications/Cloudflare WARP.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "denied"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Cloudflare WARP",
+   "installed_version": "20269008.2115",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Cloudflare WARP",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "denied"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:node",
+   "installed_version": "22.9.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "node",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "denied"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:wget",
+   "installed_version": "1.25.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "wget",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "build": "1",
+    "path": "/Applications/Ghost.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "denied"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Ghost",
+   "installed_version": "1.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Ghost",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  }
+ ],
+ "now": "2026-10-29T09:12:00Z",
+ "off": [
+  {
+   "attributes": {
+    "build": "31",
+    "path": "/Applications/Caffeine.app",
+    "runningState": "not_checked"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Slack",
+   "installed_version": "1.2.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Slack",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "build": "20269008.2115",
+    "path": "/Applications/Cloudflare WARP.app",
+    "runningState": "not_checked"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Cloudflare WARP",
+   "installed_version": "20269008.2115",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Cloudflare WARP",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "runningState": "not_checked"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:node",
+   "installed_version": "22.9.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "node",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "runningState": "not_checked"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:wget",
+   "installed_version": "1.25.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "wget",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "build": "1",
+    "path": "/Applications/Ghost.app",
+    "runningState": "not_checked"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Ghost",
+   "installed_version": "1.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Ghost",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  }
+ ],
+ "on": [
+  {
+   "attributes": {
+    "build": "31",
+    "path": "/Applications/Caffeine.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningKind": "build",
+    "runningState": "known",
+    "runningVersion": "30"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Slack",
+   "installed_version": "1.2.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Slack",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "build": "20269008.2115",
+    "path": "/Applications/Cloudflare WARP.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningKind": "version",
+    "runningState": "known",
+    "runningVersion": "20269008.2115"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Cloudflare WARP",
+   "installed_version": "20269008.2115",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Cloudflare WARP",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  },
+  {
+   "attributes": {
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningKind": "version",
+    "runningState": "known",
+    "runningVersion": "22.8.0"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:node",
+   "installed_version": "22.9.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "node",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "none"
+   },
+   "detail": null,
+   "error": null,
+   "id": "formula:wget",
+   "installed_version": "1.25.0",
+   "kind": "formula",
+   "latest_version": null,
+   "name": "wget",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "homebrew",
+   "source_at": null,
+   "state": "up_to_date"
+  },
+  {
+   "attributes": {
+    "build": "1",
+    "path": "/Applications/Ghost.app",
+    "runningChecked": "2026-10-29T09:12:00Z",
+    "runningState": "none"
+   },
+   "detail": null,
+   "error": null,
+   "id": "app:Ghost",
+   "installed_version": "1.0",
+   "kind": "app",
+   "latest_version": null,
+   "name": "Ghost",
+   "note": null,
+   "origin": null,
+   "project": null,
+   "seen_at": null,
+   "source": "apps",
+   "source_at": null,
+   "state": "manual"
+  }
+ ],
+ "projects": [
+  {
+   "container_images": [],
+   "manifests": [
+    "pyproject.toml"
+   ],
+   "name": "api",
+   "path": "~/Projects/api",
+   "root": "~/Projects",
+   "state": "active"
+  },
+  {
+   "container_images": [
+    "node:20.11"
+   ],
+   "manifests": [
+    "package.json"
+   ],
+   "name": "web",
+   "path": "~/Projects/web",
+   "root": "~/Projects",
+   "state": "active"
+  }
+ ],
+ "settings": {
+  "check_running_versions": true
+ }
+}
