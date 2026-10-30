@@ -94,6 +94,7 @@ watchtower-agent claude-code findings --severity critical,high
 - Agent refreshes and update-log rows get `actor` (the agent name). `update-plan` writes no row.
 
 The full contract (fields, error codes and exit codes) is in the docstring of `engine/watchtower_engine/agent.py`.
+Agent instructions (#112): the Claude Code skill `.claude/skills/watchtower/SKILL.md` and the `## Agent CLI (Codex)` section in `AGENTS.md`.
 
 ## External calls
 
