@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CanonicalName</key>
+	<string>iphoneos26.2</string>
+	<key>DefaultDeploymentTarget</key>
+	<string>26.2</string>
+	<key>DisplayName</key>
+	<string>iOS 26.2</string>
+	<key>IsBaseSDK</key>
+	<string>YES</string>
+	<key>MaximumDeploymentTarget</key>
+	<string>26.2.99</string>
+	<key>Version</key>
+	<string>26.2</string>
+</dict>
+</plist>

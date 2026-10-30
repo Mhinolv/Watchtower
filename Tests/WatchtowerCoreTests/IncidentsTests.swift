@@ -103,7 +103,8 @@ private struct FakeClient: IncidentClient {
 @Test func incidentsSitAfterBacklogWithCommandSixAndUpdateLogStaysLast() {
     let all = SidebarSection.allCases
     #expect(all.firstIndex(of: .incidents) == all.firstIndex(of: .backlog)! + 1)
-    #expect(all.last == .updateLog)
+    #expect(all.last == .runtimes)  // #16: Runtimes (⌘8) comes after Update Log.
+    #expect(all.firstIndex(of: .runtimes) == all.firstIndex(of: .updateLog)! + 1)
     #expect(SidebarSection.incidents.title == "Incidents")
     #expect(SidebarSection.incidents.shortcutDigit == "6")
     #expect(SidebarSection.incidents.symbol == "antenna.radiowaves.left.and.right")

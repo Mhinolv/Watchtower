@@ -1,0 +1,39 @@
+{
+ ".vscode": [
+  "extensions.json",
+  "kubescape.kubescape-0.3.3",
+  "ms-azuretools.vscode-containers-2.5.2",
+  "ms-azuretools.vscode-docker-2.0.0",
+  "ms-kubernetes-tools.vscode-kubernetes-tools-1.4.1",
+  "ms-python.debugpy-2026.6.0-darwin-arm64",
+  "ms-python.python-2026.8.0-darwin-arm64",
+  "ms-python.vscode-pylance-2026.4.1",
+  "ms-python.vscode-python-envs-1.38.0-darwin-arm64",
+  "ms-vscode-remote.remote-containers-0.469.0",
+  "ms-vscode-remote.remote-ssh-0.128.0",
+  "ms-vscode-remote.remote-ssh-edit-0.87.0",
+  "ms-vscode-remote.remote-wsl-0.104.3",
+  "ms-vscode-remote.vscode-remote-extensionpack-0.26.0",
+  "ms-vscode.remote-explorer-0.5.0",
+  "ms-vscode.remote-server-1.5.3",
+  "redhat.vscode-yaml-1.24.0",
+  "william-voyek.vscode-nginx-0.7.2"
+ ],
+ ".cursor": [
+  "anthropic.claude-code-2.1.15-darwin-arm64",
+  "anysphere.cursorpyright-1.0.12",
+  "anysphere.remote-containers-1.0.41",
+  "anysphere.remote-ssh-1.1.16",
+  "bierner.markdown-mermaid-1.32.1-universal",
+  "extensions.json",
+  "github.vscode-github-actions-0.32.3-universal",
+  "mechatroner.rainbow-csv-3.24.1-universal",
+  "ms-azuretools.vscode-containers-2.4.5-universal",
+  "ms-azuretools.vscode-docker-2.0.0-universal",
+  "ms-playwright.playwright-1.1.19-universal",
+  "ms-python.debugpy-2026.6.0-darwin-arm64",
+  "ms-python.python-2025.6.1-darwin-arm64",
+  "randomfractalsinc.vscode-data-preview-2.2.0-universal",
+  "tomoki1207.pdf-1.2.2-universal"
+ ]
+}

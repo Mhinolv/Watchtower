@@ -81,6 +81,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | None. A static file. | KEV check, each refresh |
 | GET `https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json` | None. The official CISA mirror. | KEV check, only if the CISA file fails |
 | GET `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | None. A bulk download of the whole public EPSS file (about 3 MB). No CVE list, finding id or inventory data. The URL answers 302 to the file of the day. | EPSS check, each refresh, at most once a day (the cached file is used for 24 hours) |
+| GET `https://pypi.org/simple/<name>/` (PEP 691 JSON, gzip) and `https://index.crates.io/<path>/<name>` (gzip) | The public package name only: no version, project, path or inventory data. Names from `requirements.txt` and `Cargo.toml`. | Projects detail, when the owner opens a project: one request for each direct dependency, 25 for each engine call, 5 at a time. The app calls again until all rows are checked. Answers are reused for 1 day |
 | GET `https://api.github.com/advisories?ghsa_id=<id>&type=reviewed` and `type=malware` | One advisory id (GHSA, or CVE if the finding has no GHSA id). No package, version, path or project. | GitHub check, only for advisory ids that the local OSV databases do not have. At most 40 requests for each refresh. Answers are reused for 7 days. No token |
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
@@ -103,6 +104,7 @@ The Sparkle check reads the appcast of each app that has `SUFeedURL` and no usab
 It refuses an address that is not HTTPS, has a user name, password or secret query value, or points to this Mac or a local network. A redirect must pass the same rules.
 Before each request, the engine resolves the host name. If any address is not global (private, loopback, link-local and others), it refuses the feed (#67).
 It checks every address of the host name first: one local address refuses the host. Then it connects to the checked addresses only, in order, until one connects (at most 8). A second DNS answer cannot change this. TLS still checks the certificate against the host name, and a TLS failure is not retried on the next address. Sparkle feeds do not use a proxy.
+All connect tries for one host share a 30-second deadline (#83). Each try waits at most 20 seconds and never longer than the time that is left. If the deadline passes, the check fails and the last good answer stays.
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
@@ -162,7 +164,7 @@ Watchtower does not edit `Cargo.toml`. If its requirement does not allow the fix
 Watchtower refuses Cargo workspaces, git and path dependencies, and a `Cargo.lock` that is missing or does not match `Cargo.toml`.
 A semver-incompatible change (for example `0.2` to `0.3`) needs its own confirmation. Watchtower copies `Cargo.toml` and `Cargo.lock` to `update-backups/` first.
 The result is `Lockfile updated`, never `Verified`: Watchtower reads `Cargo.lock` again, but no installed crate exists until Cargo builds it.
-The Projects detail shows a `Dependencies` table for Cargo projects. `Evidence` keeps exact pins and ranges apart.
+The Projects detail shows a `Dependencies` table (#81) for `requirements.txt` and `Cargo.toml` files, one section for each manifest (also a manifest in a folder below the project, #85). `Declared` keeps exact pins and ranges apart. `Installed` is the `.venv` version, or the `Cargo.lock` version (`locked`). `Latest` comes from PyPI or crates.io and shows its retrieval time. It is the highest stable release that is not yanked: a pre-release is never shown, and a package with only pre-releases shows `No stable release`. A row that the registry was not asked for yet shows `Not checked yet`: a large project is read in steps of 25 packages, and `Check the rest` continues after a stop. A finding marks a row only if its path names the file of that section (`a/requirements.txt` does not mark `b/requirements.txt`). A row with an open finding shows `Vulnerable` and opens the finding. `Update…` opens the requirements.txt (#30) or Cargo (#15) plan for the latest version. A row that the adapter would refuse has `Update…` off with the plan's reason. The engine command is `watchtower dependencies <project folder>`. Transitive dependencies and npm and uv tables are not listed.
 
 ### Mac App Store apps (mas)
 
@@ -183,6 +185,16 @@ An update plan for one direct requirement of a requirements-only project (no loc
 - If the target has no wheel for this Mac, the scripts step asks first. Only the second confirmation runs the command with `--no-binary=<package>` (that package only). A new major version needs its own confirmation.
 - Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip. Watchtower never creates an environment or installs pip.
 - Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. A finding from an exact pin opens this plan from `Update…` (#80).
+
+## Runtimes, SDKs and editor extensions (#16)
+
+The `Runtimes` screen (⌘8, after Update Log) lists installs that the engine finds on disk, one row for each install, in three groups: `Runtimes`, `SDKs` and `Editor extensions`.
+- Layouts that it reads: nvm, fnm, Volta, pyenv, rbenv, uv Pythons (`~/.local/share/uv/python`), the python.org framework (`/Library/Frameworks/Python.framework/Versions`), rustup, SDKMAN!, asdf and mise version folders, Java virtual machines in `/Library/Java/JavaVirtualMachines`, Go in `/usr/local/go` and `~/sdk`, the SDKs of each Xcode and of the Command Line Tools, and the extensions of VS Code, VS Code Insiders, Cursor, Windsurf and VSCodium. Homebrew installs stay in the Homebrew source.
+- It lists folders and reads small files, only regular files of at most 2 MB, never through a symlink and never a FIFO or a device (`version.plist`, `SDKSettings.plist`, `Info.plist`, a Go `VERSION` file, the rustup channel manifest as text, an extension `package.json`). It never runs a program (not even `node --version`), a build, an install script or a hook, never starts a service, and never opens an app container, keychain or credential file. No network call.
+- A folder that does not exist is normal. A folder that cannot be read shows `Cannot read ~/.nvm: permission denied.` above its group, makes the Runtimes coverage `partial`, and does not stop the other folders or the refresh. A version that cannot be read shows `Unknown` and `Version not found in <file>.`
+- The newest copy of a runtime, SDK or extension (for an extension: in the same editor) shows normally. Older copies show `Old copy` and `Unknown`. Watchtower does not check for updates of these installs yet.
+- Runtimes are not project manifests: the Projects list never shows them.
+- For the endoflife.date check (#59), each runtime item has the attributes `product` (a stable name: `nodejs`, `python`, `ruby`, `go`, `rust`, `java`, `gradle`, `kotlin`, `maven`, `scala`), `eolProduct` (the endoflife.date product, if one fits: not for `java`) and `installed_version` as a plain version without a leading `v`. `family` groups the copies of one thing.
 
 ## Findings
 

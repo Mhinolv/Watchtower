@@ -1,0 +1,207 @@
+{
+ "files": [
+  {
+   "core-metadata": {
+    "sha256": "c6393d65643f8492f5054fd0c73cff08c7e3a57b4d3d1b532fa687b16087162e"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "c6393d65643f8492f5054fd0c73cff08c7e3a57b4d3d1b532fa687b16087162e"
+   },
+   "filename": "click-8.4.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "40c50b7c6c6adac2823d411041ec84f3f103f1b280d5e9ce0d7f998995832f81"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.0/click-8.4.0-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 116147,
+   "upload-time": "2026-05-17T00:47:56.842423Z",
+   "url": "https://files.pythonhosted.org/packages/ee/ae/8e92f8058baf87f6c7d86ee7e457668690195cc77efedb8d3797a06e3940/click-8.4.0-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "click-8.4.0.tar.gz",
+   "hashes": {
+    "sha256": "638f1338fe1235c8f4e008e4a8a254fb5c5fbdcbb40ece3c9142ebb78e792973"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.0/click-8.4.0.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 350843,
+   "upload-time": "2026-05-17T00:47:58.425765Z",
+   "url": "https://files.pythonhosted.org/packages/23/e4/796662cd90cf80e3a363c99db2b88e0e394b988a575f60a17e16440cd011/click-8.4.0.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "b9600b73b63e2318e3df96a5dc1daa36cc9793ed2d7f9efc62022c2f555b9fdf"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "b9600b73b63e2318e3df96a5dc1daa36cc9793ed2d7f9efc62022c2f555b9fdf"
+   },
+   "filename": "click-8.4.1-py3-none-any.whl",
+   "hashes": {
+    "sha256": "482be17c6991b8c19c5429a1e995d9b0efdbb63172824c41f99965dc0ade8ec2"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.1/click-8.4.1-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 116639,
+   "upload-time": "2026-05-22T04:08:35.260922Z",
+   "url": "https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "click-8.4.1.tar.gz",
+   "hashes": {
+    "sha256": "918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.1/click-8.4.1.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 353007,
+   "upload-time": "2026-05-22T04:08:37.769982Z",
+   "url": "https://files.pythonhosted.org/packages/9b/98/518d8e5081007684232226f475082b30087d0f585e8457db087298259f49/click-8.4.1.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "194c9dd81d567f9081f026c7e401060fbafa7bc147c8e0a58b3668b40a64c031"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "194c9dd81d567f9081f026c7e401060fbafa7bc147c8e0a58b3668b40a64c031"
+   },
+   "filename": "click-8.4.2-py3-none-any.whl",
+   "hashes": {
+    "sha256": "e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.2/click-8.4.2-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 119243,
+   "upload-time": "2026-06-24T17:45:13.730054Z",
+   "url": "https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "click-8.4.2.tar.gz",
+   "hashes": {
+    "sha256": "9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.4.2/click-8.4.2.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 338000,
+   "upload-time": "2026-06-24T17:45:15.148101Z",
+   "url": "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz",
+   "yanked": false
+  },
+  {
+   "core-metadata": {
+    "sha256": "e87bce0bd194de70dfb8e708e0a6b0483009f25611804eaf87bfeb63e6c20501"
+   },
+   "data-dist-info-metadata": {
+    "sha256": "e87bce0bd194de70dfb8e708e0a6b0483009f25611804eaf87bfeb63e6c20501"
+   },
+   "filename": "click-8.5.0-py3-none-any.whl",
+   "hashes": {
+    "sha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.5.0/click-8.5.0-py3-none-any.whl/provenance",
+   "requires-python": ">=3.10",
+   "size": 125251,
+   "upload-time": "2026-08-26T13:33:12.928043Z",
+   "url": "https://files.pythonhosted.org/packages/58/50/6c0d534c5f134586a8e1ba4e330569e32f057e33372ae556463212fb4cd3/click-8.5.0-py3-none-any.whl",
+   "yanked": false
+  },
+  {
+   "core-metadata": false,
+   "data-dist-info-metadata": false,
+   "filename": "click-8.5.0.tar.gz",
+   "hashes": {
+    "sha256": "ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34"
+   },
+   "provenance": "https://pypi.org/integrity/click/8.5.0/click-8.5.0.tar.gz/provenance",
+   "requires-python": ">=3.10",
+   "size": 382235,
+   "upload-time": "2026-08-26T13:33:14.560531Z",
+   "url": "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz",
+   "yanked": false
+  }
+ ],
+ "meta": {
+  "_last-serial": 40411242,
+  "api-version": "1.4"
+ },
+ "name": "click",
+ "project-status": {
+  "status": "active"
+ },
+ "versions": [
+  "0.1",
+  "0.2",
+  "0.3",
+  "0.4",
+  "0.5",
+  "0.5.1",
+  "0.6",
+  "0.7",
+  "1.0",
+  "1.1",
+  "2.0",
+  "2.1",
+  "2.2",
+  "2.3",
+  "2.4",
+  "2.5",
+  "2.6",
+  "3.0",
+  "3.1",
+  "3.2",
+  "3.3",
+  "4.0",
+  "4.1",
+  "5.0",
+  "5.1",
+  "6.0",
+  "6.1",
+  "6.2",
+  "6.3",
+  "6.4",
+  "6.5",
+  "6.6",
+  "6.7.dev0",
+  "6.7",
+  "7.0",
+  "7.1",
+  "7.1.1",
+  "7.1.2",
+  "8.0.0a1",
+  "8.0.0rc1",
+  "8.0.0",
+  "8.0.1",
+  "8.0.2",
+  "8.0.3",
+  "8.0.4",
+  "8.1.0",
+  "8.1.1",
+  "8.1.2",
+  "8.1.3",
+  "8.1.4",
+  "8.1.5",
+  "8.1.6",
+  "8.1.7",
+  "8.1.8",
+  "8.2.0",
+  "8.2.1",
+  "8.2.2",
+  "8.3.0",
+  "8.3.1",
+  "8.3.2",
+  "8.3.3",
+  "8.4.0",
+  "8.4.1",
+  "8.4.2",
+  "8.5.0"
+ ]
+}

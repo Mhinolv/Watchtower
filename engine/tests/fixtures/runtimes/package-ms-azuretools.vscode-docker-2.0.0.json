@@ -1,0 +1,9 @@
+{
+  "name": "vscode-docker",
+  "displayName": "Docker",
+  "version": "2.0.0",
+  "publisher": "ms-azuretools",
+  "engines": {
+    "vscode": "^1.92.0"
+  }
+}

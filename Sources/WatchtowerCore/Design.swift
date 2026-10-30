@@ -67,7 +67,7 @@ public enum SidebarGroup: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .inventory: [.apps, .homebrew, .projects]
         case .review: [.findings, .backlog, .incidents]
-        case .history: [.updateLog]
+        case .history: [.updateLog, .runtimes]
         }
     }
 }
