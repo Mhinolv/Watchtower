@@ -5,6 +5,7 @@ writes {"schema_version", "error", "detail"} to stderr and exits 1.
 """
 import argparse
 import json
+import os
 import sys
 
 from . import __version__
@@ -108,6 +109,8 @@ def main(argv=None) -> int:
         fp.add_argument("id", help="finding id, for example SEC-0001")
         if name == "finding-defer":
             fp.add_argument("days", type=int, choices=(7, 30))
+    deps = sub.add_parser("dependencies", help="print the direct dependencies of one project as JSON")
+    deps.add_argument("path", help="project folder")
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
@@ -189,6 +192,19 @@ def main(argv=None) -> int:
             return 0
         if args.cmd == "projects":
             _emit(sys.stdout, list_projects(args.data_dir).to_dict())
+            return 0
+        if args.cmd == "dependencies":
+            from .dependencies import project_dependencies
+            from .store import default_data_dir
+
+            data_dir = args.data_dir or default_data_dir()
+            real = os.path.realpath(os.path.expanduser(args.path))
+            project = next((p for p in list_projects(args.data_dir).projects if p.real_path == real), None)
+            if project is None:
+                _emit(sys.stderr, {"error": "That folder is not a project in the project roots.", "detail": None})
+                return 1
+            with Store(data_dir) as store:
+                _emit(sys.stdout, project_dependencies(project, store.findings(), data_dir))
             return 0
         if args.cmd == "project-state":
             project = set_project_active(args.path, args.state == "active", args.data_dir)
