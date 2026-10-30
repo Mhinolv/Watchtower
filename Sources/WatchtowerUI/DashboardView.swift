@@ -223,11 +223,10 @@ struct ItemTable: View {
         }
     }
 
+    /// The Source column: a fixed label for each kind (#33), never a title-cased raw value.
     func sourceText(_ item: ItemRecord) -> String {
-        let kind = item.kind.map { $0 == "os" ? "System" : $0.prefix(1).uppercased() + $0.dropFirst() }
-        if let origin = item.origin { return [kind, origin].compactMap { $0 }.joined(separator: " · ") }
-        if let project = item.project { return [kind, project].compactMap { $0 }.joined(separator: " · ") }
-        return kind ?? item.source
+        let source = model.state?.coverage.first { $0.source == item.source }?.label ?? item.source
+        return SourceLabel.text(kind: item.kind, sourceLabel: source, origin: item.origin, project: item.project)
     }
 }
 
