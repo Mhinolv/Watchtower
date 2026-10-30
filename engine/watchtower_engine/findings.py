@@ -18,8 +18,10 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+
+from . import vendor_notes as vendor
 
 
 SOURCE_LABEL = "OSV"
@@ -139,10 +141,13 @@ class Finding:
     # EPSS (#57) for the finding's CVE: {cve, score, percentile, score_date, fetched_at}. `score` is None if the
     # CVE is not in the file. None if the finding has no CVE or EPSS never loaded.
     epss: dict | None = None
+    # Vendor assessments (#18), newest retrieval first. Withdrawn and stale notes stay in the list.
+    vendor_notes: list[vendor.VendorNote] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         data = dict(self.__dict__)
         data["paths"] = [p.to_dict() for p in self.paths]
+        data["vendor_notes"] = [n.to_dict() for n in self.vendor_notes]
         return data
 
 
@@ -156,6 +161,7 @@ def migrate(db: sqlite3.Connection) -> None:
     for column in ADDED_COLUMNS:
         if column not in have:
             db.execute(f"ALTER TABLE findings ADD COLUMN {column} TEXT")
+    vendor.migrate(db)
 
 
 # Scan -> findings
@@ -261,6 +267,7 @@ def _merge(db: sqlite3.Connection, hits: list[sqlite3.Row], obs: dict, now: str,
                 status = "open"
             db.execute("UPDATE OR IGNORE finding_paths SET seq = ? WHERE seq = ?", (keep["seq"], row["seq"]))
             db.execute("DELETE FROM finding_paths WHERE seq = ?", (row["seq"],))
+            vendor.move(db, row["seq"], keep["seq"])  # Never lose a vendor note (#18).
             db.execute("DELETE FROM findings WHERE seq = ?", (row["seq"],))
     resolved = status == "resolved"
     if resolved:
@@ -433,6 +440,7 @@ def list_findings(db: sqlite3.Connection, now: str) -> list[Finding]:
             malware=json.loads(row["malware"]) if row["malware"] else None,
             withdrawn_at=row["withdrawn_at"],
             epss=json.loads(row["epss"]) if row["epss"] else None,
+            vendor_notes=vendor.for_finding(db, row["seq"]),
         ))
     out.sort(key=lambda f: f.id)
     out.sort(key=lambda f: f.last_seen, reverse=True)

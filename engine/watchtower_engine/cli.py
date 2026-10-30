@@ -13,6 +13,7 @@ from .findings import FindingError
 from .models import SCHEMA_VERSION
 from .scope import list_projects, set_project_active
 from .store import Store, StoreError
+from .vendor_notes import VendorNoteError
 
 
 def _emit(stream, payload: dict) -> None:
@@ -135,6 +136,20 @@ def main(argv=None) -> int:
         fp.add_argument("id", help="finding id, for example SEC-0001")
         if name == "finding-defer":
             fp.add_argument("days", type=int, choices=(7, 30))
+    vadd = sub.add_parser("vendor-note-add", help="add a vendor assessment to a finding, print the finding as JSON")
+    vadd.add_argument("id", help="finding id, for example SEC-0001")
+    vadd.add_argument("--vendor", required=True, help="for example Debian")
+    vadd.add_argument("--verdict", required=True, choices=("fixed", "not-affected", "affected"),
+                      help="what the vendor says about the installed version")
+    vadd.add_argument("--statement", required=True, help="the vendor statement, for example 'Fixed by backport in 2.4.1-3.'")
+    vadd.add_argument("--range", dest="affected_range", help="affected range, for example '< 2.4.1-3'")
+    vadd.add_argument("--confidence", required=True, choices=("high", "medium", "low"))
+    vadd.add_argument("--url", dest="source_url", required=True, help="the vendor page (http or https)")
+    vadd.add_argument("--retrieved", dest="retrieved_at", help="when the page was read, 2026-10-29T09:12:00Z (default: now)")
+    for name, helptext in (("vendor-note-withdraw", "mark a vendor note withdrawn; it stays in the history"),
+                           ("vendor-note-check", "record that the owner checked the vendor source again")):
+        vp = sub.add_parser(name, help=helptext)
+        vp.add_argument("id", help="vendor note id, for example VN-0001")
     deps = sub.add_parser("dependencies", help="print the direct dependencies of one project as JSON")
     deps.add_argument("path", help="project folder")
     deps.add_argument("--max-lookups", type=int, default=None, metavar="N",
@@ -232,6 +247,19 @@ def main(argv=None) -> int:
                     finding = store.reopen_finding(args.id)
             _emit(sys.stdout, {"finding": finding.to_dict()})
             return 0
+        if args.cmd in ("vendor-note-add", "vendor-note-withdraw", "vendor-note-check"):
+            with Store(args.data_dir) as store:
+                if args.cmd == "vendor-note-add":
+                    finding = store.add_vendor_note(
+                        args.id, vendor=args.vendor, verdict=args.verdict, statement=args.statement,
+                        affected_range=args.affected_range, confidence=args.confidence,
+                        source_url=args.source_url, retrieved_at=args.retrieved_at)
+                elif args.cmd == "vendor-note-withdraw":
+                    finding = store.withdraw_vendor_note(args.id)
+                else:
+                    finding = store.check_vendor_note(args.id)
+            _emit(sys.stdout, {"finding": finding.to_dict()})
+            return 0
         if args.cmd == "projects":
             _emit(sys.stdout, list_projects(args.data_dir).to_dict())
             return 0
@@ -256,7 +284,7 @@ def main(argv=None) -> int:
     except StoreError as exc:
         _emit(sys.stderr, {"error": str(exc), "detail": exc.detail})
         return 1
-    except FindingError as exc:
+    except (FindingError, VendorNoteError) as exc:
         _emit(sys.stderr, {"error": str(exc), "detail": None})
         return 1
     except Exception as exc:  # Never let a traceback reach stdout.

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from . import findings as findings_module
+from . import vendor_notes as vendor_module
 from .research import records as incident_records
 from .models import (
     REFRESH_STATUSES,
@@ -336,6 +337,34 @@ class Store:
 
     def reopen_finding(self, finding_id: str) -> findings_module.Finding:
         return self._finding_action(finding_id, lambda db: findings_module.reopen(db, finding_id))
+
+    # Vendor notes (#18). A note never changes the status of its finding.
+
+    def add_vendor_note(self, finding_id: str, **fields) -> findings_module.Finding:
+        now = self.clock()
+        seq = findings_module.parse_sec_id(finding_id)
+
+        def act(db):
+            findings_module._row(db, finding_id)
+            vendor_module.add(db, seq, now, **fields)
+        return self._finding_action(finding_id, act)
+
+    def withdraw_vendor_note(self, note_id: str) -> findings_module.Finding:
+        return self._note_action(lambda db, now: vendor_module.withdraw(db, note_id, now))
+
+    def check_vendor_note(self, note_id: str) -> findings_module.Finding:
+        return self._note_action(lambda db, now: vendor_module.check(db, note_id, now))
+
+    def _note_action(self, act: Callable) -> findings_module.Finding:
+        now = self.clock()
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            seq = act(self.db, now)
+            self.db.execute("COMMIT")
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            raise
+        return findings_module.get(self.db, self.clock(), findings_module.sec_id(seq))
 
     def incident_state(self) -> dict:
         """The incidents, sources, last review and gaps, as `watchtower incidents` prints them."""

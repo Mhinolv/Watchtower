@@ -213,12 +213,17 @@ public protocol EngineClient: Sendable {
     func reopenFinding(id: String) async throws -> FindingRecord
     func settings() async throws -> EngineSettings
     func setCheckRunningVersions(_ on: Bool) async throws -> EngineSettings
+    /// The owner checked the source of a vendor note again (#18). The finding status does not change.
+    func checkVendorNote(id: String) async throws -> FindingRecord
 }
 
 extension EngineClient {
     // Fakes that do not care about settings keep the default: the check is on.
     public func settings() async throws -> EngineSettings { EngineSettings() }
     public func setCheckRunningVersions(_ on: Bool) async throws -> EngineSettings { EngineSettings(checkRunningVersions: on) }
+    public func checkVendorNote(id: String) async throws -> FindingRecord {
+        throw EngineError.failed(message: "Vendor notes are not available here.", detail: nil)
+    }
 }
 
 struct FindingResponse: Codable, Sendable {
@@ -305,6 +310,10 @@ public struct Engine: EngineClient {
 
     public func reopenFinding(id: String) async throws -> FindingRecord {
         try await call(["finding-reopen", id], as: FindingResponse.self).finding
+    }
+
+    public func checkVendorNote(id: String) async throws -> FindingRecord {
+        try await call(["vendor-note-check", id], as: FindingResponse.self).finding
     }
 
     public func settings() async throws -> EngineSettings {

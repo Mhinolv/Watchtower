@@ -112,6 +112,10 @@ MainActor.assumeIsolated {
                     // The Update… buttons need an update model in the environment.
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
                                size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))
+                } else if [.findingVendor, .findingVendorNotAffected, .findingVendorHistory].contains(scenario) {
+                    // The `Vendor assessment` section (#18) is below `Source`: a taller window shows it.
+                    try render(DashboardView(model: model), size: CGSize(width: 1280, height: 1480), dark: dark,
+                               to: out.appendingPathComponent(name))
                 } else {
                     try render(DashboardView(model: model), size: CGSize(width: 1280, height: 720), dark: dark,
                                to: out.appendingPathComponent(name))
