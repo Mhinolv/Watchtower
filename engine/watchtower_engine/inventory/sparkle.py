@@ -135,10 +135,15 @@ class LocalAddress(ValueError):
     """The host name resolves to an address that is not global (#67)."""
 
 
-def checked_address(host: str, port: int, resolve: Resolver) -> str:
-    """The address to connect to. Raises LocalAddress if any address of the host is not global.
+MAX_ADDRESSES = 8  # At most this many checked addresses are tried for one host.
 
-    One answer is checked and used, so a second DNS answer cannot move the connection (#67).
+
+def checked_addresses(host: str, port: int, resolve: Resolver) -> list[str]:
+    """The addresses to connect to, in the order of the answer. Raises LocalAddress if any address is not global.
+
+    One answer is checked, and the connection uses only addresses from it, so a second DNS answer cannot move
+    the connection (#67). Every address is checked before any connect: a local address anywhere in the answer
+    refuses the whole host, also when the first address is global (#77).
     """
     addresses = list(resolve(host, port))
     if not addresses:
@@ -151,19 +156,32 @@ def checked_address(host: str, port: int, resolve: Resolver) -> str:
         ip = getattr(ip, "ipv4_mapped", None) or ip
         if not ip.is_global:
             raise LocalAddress(f"{host} resolves to {ip}, which is not a global address")
-    return addresses[0].split("%")[0]
+    ordered = list(dict.fromkeys(text.split("%")[0] for text in addresses))
+    return ordered[:MAX_ADDRESSES]
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
-    """Connect to the checked address. TLS still checks the certificate against the host name."""
+    """Connect to a checked address. TLS still checks the certificate against the host name.
 
-    def __init__(self, host, *, address: str, **kwargs):
+    The checked addresses are tried in order until one connects (#77). Only a failed connect moves on to the
+    next address. A TLS failure on a connected address is not retried: the host name check stays strict.
+    """
+
+    def __init__(self, host, *, addresses: list[str], **kwargs):
         super().__init__(host, **kwargs)
-        self._address = address
+        self._addresses = addresses
 
     def connect(self):
-        sock = socket.create_connection((self._address, self.port), self.timeout, self.source_address)
-        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+        error: OSError | None = None
+        for address in self._addresses:
+            try:
+                sock = socket.create_connection((address, self.port), self.timeout, self.source_address)
+            except OSError as exc:
+                error = exc
+                continue
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+            return
+        raise error if error else OSError(f"{self.host} has no address")
 
 
 class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
@@ -175,8 +193,8 @@ class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
 
     def https_open(self, req):
         parts = urllib.parse.urlsplit(req.full_url)
-        address = checked_address(parts.hostname, parts.port or 443, self._resolve)
-        return self.do_open(functools.partial(_PinnedHTTPSConnection, address=address), req,
+        addresses = checked_addresses(parts.hostname, parts.port or 443, self._resolve)
+        return self.do_open(functools.partial(_PinnedHTTPSConnection, addresses=addresses), req,
                             context=self._context)
 
 

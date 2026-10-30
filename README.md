@@ -98,7 +98,7 @@ It never launches an app. For the cask links, `watchtower apps` also runs the `b
 The Sparkle check reads the appcast of each app that has `SUFeedURL` and no usable Homebrew answer (#14).
 It refuses an address that is not HTTPS, has a user name, password or secret query value, or points to this Mac or a local network. A redirect must pass the same rules.
 Before each request, the engine resolves the host name. If any address is not global (private, loopback, link-local and others), it refuses the feed (#67).
-It connects to the address that it checked, so a second DNS answer cannot change it. TLS still checks the certificate against the host name. Sparkle feeds do not use a proxy.
+It checks every address of the host name first: one local address refuses the host. Then it connects to the checked addresses only, in order, until one connects (at most 8). A second DNS answer cannot change this. TLS still checks the certificate against the host name, and a TLS failure is not retried on the next address. Sparkle feeds do not use a proxy.
 The appcast is untrusted data. The engine refuses a DTD or entities, reads at most 5 MB and 500 items, and reads only the version, minimum macOS and channel fields.
 It compares the newest stable release with the installed `CFBundleVersion`. It never installs: use the app's Check for Updates command.
 The last good answer of each feed stays in `cache/sparkle.json` in the data folder. If a feed fails, the engine shows that answer and its date.
