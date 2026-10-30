@@ -2,6 +2,9 @@
 
 Every stdout object has `schema_version`. On an error, stdout stays empty: the engine
 writes {"schema_version", "error", "detail"} to stderr and exits 1.
+
+`--agent NAME` selects agent mode (#111). See `agent.py` for its commands, output and error codes.
+`refresh` and `update-run` hold the engine lock (`lock.py`) in both modes.
 """
 import argparse
 import json
@@ -9,6 +12,7 @@ import os
 import sys
 
 from . import __version__
+from . import agent
 from .findings import FindingError
 from .models import SCHEMA_VERSION
 from .scope import list_projects, set_project_active
@@ -21,7 +25,38 @@ def _emit(stream, payload: dict) -> None:
     stream.write("\n")
 
 
+class _Parser(argparse.ArgumentParser):
+    """In agent mode a bad flag raises agent.UsageError: the agent gets JSON, not help text."""
+
+    agent_mode = False
+
+    def error(self, message):
+        if self.agent_mode:
+            raise agent.UsageError(message)
+        super().error(message)
+
+
+def _locked(exc) -> int:
+    holder = exc.holder
+    _emit(sys.stderr, {"error": exc.message,
+                       "detail": f"{holder['command'] or 'a command'} by {holder['held_by'] or 'unknown'} "
+                                 f"since {holder['since'] or 'unknown'}"})
+    return 1
+
+
 def _updates(args) -> int:
+    from .lock import Locked, engine_lock
+
+    if args.cmd == "update-run":
+        try:
+            with engine_lock(args.data_dir, "app", "update-run"):
+                return _run_updates(args)
+        except Locked as exc:
+            return _locked(exc)
+    return _run_updates(args)
+
+
+def _run_updates(args) -> int:
     from .update_log import UpdateLog
     from .updater import InterruptOnSigterm, Interrupted, UpdateError, plan_update, run_update
 
@@ -102,8 +137,11 @@ def _research_run(args) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="watchtower")
+    argv = sys.argv[1:] if argv is None else list(argv)
+    agent_mode = agent.wants_agent(argv)
+    parser = type("Parser", (_Parser,), {"agent_mode": agent_mode})(prog="watchtower")
     parser.add_argument("--data-dir", help="data folder (default: ~/Library/Application Support/Watchtower)")
+    parser.add_argument("--agent", choices=agent.AGENTS, help="agent mode for this agent (see agent.py)")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("version", help="print the engine version as JSON")
     sub.add_parser("state", help="print the last refresh, coverage and items as JSON")
@@ -125,6 +163,11 @@ def main(argv=None) -> int:
     urun.add_argument("--confirm-major", action="store_true", help="the owner confirmed a new major version")
     urun.add_argument("--confirm-scripts", action="store_true", help="the owner confirmed install scripts")
     sub.add_parser("update-log", help="print the update log as JSON")
+    fnd = sub.add_parser("findings", help="print the findings that match the filters as JSON")
+    fnd.add_argument("--severity", help="comma list: critical, high, medium, low, unknown")
+    fnd.add_argument("--ecosystem", help="comma list, for example npm,PyPI")
+    fnd.add_argument("--project", help="comma list of project names or folders")
+    fnd.add_argument("--status", help="comma list: open, deferred, backlog, resolved, all (default: open)")
     sub.add_parser("incidents", help="print the vendor incident records, sources and review as JSON")
     sub.add_parser("incidents-check", help="check the vendor sources now, save the result, print it as JSON")
     sub.add_parser("research-status", help="print whether Claude research can run, its topics and limits as JSON")
@@ -157,6 +200,8 @@ def main(argv=None) -> int:
     pstate = sub.add_parser("project-state", help="mark one project active or inactive")
     pstate.add_argument("path", help="project folder")
     pstate.add_argument("state", choices=("active", "inactive"))
+    if agent_mode:
+        return agent.run(parser, argv)
     args = parser.parse_args(argv)
     try:
         if args.cmd == "version":
@@ -173,16 +218,22 @@ def main(argv=None) -> int:
 
             data_dir = args.data_dir or default_data_dir()
 
+            from .lock import Locked, engine_lock
+
             def progress(done, total, label):
                 _emit(sys.stderr, {"progress": {"done": done, "total": total, "source": label}})
                 sys.stderr.flush()
 
-            with StopOnSigterm() as guard, Store(data_dir) as store:
-                try:
-                    state = run_refresh(store, default_sources(data_dir), progress, guard)
-                except Cancelled:
-                    _emit(sys.stderr, {"error": "Refresh stopped.", "detail": None})
-                    return 130
+            try:
+                with engine_lock(data_dir, "app", "refresh"):
+                    with StopOnSigterm() as guard, Store(data_dir) as store:
+                        try:
+                            state = run_refresh(store, default_sources(data_dir), progress, guard)
+                        except Cancelled:
+                            _emit(sys.stderr, {"error": "Refresh stopped.", "detail": None})
+                            return 130
+            except Locked as exc:
+                return _locked(exc)
             _emit(sys.stdout, state)
             return 0
         if args.cmd in ("settings", "setting-set"):
@@ -208,6 +259,11 @@ def main(argv=None) -> int:
             return _research_run(args)
         if args.cmd in ("update-plan", "update-run", "update-log"):
             return _updates(args)
+        if args.cmd == "findings":
+            filters = agent.parse_filters(args)
+            with Store(args.data_dir) as store:
+                _emit(sys.stdout, {"findings": [f.to_dict() for f in store.findings() if agent.matches(f, filters)]})
+            return 0
         if args.cmd == "homebrew":
             from .inventory import homebrew
             from .store import default_data_dir
@@ -284,6 +340,9 @@ def main(argv=None) -> int:
     except StoreError as exc:
         _emit(sys.stderr, {"error": str(exc), "detail": exc.detail})
         return 1
+    except agent.AgentError as exc:  # A bad `findings` filter.
+        _emit(sys.stderr, {"error": exc.message, "detail": None})
+        return 2
     except (FindingError, VendorNoteError) as exc:
         _emit(sys.stderr, {"error": str(exc), "detail": None})
         return 1

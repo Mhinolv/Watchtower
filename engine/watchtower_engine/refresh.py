@@ -149,9 +149,12 @@ def default_sources(data_dir: Path) -> list[Source]:
 
 
 def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda *a: None,
-                guard: "StopOnSigterm | None" = None) -> dict:
-    """Run the sources in order and save the result. Raises Cancelled after it saves a stop."""
-    refresh = store.begin_refresh()
+                guard: "StopOnSigterm | None" = None, actor: str = "app") -> dict:
+    """Run the sources in order and save the result. Raises Cancelled after it saves a stop.
+
+    `actor` marks the refresh record: `app` or the agent name (#111).
+    """
+    refresh = store.begin_refresh(actor)
     coverage: list[CoverageRecord] = []
     items: list[ItemRecord] = []
     scan = kev = github = epss = None

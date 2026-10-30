@@ -68,8 +68,32 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower settings` | `{"schema_version", "settings"}`: `check_running_versions` (on by default) |
 | `watchtower setting-set check-running-versions on\|off` | The same object, after the change |
 
+| `watchtower findings [--severity S] [--ecosystem E] [--project NAME_OR_PATH] [--status S]` | `{"schema_version", "findings"}`: the findings that match. Comma lists. The default status is `open` (`all` for every status) |
+
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
 The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine tests and the Swift tests both check them.
+
+`refresh` and `update-run` hold the engine lock `engine.lock` in the data folder (`flock`, no wait). The lock is for the app and for agents.
+If another refresh or update holds it, the command stops at once with "An agent is running a refresh or update. Try again when it ends."
+
+### Agent mode (#111)
+
+Claude Code, Codex and other agents use `scripts/watchtower-agent`. It runs the engine from this repo with `--agent NAME`.
+The app does not bundle the engine yet. To put the command on your `PATH`, make a symlink:
+
+```sh
+ln -s "$PWD/scripts/watchtower-agent" ~/.local/bin/watchtower-agent
+watchtower-agent claude-code findings --severity critical,high
+```
+
+- The first argument is the agent name: `claude-code`, `codex` or `other`.
+- Agents may run `version`, `state`, `findings`, `update-log`, `refresh`, `update-plan` and `update-run`. Other commands give `not_allowed`.
+- `update-run` runs non-major plans with no install scripts only. `--confirm-major` and `--confirm-scripts` give `not_allowed`.
+- Success: one stdout line `{"schema_version", "ok": true, "command", "data"}`. Error: one stderr line `{"schema_version", "ok": false, "error": {"code", "message", "detail"}}`.
+- Each finding has `relevance`: `summary`, `signals`, `active_projects`, `next_steps`, `blockers` and `update_item`.
+- Agent refreshes and update-log rows get `actor` (the agent name). `update-plan` writes no row.
+
+The full contract (fields, error codes and exit codes) is in the docstring of `engine/watchtower_engine/agent.py`.
 
 ## External calls
 
