@@ -14,13 +14,19 @@ The one command is `<project>/.venv/bin/python -m pip install --only-binary=:all
 - Planning reads `requirements.txt`, the files of the `.venv`, one PyPI metadata page and, if a wheel
   exists, `pip install --dry-run --report -` (wheels only) for the other packages that would change.
 
+A `.venv` that uv made has no pip (#96). Then the one command is
+`uv pip install --python <project>/.venv/bin/python --only-binary=:all: <name>==<target>`, and the plan reads
+`uv pip install --dry-run` with the same options. uv installs nothing into the `.venv` except the packages that
+the dry run names. With uv, a target that needs a source build is refused: the build step uses pip only.
+
 The file edit is exact. An exact pin (`requests==2.31.0`) becomes `requests==2.32.3` and nothing else in the
 line or file changes: extras, markers and comments stay. A range (`requests>=2.0`) that already allows the
 target stays as it is: the plan says `No change`. A range that does not allow the target is refused.
 The file is edited only after the environment shows the target.
 
 Refused: `-r` includes, constraint files, hashes (`--hash`), a package index option, editable and URL
-requirements for the package, a package that is not named exactly once, a missing `.venv`, a `.venv` with no pip.
+requirements for the package, a package that is not named exactly once, a missing `.venv`, a `.venv` with no pip
+and no uv.
 Success needs both: the installed package in `.venv` shows the target and `requirements.txt` shows what the plan said.
 """
 from __future__ import annotations
@@ -38,8 +44,8 @@ from ..discovery import PROJECT_ROOTS, display_path
 from ..feeds.homebrew import Fetch, http_fetch
 from ..models import _under_roots
 from .homebrew import Change, Plan, is_major_change, version_key
-from .uv import (_fetch_files, _file_hash, _row, env_python_minor, has_environment,
-                 installed_version, normalize, site_packages, spec_allows, wheel_fits)
+from .uv import (_fetch_files, _file_hash, _row, env_python_minor, find_uv, has_environment,
+                 installed_version, normalize, site_packages, spec_allows, uv_env, wheel_fits)
 
 KIND = "requirements"
 KEY_PREFIX = "requirements/"
@@ -64,6 +70,7 @@ REFUSE_CURRENT = "The environment already has {name} {version} or newer."
 REFUSE_SPEC = "requirements.txt requires \"{requirement}\". That does not allow {target}. Change it there first."
 REFUSE_WHEELS = "Watchtower cannot check whether {name} {target} needs a source build."
 REFUSE_NO_FILES = "PyPI has no files for {name} {target}."
+REFUSE_UV_BUILD = "{name} needs a source build. Watchtower builds from source with pip only."
 
 BUILD_REASON = "{name} needs a source build: no wheel for this platform."
 ERROR_FAILED_FILES = "pip changed files that Watchtower did not plan: {files}."
@@ -87,6 +94,15 @@ def pip_env() -> dict:
         "PIP_PROGRESS_BAR": "off",
         "PIP_REQUIRE_VIRTUALENV": "1",
     }
+
+
+def run_env(command: list[str]) -> dict:
+    """The environment for one install command: uv's own small environment for uv, else `pip_env()`."""
+    return uv_env() if is_uv_command(command) else pip_env()
+
+
+def is_uv_command(command: list[str]) -> bool:
+    return command[1:3] == ["pip", "install"]
 
 
 # Key
@@ -341,7 +357,9 @@ def path_evidence(project_path: str, file: str, name: str) -> dict | None:
 # Plan
 
 
-def build_command(python: str, name_spec: str, name: str, allow_build: bool) -> list[str]:
+def build_command(python: str, name_spec: str, name: str, allow_build: bool, uv: str | None = None) -> list[str]:
+    if uv:  # Never with allow_build: the plan refuses a source build with uv.
+        return [uv, "pip", "install", "--python", python, "--only-binary=:all:", name_spec]
     command = [python, "-m", "pip", "install", "--only-binary=:all:"]
     if allow_build:
         command.append(f"--no-binary={name}")  # Later flags win: this package only may build from source.
@@ -367,6 +385,18 @@ def parse_report(text: str, root: Path) -> list[Change]:
     return changes
 
 
+def parse_uv_dry_run(text: str, root: Path) -> list[Change]:
+    """The packages that `uv pip install --dry-run` would install (its ` + name==version` lines), as changes."""
+    changes: list[Change] = []
+    for m in re.finditer(r"^ \+ ([A-Za-z0-9][A-Za-z0-9._-]*)==(\S+)$", text, re.MULTILINE):
+        name, version = m.group(1), m.group(2)
+        before = installed_version(root, name)
+        if before == version:
+            continue
+        changes.append(Change(name, before, version, "upgrade" if before else "install"))
+    return changes
+
+
 def _change_text(c: Change) -> str:
     return f"{c.name} {c.after} (new)" if c.change == "install" else f"{c.name} {c.before} → {c.after}"
 
@@ -379,7 +409,7 @@ def make_plan(
     machine: str | None = None,
     mac: tuple[int, int] | None = None,
     system: str | None = None,
-    uv: str | None = None,  # Unused. The caller passes the same options as for uv.
+    uv: str | None = None,  # Used only if `.venv` has no pip. None: look for uv.
 ) -> Plan:
     """Plan one requirements update. A plan with `refusal` set must not run."""
     req = parse_key(item_key)
@@ -401,6 +431,9 @@ def make_plan(
         inside = False
     if not inside:
         return refuse(REFUSE_PROJECT)
+    # The dialog shows `<installed> → <target>` also for a refused plan (#96).
+    current = installed_version(req.root, req.name) if has_environment(req.root) else None
+    plan.installed_version = current
     text = read_file(req.path)
     if text is None:
         return refuse(REFUSE_UNREADABLE, "requirements.txt is too large or is not UTF-8 text")
@@ -414,7 +447,12 @@ def make_plan(
     if not env_ok or not os.access(python, os.X_OK):
         return refuse(REFUSE_NO_ENV)
     if not has_pip(req.root):
-        return refuse(REFUSE_NO_PIP)
+        uv = uv or find_uv()
+        if uv is None:
+            return refuse(REFUSE_NO_PIP)
+        plan.command = [uv]
+    else:
+        uv = None
 
     if normalize(req.name) in parsed.sources:
         return refuse(REFUSE_SOURCE.format(name=req.name))
@@ -424,10 +462,8 @@ def make_plan(
     if len(found) > 1:
         return refuse(REFUSE_MULTIPLE.format(name=req.name))
     entry = found[0]
-    current = installed_version(req.root, req.name)
     if current is None:
         return refuse(REFUSE_NOT_INSTALLED.format(name=req.name))
-    plan.installed_version = current
     if version_key(req.target) <= version_key(current):
         return refuse(REFUSE_CURRENT.format(name=req.name, version=req.target))
     ev = entry.evidence
@@ -449,7 +485,9 @@ def make_plan(
     minor = env_python_minor(req.root)
     needs_build = not any(wheel_fits(f["filename"], minor, machine, mac, system) for f in files)
     spec = f"{entry.name}{entry.extras}=={req.target}"
-    plan.command = build_command(python, spec, entry.name, allow_build=False)
+    if needs_build and uv:
+        return refuse(REFUSE_UV_BUILD.format(name=req.name))
+    plan.command = build_command(python, spec, entry.name, allow_build=False, uv=uv)
     others: list[Change] = []
     if needs_build:
         plan.scripts = [BUILD_REASON.format(name=req.name)]
@@ -457,20 +495,23 @@ def make_plan(
         plan.scripts_command = build_command(python, spec, entry.name, allow_build=True)
         plan.rows.append(_row("Other packages", "Not known before the build step"))
     else:
-        # A wheels-only dry run: pip reads wheel metadata and runs no build hook.
-        dry = [python, "-m", "pip", "install", "--dry-run", "--report", "-", "--quiet", "--only-binary=:all:",
-               "--disable-pip-version-check", "--no-input", spec]
+        # A wheels-only dry run: pip or uv reads wheel metadata and runs no build hook.
+        if uv:
+            dry = [uv, "pip", "install", "--dry-run", "--python", python, "--only-binary=:all:", spec]
+        else:
+            dry = [python, "-m", "pip", "install", "--dry-run", "--report", "-", "--quiet", "--only-binary=:all:",
+                   "--disable-pip-version-check", "--no-input", spec]
         try:
-            proc = run(dry, capture_output=True, text=True, timeout=TIMEOUT_SECONDS, env=pip_env(),
+            proc = run(dry, capture_output=True, text=True, timeout=TIMEOUT_SECONDS, env=run_env(dry),
                        stdin=subprocess.DEVNULL, cwd=str(req.root))
             if proc.returncode != 0:
                 raise ValueError(f"dry run exited {proc.returncode}: {proc.stderr.strip()[-300:]}")
-            changes = parse_report(proc.stdout, req.root)
+            changes = parse_uv_dry_run(proc.stderr, req.root) if uv else parse_report(proc.stdout, req.root)
         except (ValueError, OSError, subprocess.SubprocessError) as exc:
             return refuse(REFUSE_UNREADABLE, str(exc))
         own = [c for c in changes if normalize(c.name) == normalize(req.name)]
         if len(own) != 1 or own[0].after != req.target:
-            return refuse(REFUSE_UNREADABLE, f"pip would not install {req.name} {req.target}: {[c.to_dict() for c in own]}")
+            return refuse(REFUSE_UNREADABLE, f"{'uv' if uv else 'pip'} would not install {req.name} {req.target}: {[c.to_dict() for c in own]}")
         others = [c for c in changes if normalize(c.name) != normalize(req.name)]
         plan.rows.append(_row("Other packages",
                               "No other packages change." if not others else

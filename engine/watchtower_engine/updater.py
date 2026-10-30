@@ -213,7 +213,7 @@ def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line,
 
 def _run_requirements(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,
                       line: Callable[[str], None], output: list[str], runner) -> Attempt:
-    """Run one pip install, edit requirements.txt only if the environment shows the target, read both again."""
+    """Run one pip (or uv pip) install, edit requirements.txt only if the environment shows the target, read both again."""
     req = req_updates.parse_key(plan.item_key)
     before = uv_updates.snapshot(req.root)
     backup = req_updates.backup_file(req.path, store.data_dir, attempt_id)
@@ -222,7 +222,7 @@ def _run_requirements(store: Store, log: UpdateLog, plan, attempt_id: int, confi
     command = req_updates.command_to_run(plan, confirm_scripts)
     line("$ " + " ".join(command))
     try:
-        code = runner(command, req_updates.pip_env(), line)
+        code = runner(command, req_updates.run_env(command), line)
     except Interrupted:
         log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
         raise

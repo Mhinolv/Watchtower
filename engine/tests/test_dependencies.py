@@ -16,6 +16,7 @@ from watchtower_engine.dependencies import project_dependencies
 from watchtower_engine.discovery import Project
 from watchtower_engine.feeds import registries
 from watchtower_engine.feeds.homebrew import Response
+from watchtower_engine.updates import requirements as req_updates
 from watchtower_engine.scope import list_projects
 
 from test_requirements_update import FIX as REQ_FIX
@@ -157,7 +158,8 @@ def test_an_unsupported_file_lists_its_rows_without_update_and_names_the_reason(
     assert rows(sec)["requests"]["update_refusal"] == refusal  # A newer version exists, the plan would refuse it.
 
 
-def test_no_environment_and_no_pip_are_named_and_installed_is_not_known(tmp_path):
+def test_no_environment_and_no_pip_are_named_and_installed_is_not_known(tmp_path, monkeypatch):
+    monkeypatch.setattr(req_updates, "find_uv", lambda: None, raising=False)  # No uv on this Mac.
     make_project(tmp_path, env=False)
     sec = section(deps(tmp_path, "script"), "requirements.txt")
     assert sec["refusal"] == "No environment found. Watchtower does not create environments."
@@ -165,6 +167,14 @@ def test_no_environment_and_no_pip_are_named_and_installed_is_not_known(tmp_path
     shutil.rmtree(tmp_path / "home")
     make_project(tmp_path, pip=False)
     assert section(deps(tmp_path, "script"), "requirements.txt")["refusal"].startswith("The environment has no pip.")
+
+
+def test_a_venv_with_no_pip_is_updatable_when_uv_exists(tmp_path, monkeypatch):
+    monkeypatch.setattr(req_updates, "find_uv", lambda: "/opt/homebrew/bin/uv", raising=False)
+    make_project(tmp_path, pip=False)
+    sec = section(deps(tmp_path, "script", FakeRegistry()), "requirements.txt")
+    assert sec["refusal"] is None
+    assert rows(sec)["requests"]["installed"] == "2.31.0" and rows(sec)["requests"]["update_key"] is not None
 
 
 def test_a_name_that_appears_twice_is_not_updatable(tmp_path):
