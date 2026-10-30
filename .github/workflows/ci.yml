@@ -6,6 +6,8 @@ on:
 jobs:
   ci-gate:
     runs-on: macos-15
+    # A hung test fails the job fast instead of blocking every merge (#52).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -14,4 +16,5 @@ jobs:
       - name: Build
         run: ./scripts/build.sh
       - name: Test
+        timeout-minutes: 12
         run: ./scripts/test.sh
