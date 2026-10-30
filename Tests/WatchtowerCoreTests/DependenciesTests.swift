@@ -65,6 +65,38 @@ private func row(_ status: ItemState, installed: String? = "1.0", latest: String
     #expect(row(.updateAvailable).latestText == "2.0")
 }
 
+@Test func aTooLargeAnswerAndAGitOrPathRowHaveTheirOwnTextAndNeverABareDash() {
+    let tooLarge = "The PyPI answer is larger than 8 MB. Watchtower did not read it."
+    let big = DependencyRow(package: "p", declared: "==1.0", evidence: "exact_pin", installed: "1.0", installedLabel: ".venv",
+                            latest: nil, latestError: tooLarge, latestTooLarge: true, status: .unknown)
+    #expect(big.latestText == "Too large" && big.latestReason == tooLarge && big.update == .off(tooLarge))
+    #expect(big.accessibilityText.contains("latest answer too large"))
+    let cached = DependencyRow(package: "p", declared: "==1.0", evidence: "exact_pin", installed: "1.0", installedLabel: ".venv",
+                               latest: "2.0", latestError: tooLarge, latestTooLarge: true, status: .updateAvailable)
+    #expect(cached.latestText == "2.0" && cached.latestReason == nil)  // A cached version shows. The help carries the text.
+    let refusal = "Git and path dependencies are not supported."
+    for (evidence, label) in [("path", "Path"), ("git", "Git")] {
+        let text = "\(label) dependency. Watchtower does not look up a registry version for it."
+        let r = DependencyRow(package: "p", declared: "../p", evidence: evidence, installed: nil, installedLabel: "locked",
+                              latest: nil, latestNote: text, status: .unknown, updateRefusal: refusal)
+        #expect(r.latestText == "No registry" && r.latestReason == text && r.update == .off(refusal))
+        #expect(r.accessibilityText.contains("latest not in a registry"))
+    }
+    let workspace = DependencyRow(package: "p", declared: "", evidence: "workspace", installed: nil, installedLabel: "locked",
+                                  latest: nil, status: .unknown)
+    #expect(workspace.latestText == "—")  // Out of scope: workspace and other-registry rows keep the dash.
+    #expect(DependencyLatestSource(registry: "PyPI", retrievedAt: Date(timeIntervalSince1970: 1_793_345_280), error: tooLarge)
+        .helpText(time: utc) == tooLarge + " Data from Oct 30.")
+}
+
+@Test func theRealCargoOutputHasAPathRowWithAReason() throws {
+    let section = try #require(try fixture("dependencies-cargo").sections.first)
+    let local = try #require(section.rows.first { $0.package == "local" })
+    #expect(local.evidenceText == "Path" && local.latestText == "No registry" && local.latestTooLarge == false)
+    #expect(local.latestReason == "Path dependency. Watchtower does not look up a registry version for it.")
+    #expect(local.update == .off("Git and path dependencies are not supported."))
+}
+
 @Test func theUpdateButtonOpensThePlanOrStaysOffWithAReason() {
     #expect(row(.updateAvailable, key: "requirements/p@2.0|~/x|requirements.txt").update == .plan("requirements/p@2.0|~/x|requirements.txt"))
     #expect(row(.updateAvailable, refusal: "Cargo workspaces are not supported yet.").update == .off("Cargo workspaces are not supported yet."))

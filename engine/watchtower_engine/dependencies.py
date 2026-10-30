@@ -26,6 +26,8 @@ from .updates import requirements as req_updates
 from .updates import uv as uv_updates
 
 SUPPORTED = {"requirements.txt": "requirements", "Cargo.toml": "cargo"}
+NO_REGISTRY = {"git": "Git dependency. Watchtower does not look up a registry version for it.",
+               "path": "Path dependency. Watchtower does not look up a registry version for it."}
 STATUS_RANK = {"vulnerable": 0, "update_available": 1}
 
 
@@ -126,7 +128,8 @@ def _finish(rows: list[dict], registry: str, latest: dict, findings, project_dis
         found = latest.get(row["package"])
         row["latest"], row["latest_error"] = (found.version, found.error) if found else (None, None)
         row["latest_pending"] = bool(found and found.pending)  # Not asked in this call: no text of failure.
-        row["latest_note"] = found.note if found else None
+        row["latest_too_large"] = bool(found and found.too_large)  # The answer was over the cap: not a network failure.
+        row["latest_note"] = found.note if found else NO_REGISTRY.get(row["evidence"])  # A git or path row has no registry version.
         row["status"] = _status(row["installed"], row["latest"])
         finding = _finding_for(findings, registry, row["package"], project_display, finding_file(manifest, kind))
         row["finding_id"], row["severity"] = (finding.id, finding.severity) if finding else (None, None)
@@ -135,12 +138,21 @@ def _finish(rows: list[dict], registry: str, latest: dict, findings, project_dis
         if row["latest"] and row["installed"] and version_key(row["latest"]) > version_key(row["installed"]):
             _update(row, kind, manifest, project_display, section_refusal)
         else:
-            row["update_key"] = row["update_refusal"] = None  # Up to date, or not known: no update.
+            row["update_key"] = None  # Up to date, or not known: no update.
+            row["update_refusal"] = row.get("_refusal") if row["evidence"] in NO_REGISTRY else None  # Git, path: the plan's text.
     for row in rows:
         row.pop("_refusal", None)
         row.pop("_entry", None)
     rows.sort(key=lambda r: (STATUS_RANK.get(r["status"], 2), r["package"].lower()))
     return rows
+
+
+def _source_error(registry: str, used: list) -> str | None:
+    """The failure for the `Latest` header. If every failure is a too-large answer, it says so. Else the first failure."""
+    failed = [u for u in used if u.error]
+    if failed and all(u.too_large for u in failed):
+        return failed[0].error
+    return next((u.error for u in failed if not u.too_large), None)
 
 
 def project_dependencies(project: Project, findings: Iterable, data_dir: Path, fetch: Fetch = http_fetch,
@@ -176,7 +188,7 @@ def project_dependencies(project: Project, findings: Iterable, data_dir: Path, f
             "manifest": manifest, "kind": kind, "rows": rows, "refusal": refusal,
             "pending": sum(1 for r in rows if r["latest_pending"]),
             "latest_source": {"registry": registry, "retrieved_at": min(times) if times else None,
-                              "error": next((u.error for u in used if u.error), None)},
+                              "error": _source_error(registry, used)},
         })
     return {"schema_version": 1, "project": shown, "supported": bool(manifests), "sections": sections,
             "pending": sum(s["pending"] for s in sections)}
