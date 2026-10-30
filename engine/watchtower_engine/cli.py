@@ -52,6 +52,33 @@ def _updates(args) -> int:
             return 130
 
 
+def _incidents_check(args) -> int:
+    """`incidents-check`: progress lines on stderr, the incident state on stdout. SIGTERM stops it."""
+    import signal
+
+    from .research.records import Cancelled
+
+    def progress(done, total, label):
+        _emit(sys.stderr, {"progress": {"done": done, "total": total, "source": label}})
+        sys.stderr.flush()
+
+    def stop(signum, frame):
+        raise Cancelled()
+
+    previous = signal.signal(signal.SIGTERM, stop)
+    try:
+        with Store(args.data_dir) as store:
+            try:
+                state = store.check_sources(progress=progress)
+            except Cancelled:
+                _emit(sys.stderr, {"error": "The check was stopped.", "detail": None})
+                return 130
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    _emit(sys.stdout, state)
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="watchtower")
     parser.add_argument("--data-dir", help="data folder (default: ~/Library/Application Support/Watchtower)")
@@ -72,6 +99,8 @@ def main(argv=None) -> int:
     urun.add_argument("--confirm-major", action="store_true", help="the owner confirmed a new major version")
     urun.add_argument("--confirm-scripts", action="store_true", help="the owner confirmed install scripts")
     sub.add_parser("update-log", help="print the update log as JSON")
+    sub.add_parser("incidents", help="print the vendor incident records, sources and review as JSON")
+    sub.add_parser("incidents-check", help="check the vendor sources now, save the result, print it as JSON")
     for name, helptext in (("finding-defer", "defer a finding for 7 or 30 days"),
                            ("finding-backlog", "move a finding to the backlog"),
                            ("finding-reopen", "take a deferred or backlog finding back to open")):
@@ -110,6 +139,13 @@ def main(argv=None) -> int:
                     return 130
             _emit(sys.stdout, state)
             return 0
+        if args.cmd == "incidents":
+            with Store(args.data_dir) as store:
+                state = store.incident_state()
+            _emit(sys.stdout, state)
+            return 0
+        if args.cmd == "incidents-check":
+            return _incidents_check(args)
         if args.cmd in ("update-plan", "update-run", "update-log"):
             return _updates(args)
         if args.cmd == "homebrew":

@@ -5,6 +5,7 @@ import WatchtowerCore
 public struct DashboardView: View {
     @Bindable var model: DashboardModel
     @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(IncidentModel.self) private var incidents: IncidentModel?
 
     public init(model: DashboardModel) {
         self.model = model
@@ -38,8 +39,11 @@ public struct DashboardView: View {
                     .font(.system(size: 15, weight: .bold))
                     .padding(.horizontal, 6)
                     .accessibilityAddTraits(.isHeader)
-                RefreshButton(model: model)
-                RefreshLabelView(model: model)
+                // Incidents has its own Check Sources button. A refresh does not run the check.
+                if model.selection != .incidents {
+                    RefreshButton(model: model)
+                    RefreshLabelView(model: model)
+                }
             }
         }
         .toolbar(removing: .title)
@@ -52,7 +56,8 @@ public struct DashboardView: View {
     }
 
     func count(_ section: SidebarSection) -> Int? {
-        section == .updateLog ? nil : model.count(section)
+        if section == .incidents { return incidents?.count ?? 0 }
+        return section == .updateLog ? nil : model.count(section)
     }
 }
 
@@ -132,10 +137,17 @@ struct ListPane: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
     @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(IncidentModel.self) private var incidents: IncidentModel?
 
     var body: some View {
         Group {
-            if section == .updateLog {
+            if section == .incidents {
+                if let incidents {
+                    IncidentsView(model: incidents, search: model.searchText)
+                } else {
+                    ContentUnavailableView("Incidents are not available here.", systemImage: section.symbol)
+                }
+            } else if section == .updateLog {
                 if let updates {
                     UpdateLogTable(model: updates)
                 } else {
@@ -277,9 +289,17 @@ struct DetailPane: View {
     @Bindable var model: DashboardModel
     let section: SidebarSection
     @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(IncidentModel.self) private var incidents: IncidentModel?
 
     var body: some View {
-        if section == .updateLog, let attempt = updates?.selectedAttempt {
+        if section == .incidents {
+            if let incident = incidents?.selectedIncident {
+                IncidentDetail(incident: incident)
+            } else {
+                ContentUnavailableView("No selection", systemImage: "sidebar.right",
+                                       description: Text("Select an incident to see its record."))
+            }
+        } else if section == .updateLog, let attempt = updates?.selectedAttempt {
             UpdateLogDetail(attempt: attempt)
         } else if section == .updateLog {
             ContentUnavailableView("No selection", systemImage: "sidebar.right",

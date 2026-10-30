@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from . import findings as findings_module
+from .research import records as incident_records
 from .models import (
     REFRESH_STATUSES,
     SCHEMA_VERSION,
@@ -128,6 +129,7 @@ class Store:
     def _migrate(self) -> None:
         self.db.executescript(_SCHEMA)
         findings_module.migrate(self.db)
+        incident_records.migrate(self.db)
         for table, columns in _ADDED_COLUMNS.items():
             have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
             for column in columns:
@@ -333,6 +335,14 @@ class Store:
 
     def reopen_finding(self, finding_id: str) -> findings_module.Finding:
         return self._finding_action(finding_id, lambda db: findings_module.reopen(db, finding_id))
+
+    def incident_state(self) -> dict:
+        """The incidents, sources, last review and gaps, as `watchtower incidents` prints them."""
+        return incident_records.incident_state(self.db, now=self.clock())
+
+    def check_sources(self, **kwargs) -> dict:
+        """Run the on-demand incident check. See `research/records.py`."""
+        return incident_records.run_check(self.db, now=self.clock, **kwargs)
 
     def state(self) -> dict:
         """The current state, as the `state` CLI command prints it (without the envelope)."""

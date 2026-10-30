@@ -75,7 +75,7 @@ private func model(_ status: RefreshStatus? = .complete, finished: Double = 2, i
     #expect(SidebarGroup.allCases.map(\.title) == ["Inventory", "Review", "History"])
     #expect(SidebarGroup.allCases.flatMap(\.sections) == SidebarSection.allCases)
     #expect(SidebarGroup.inventory.sections == [.apps, .homebrew, .projects])
-    #expect(SidebarGroup.review.sections == [.findings, .backlog])
+    #expect(SidebarGroup.review.sections == [.findings, .backlog, .incidents])
 }
 
 // MARK: - Filter chips
