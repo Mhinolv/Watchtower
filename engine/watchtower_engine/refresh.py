@@ -43,6 +43,7 @@ class ScanSourceResult(SourceResult):
     osv: object = None
     kev: object = None
     github: object = None
+    epss: object = None
 
 
 def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
@@ -61,7 +62,7 @@ def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
 
 def default_sources(data_dir: Path) -> list[Source]:
     """Homebrew, Applications, macOS and OSV. `brew info` and the catalogs run once."""
-    from .feeds import github, kev
+    from .feeds import epss, github, kev
     from .inventory import apps, homebrew, macos, sparkle
     from .scanners import osv
     from .scope import list_projects
@@ -95,6 +96,12 @@ def default_sources(data_dir: Path) -> list[Source]:
         data = github.load(data_dir, advisory_id_groups(data_dir, scans))
         return ScanSourceResult(data.coverage(), [], github=data)
 
+    def epss_source() -> SourceResult:
+        # The request has no CVE. The ids only choose which rows to keep from the bulk file.
+        cves = {i for group in advisory_id_groups(data_dir, scans) for i in group if epss.is_cve(i)}
+        data = epss.load(data_dir, cves)
+        return ScanSourceResult(data.coverage(), [], epss=data)
+
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
                lambda: homebrew.collect(data_dir, run=run_once, fetch=fetch_once)),
@@ -105,6 +112,7 @@ def default_sources(data_dir: Path) -> list[Source]:
         Source(osv.SOURCE, osv.LABEL, osv_source),
         Source(kev.SOURCE, kev.LABEL, kev_source),
         Source(github.SOURCE, github.LABEL, github_source),
+        Source(epss.SOURCE, epss.LABEL, epss_source),
     ]
 
 
@@ -114,7 +122,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
     refresh = store.begin_refresh()
     coverage: list[CoverageRecord] = []
     items: list[ItemRecord] = []
-    scan = kev = github = None
+    scan = kev = github = epss = None
     try:
         for done, src in enumerate(sources):
             progress(done, len(sources), src.label)
@@ -132,6 +140,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
             scan = getattr(result, "osv", None) or scan
             kev = getattr(result, "kev", None) or kev
             github = getattr(result, "github", None) or github
+            epss = getattr(result, "epss", None) or epss
         if guard:
             guard.armed = False  # From here on, a stop must not cut the save short.
         progress(len(sources), len(sources), "")
@@ -147,7 +156,7 @@ def run_refresh(store: Store, sources: list[Source], progress: Progress = lambda
         status, error = "complete", None
     detail = "\n".join(f"{c.source}: {c.error}" for c in failed if c.error) or None
     store.finish_refresh(refresh.id, status, coverage=coverage, items=items, error=error, detail=detail,
-                         scan=scan, kev=kev, github=github)
+                         scan=scan, kev=kev, github=github, epss=epss)
     return store.state()
 
 

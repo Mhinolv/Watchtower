@@ -190,3 +190,20 @@ private func model(_ status: RefreshStatus? = .complete, finished: Double = 2, i
     #expect(MenuBarSummary.neverBody == "No scan data yet.")
     #expect(MenuBarSummary.neverBody != model.refreshLabel.text)
 }
+
+// #55: an app with a newer catalog version counts in the popover, and a click opens Apps.
+@MainActor
+@Test func aNewerCatalogVersionCountsInTheMenuBar() {
+    let at = Date(timeIntervalSince1970: 1_793_275_100)
+    let catalogApp = ItemRecord(id: "com.t3tools.t3code", source: "apps", name: "T3 Code", state: .updateAvailable,
+                                kind: "app", installedVersion: "0.1.3", latestVersion: "0.1.5",
+                                origin: "Homebrew catalog")
+    let state = EngineState(schemaVersion: 1,
+                            refresh: RefreshRecord(id: 1, status: .complete, startedAt: at.addingTimeInterval(-90),
+                                                   finishedAt: at, lastCompleteAt: at),
+                            coverage: [CoverageRecord(source: "apps", label: "Applications", state: .complete)],
+                            items: [catalogApp])
+    let model = DashboardModel(engine: NoEngine(), state: state, clock: { at.addingTimeInterval(60) })
+    #expect(model.menuBarSummary.updates == 1)
+    #expect(model.menuBarSummary.rows.first?.section == .apps)
+}
