@@ -1,6 +1,6 @@
 ---
 name: watchtower
-description: Read Watchtower security findings on this Mac, refresh the scan, and plan or run one non-major dependency update. Use when the user asks what is vulnerable or out of date in their projects, apps or Homebrew packages, or asks to update one item with Watchtower.
+description: Read Watchtower findings, refresh the scan, and plan or run one non-major update. Use for vulnerable or out-of-date projects, apps and Homebrew packages.
 ---
 
 # Watchtower agent CLI
@@ -15,12 +15,14 @@ description: Read Watchtower security findings on this Mac, refresh the scan, an
 
 ## Command
 
-Run each command from the root of the Watchtower repo:
+Run each command from any folder:
 
 ```sh
-scripts/watchtower-agent claude-code <command> [options]
+watchtower-agent claude-code <command> [options]
 ```
 
+- `watchtower-agent` is on `PATH`. The owner links it to `scripts/watchtower-agent` in the Watchtower repo, for example in `~/.local/bin`.
+- If `command -v watchtower-agent` prints nothing, run `scripts/watchtower-agent` from the root of the Watchtower repo. The arguments are the same.
 - The first argument is the agent name. Claude Code uses `claude-code`. Watchtower logs it as `actor` on each refresh and update.
 - Agents can use `version`, `state`, `findings`, `update-log`, `refresh`, `update-plan` and `update-run`. All other commands give `not_allowed`.
 - On success, stdout has one JSON line `{"schema_version", "ok": true, "command", "data"}`. The exit code is 0.
@@ -32,9 +34,9 @@ scripts/watchtower-agent claude-code <command> [options]
 ## Find relevant issues
 
 ```sh
-scripts/watchtower-agent claude-code findings --severity critical,high
-scripts/watchtower-agent claude-code findings --ecosystem npm,PyPI --project Watchtower
-scripts/watchtower-agent claude-code findings --status all
+watchtower-agent claude-code findings --severity critical,high
+watchtower-agent claude-code findings --ecosystem npm,PyPI --project Watchtower
+watchtower-agent claude-code findings --status all
 ```
 
 - Each filter takes a comma list. A finding must match all filters that you give.
@@ -63,7 +65,7 @@ If `update_item` is `null`, an agent cannot update the finding. Tell the user th
 - If `stale` is true, run a refresh, then run `findings` again:
 
 ```sh
-scripts/watchtower-agent claude-code refresh
+watchtower-agent claude-code refresh
 ```
 
 - A refresh runs every source. It can take some minutes. It prints no progress lines.
@@ -71,7 +73,7 @@ scripts/watchtower-agent claude-code refresh
 - If `data.refresh.status` is `partial` or `failed`, tell the user. `data.coverage` shows each source.
 
 ```sh
-scripts/watchtower-agent claude-code state
+watchtower-agent claude-code state
 ```
 
 - `state` gives `refresh`, `coverage`, `items` and `findings`.
@@ -83,7 +85,7 @@ scripts/watchtower-agent claude-code state
 2. Make the plan. Put the key in single quotes, because a key can contain `|`:
 
    ```sh
-   scripts/watchtower-agent claude-code update-plan 'homebrew/formula:git'
+   watchtower-agent claude-code update-plan 'homebrew/formula:git'
    ```
 
 3. Read `data.plan` and `data.agent_refusal`. `update-plan` changes nothing and writes no update-log row.
@@ -92,14 +94,14 @@ scripts/watchtower-agent claude-code state
 6. Run the update only if the user asked for it. Replace `PLAN_ID` with `plan.id`:
 
    ```sh
-   scripts/watchtower-agent claude-code update-run 'homebrew/formula:git' --plan-id PLAN_ID
+   watchtower-agent claude-code update-run 'homebrew/formula:git' --plan-id PLAN_ID
    ```
 
 7. On success, `data.attempt.status` is `verified`, `lockfile_updated` or `pin_updated`. The engine read the new version again.
 8. Read the update log. Each attempt has `actor`:
 
    ```sh
-   scripts/watchtower-agent claude-code update-log
+   watchtower-agent claude-code update-log
    ```
 
 Do not use `--confirm-major` or `--confirm-scripts`. They give `not_allowed`.
@@ -123,7 +125,7 @@ If `engine_failed` has `No module named 'tomllib'` in `detail`, the `python3` on
 
 ## Safety rules
 
-- Call only `scripts/watchtower-agent`. Never edit the data folder.
+- Call only `watchtower-agent`, or `scripts/watchtower-agent` in the repo. Never edit the data folder.
 - Check `stale` first. If it is true, run `refresh`.
 - Major updates and install scripts need the owner in the app. Stop at `major_refused` or `scripts_refused`.
 - On `locked`, wait and try once again. Do not delete the lock.

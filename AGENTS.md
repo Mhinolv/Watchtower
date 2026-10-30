@@ -47,12 +47,14 @@ Codex reads Watchtower findings and runs updates through the agent CLI from #111
 
 ### Command
 
-Run each command from the repo root:
+Run each command from any folder:
 
 ```sh
-scripts/watchtower-agent codex <command> [options]
+watchtower-agent codex <command> [options]
 ```
 
+- `watchtower-agent` is on `PATH`. The owner links it to `scripts/watchtower-agent` in the Watchtower repo, for example in `~/.local/bin`.
+- If `command -v watchtower-agent` prints nothing, run `scripts/watchtower-agent` from the root of the Watchtower repo. The arguments are the same.
 - The first argument is the agent name. Codex uses `codex`. Watchtower logs it as `actor` on each refresh and update.
 - Agents can use `version`, `state`, `findings`, `update-log`, `refresh`, `update-plan` and `update-run`. All other commands give `not_allowed`.
 - On success, stdout has one JSON line `{"schema_version", "ok": true, "command", "data"}`. The exit code is 0.
@@ -66,9 +68,9 @@ scripts/watchtower-agent codex <command> [options]
 1. Read the findings. Each filter takes a comma list. A finding must match all filters that you give.
 
    ```sh
-   scripts/watchtower-agent codex findings --severity critical,high
-   scripts/watchtower-agent codex findings --ecosystem npm,PyPI --project Watchtower
-   scripts/watchtower-agent codex findings --status all
+   watchtower-agent codex findings --severity critical,high
+   watchtower-agent codex findings --ecosystem npm,PyPI --project Watchtower
+   watchtower-agent codex findings --status all
    ```
 
    - `--severity`: `critical`, `high`, `medium`, `low`, `unknown`. `--ecosystem`: for example `npm`, `PyPI`, `crates.io`.
@@ -78,8 +80,8 @@ scripts/watchtower-agent codex <command> [options]
 2. If `stale` is true, run a refresh, then read the findings again. A refresh can take some minutes.
 
    ```sh
-   scripts/watchtower-agent codex refresh
-   scripts/watchtower-agent codex state
+   watchtower-agent codex refresh
+   watchtower-agent codex state
    ```
 
    - `refresh` and `state` give `refresh`, `coverage`, `items` and `findings`. If `refresh.status` is `partial` or `failed`, tell the user.
@@ -87,7 +89,7 @@ scripts/watchtower-agent codex <command> [options]
 3. Make the plan with `update_item` as the key. Put the key in single quotes, because a key can contain `|`.
 
    ```sh
-   scripts/watchtower-agent codex update-plan 'homebrew/formula:git'
+   watchtower-agent codex update-plan 'homebrew/formula:git'
    ```
 
    - `data` has `plan` and `agent_refusal`. `update-plan` changes nothing and writes no update-log row.
@@ -96,8 +98,8 @@ scripts/watchtower-agent codex <command> [options]
 4. Run the update only if the user asked for it. Replace `PLAN_ID` with `plan.id`.
 
    ```sh
-   scripts/watchtower-agent codex update-run 'homebrew/formula:git' --plan-id PLAN_ID
-   scripts/watchtower-agent codex update-log
+   watchtower-agent codex update-run 'homebrew/formula:git' --plan-id PLAN_ID
+   watchtower-agent codex update-log
    ```
 
    - On success, `data.attempt.status` is `verified`, `lockfile_updated` or `pin_updated`. The engine read the new version again.
@@ -123,7 +125,7 @@ If `engine_failed` has `No module named 'tomllib'` in `detail`, the `python3` on
 
 ### Safety rules
 
-- Call only `scripts/watchtower-agent`. Never edit the data folder.
+- Call only `watchtower-agent`, or `scripts/watchtower-agent` in the repo. Never edit the data folder.
 - Check `stale` first. If it is true, run `refresh`.
 - Major updates and install scripts need the owner in the app. Stop at `major_refused` or `scripts_refused`.
 - On `locked`, wait and try once again. Do not delete the lock.
