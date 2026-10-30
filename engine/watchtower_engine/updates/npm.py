@@ -20,8 +20,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-from ..discovery import display_path
+from ..discovery import PROJECT_ROOTS, display_path
 from ..feeds import npm_registry
+from ..models import _under_roots
 from .homebrew import Change, Plan, RunStreaming, is_major_change, run_streaming
 
 KIND = "npm"
@@ -31,6 +32,7 @@ NPM_TIMEOUT_SECONDS = 300
 SAFE_FLAGS = ["--ignore-scripts", "--no-audit", "--no-fund"]
 SECTIONS = {"dependencies": "--save-prod", "devDependencies": "--save-dev", "optionalDependencies": "--save-optional"}
 
+REFUSE_PROJECT = "Watchtower cannot find this npm project in the project folders."  # Same rule as uv (#44).
 REFUSE_WORKSPACE = "Watchtower cannot update workspace projects yet."
 REFUSE_GIT = "Watchtower cannot update git dependencies."
 REFUSE_SCRIPTS_UNKNOWN = "This package needs scripts that Watchtower cannot check."
@@ -150,8 +152,21 @@ def npm_env(npm: str) -> dict:
 # Plan
 
 
+def in_scan_roots(folder: Path, roots: tuple[str, ...] = PROJECT_ROOTS) -> bool:
+    """True if the resolved folder is inside a project root. A symlink out of a root is outside."""
+    return _under_roots(str(folder.resolve()), roots)
+
+
+def block_reason(project_path: str, lockfile: str, roots: tuple[str, ...] = PROJECT_ROOTS) -> str | None:
+    """Why `Update…` is off for this npm lockfile before any plan exists, or None. File checks only."""
+    if Path(lockfile).name != "package-lock.json":
+        return None
+    folder = Path(os.path.expanduser(project_path)) / Path(lockfile).parent
+    return None if in_scan_roots(folder, roots) else REFUSE_PROJECT
+
+
 def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
-              get: npm_registry.GetJson = npm_registry.get_json) -> Plan:
+              get: npm_registry.GetJson = npm_registry.get_json, roots: tuple[str, ...] = PROJECT_ROOTS) -> Plan:
     folder, name, fixed_in = parse_key(key)
     manifest, lockfile = folder / "package.json", folder / "package-lock.json"
     npm = npm or find_npm() or "npm"
@@ -162,6 +177,8 @@ def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
         plan.refusal, plan.detail = reason, detail
         return plan
 
+    if not in_scan_roots(folder, roots):
+        return refuse(REFUSE_PROJECT)  # Before any file read, npm run or registry request.
     if not (manifest.is_file() and lockfile.is_file()):
         return refuse(REFUSE_NO_PROJECT)
     plan.fingerprint = _digest(manifest, lockfile)
