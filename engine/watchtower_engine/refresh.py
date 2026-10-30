@@ -61,9 +61,9 @@ def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
 
 
 def default_sources(data_dir: Path) -> list[Source]:
-    """Homebrew, Applications, macOS, SOFA, OSV, KEV, GitHub and EPSS. `brew info` and the catalogs run once."""
+    """Homebrew, Applications, macOS, runtimes, SOFA, OSV, KEV, GitHub and EPSS. `brew info` and the catalogs run once."""
     from .feeds import epss, github, kev, sofa
-    from .inventory import apps, homebrew, macos, sparkle
+    from .inventory import apps, homebrew, macos, runtimes, sparkle
     from .scanners import osv
     from .scope import list_projects
 
@@ -117,6 +117,7 @@ def default_sources(data_dir: Path) -> list[Source]:
             data_dir, run=run_once, fetch=fetch_once,
             sparkle_check=lambda targets: sparkle.check(targets, data_dir)))),
         Source(macos.SOURCE, macos.LABEL, lambda: keep(macos.collect())),
+        Source(runtimes.SOURCE, runtimes.LABEL, runtimes.collect),
         Source(sofa.SOURCE, sofa.LABEL, sofa_source),
         Source(osv.SOURCE, osv.LABEL, osv_source),
         Source(kev.SOURCE, kev.LABEL, kev_source),

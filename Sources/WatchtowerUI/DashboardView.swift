@@ -153,6 +153,8 @@ struct ListPane: View {
                 } else {
                     ContentUnavailableView("No updates yet", systemImage: section.symbol)
                 }
+            } else if section == .runtimes {
+                RuntimesView(model: model)
             } else if section == .findings {
                 FindingTable(model: model)
             } else if section == .backlog {
@@ -369,6 +371,13 @@ struct DetailPane: View {
             } else {
                 ContentUnavailableView("No selection", systemImage: "sidebar.right",
                                        description: Text("Select a finding to see its details."))
+            }
+        } else if section == .runtimes {
+            if let item = model.selectedItem, item.source == "runtimes" {
+                RuntimeDetail(model: model, item: item)
+            } else {
+                ContentUnavailableView("No selection", systemImage: "sidebar.right",
+                                       description: Text("Select an install to see its path and copies."))
             }
         } else if section.listsItems, let item = model.selectedItem {
             ItemDetail(model: model, item: item)

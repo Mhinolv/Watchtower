@@ -155,6 +155,16 @@ The Update button plans one Homebrew formula or cask update. Nothing runs before
 - States from mas output: not signed in (`Sign in to the App Store, then try again.`), needs an administrator (`This update needs an administrator. Use the App Store app.`), Spotlight cannot find apps (`App Store: partial` in Coverage).
 - Success needs the engine to read the installed version again from the app's `Info.plist`. Exit code 0 alone is `Not verified`.
 
+## Runtimes, SDKs and editor extensions (#16)
+
+The `Runtimes` screen (⌘8, after Update Log) lists installs that the engine finds on disk, one row for each install, in three groups: `Runtimes`, `SDKs` and `Editor extensions`.
+- Layouts that it reads: nvm, fnm, Volta, pyenv, rbenv, rustup, SDKMAN!, asdf and mise version folders, Java virtual machines in `/Library/Java/JavaVirtualMachines`, Go in `/usr/local/go` and `~/sdk`, the SDKs of each Xcode and of the Command Line Tools, and the extensions of VS Code, VS Code Insiders, Cursor, Windsurf and VSCodium. Homebrew installs stay in the Homebrew source.
+- It lists folders and reads small files (`version.plist`, `SDKSettings.plist`, `Info.plist`, a Go `VERSION` file, the rustup channel manifest as text, an extension `package.json`). It never runs a program (not even `node --version`), a build, an install script or a hook, never starts a service, and never opens an app container, keychain or credential file. No network call.
+- A folder that does not exist is normal. A folder that cannot be read shows `Cannot read ~/.nvm: permission denied.` above its group, makes the Runtimes coverage `partial`, and does not stop the other folders or the refresh. A version that cannot be read shows `Unknown` and `Version not found in <file>.`
+- The newest copy of a runtime, SDK or extension (for an extension: in the same editor) shows normally. Older copies show `Old copy` and `Unknown`. Watchtower does not check for updates of these installs yet.
+- Runtimes are not project manifests: the Projects list never shows them.
+- For the endoflife.date check (#59), each runtime item has the attributes `product` (a stable name: `nodejs`, `python`, `ruby`, `go`, `rust`, `java`, `gradle`, `kotlin`, `maven`, `scala`), `eolProduct` (the endoflife.date product, if one fits: not for `java`) and `installed_version` as a plain version without a leading `v`. `family` groups the copies of one thing.
+
 ## Findings
 
 Each refresh turns the OSV scan into stable findings. A finding is one advisory, with all its aliases, for one package. It has an id like `SEC-0001` that no later scan changes or reuses.

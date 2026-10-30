@@ -180,6 +180,9 @@ public enum SampleData {
         case menubarAllClear = "menubar-all-clear"
         case menubarStale = "menubar-stale"
         case menubarNever = "menubar-never"
+        case runtimes
+        case runtimesUnreadable = "runtimes-unreadable"
+        case runtimesRootError = "runtimes-root-error"
         case appCatalogNewer = "app-catalog-newer"
         case appSelfUpdating = "app-self-updating"
         case appAmbiguous = "app-ambiguous"
@@ -224,6 +227,69 @@ public enum SampleData {
                                     "latestFrom": "Homebrew catalog, cask hopper-disassembler",
                                     "homepage": "https://www.hopperapp.com/"])
         }
+    }
+
+    /// The installs of the #16 snapshots: three groups, old copies, an unreadable version, a root error.
+    static func runtimeItems(unreadable: Bool = false) -> [ItemRecord] {
+        let home = NSHomeDirectory()
+        func item(_ kind: String, _ name: String, _ version: String?, _ source: String, _ path: String, family: String,
+                  copies: Int, old: Bool = false, extra: [String: String] = [:], note: String? = nil) -> ItemRecord {
+            var attributes = ["path": home + "/" + path, "family": family, "copies": String(copies),
+                              "group": ["runtime": "Runtimes", "sdk": "SDKs", "extension": "Editor extensions"][kind] ?? ""]
+            if old { attributes["oldCopy"] = "true" }
+            attributes.merge(extra) { a, _ in a }
+            let unknown = old || version == nil
+            return ItemRecord(id: "\(kind):\(source):~/\(path)", source: "runtimes", name: name, state: unknown ? .unknown : .manual,
+                              kind: kind, installedVersion: version, seenAt: ago(0.1), origin: source,
+                              note: note ?? (old ? "Old copy" : (version == nil ? "Version not found." : nil)),
+                              attributes: attributes)
+        }
+        var out = [
+            item("runtime", "Node.js", "22.9.0", "nvm", ".nvm/versions/node/v22.9.0", family: "nodejs", copies: 3,
+                 extra: ["product": "nodejs", "eolProduct": "nodejs"]),
+            item("runtime", "Node.js", "20.17.0", "nvm", ".nvm/versions/node/v20.17.0", family: "nodejs", copies: 3, old: true,
+                 extra: ["product": "nodejs", "eolProduct": "nodejs"]),
+            item("runtime", "Node.js", "18.20.4", "nvm", ".nvm/versions/node/v18.20.4", family: "nodejs", copies: 3, old: true,
+                 extra: ["product": "nodejs", "eolProduct": "nodejs"]),
+            item("runtime", "Python", "3.12.4", "pyenv", ".pyenv/versions/3.12.4", family: "python", copies: 1,
+                 extra: ["product": "python", "eolProduct": "python"]),
+            item("sdk", "macOS SDK", "26.2", "Xcode", "Xcode.app/Contents/Developer/SDKs/MacOSX26.2.sdk", family: "macosx:Xcode",
+                 copies: 1, extra: ["toolchain": "Xcode 26.2"]),
+            item("sdk", "macOS SDK", "15.5", "Command Line Tools", "CommandLineTools/SDKs/MacOSX15.5.sdk",
+                 family: "macosx:Command Line Tools", copies: 2),
+            item("sdk", "macOS SDK", "15.2", "Command Line Tools", "CommandLineTools/SDKs/MacOSX15.2.sdk",
+                 family: "macosx:Command Line Tools", copies: 2, old: true),
+            item("extension", "ms-python.python", "2026.8.0", "VS Code", ".vscode/extensions/ms-python.python-2026.8.0-darwin-arm64",
+                 family: "ms-python.python:VS Code", copies: 1, extra: ["editor": "VS Code", "displayName": "Python"]),
+            item("extension", "ms-azuretools.vscode-docker", "2.0.0", "Cursor",
+                 ".cursor/extensions/ms-azuretools.vscode-docker-2.0.0-universal", family: "ms-azuretools.vscode-docker:Cursor",
+                 copies: 1, extra: ["editor": "Cursor", "displayName": "Docker"]),
+        ]
+        if unreadable {
+            out.append(item("runtime", "Rust", nil, "rustup", ".rustup/toolchains/nightly-aarch64-apple-darwin", family: "rust",
+                            copies: 1, extra: ["product": "rust", "eolProduct": "rust"],
+                            note: "Version not found in multirust-channel-manifest.toml."))
+        }
+        return out
+    }
+
+    @MainActor
+    static func runtimeState(_ scenario: Scenario) -> EngineState {
+        var sample = state(status: scenario == .runtimes ? .complete : .partial, finished: ago(2), lastComplete: ago(2))
+        sample.items = runtimeItems(unreadable: scenario == .runtimesUnreadable)
+        var coverage = CoverageRecord(source: "runtimes", label: "Runtimes", state: .complete, lastSuccessAt: ago(2))
+        if scenario == .runtimesRootError {
+            coverage.state = .partial
+            coverage.error = "1 install folders could not be read."
+            coverage.detail = "Runtimes: Cannot read ~/.nvm: permission denied."
+            sample.items.removeAll { $0.origin == "nvm" }
+        } else if scenario == .runtimesUnreadable {
+            coverage.state = .partial
+            coverage.error = "1 versions could not be read."
+            coverage.detail = "Runtimes: Rust ~/.rustup/toolchains/nightly-aarch64-apple-darwin: Version not found in multirust-channel-manifest.toml."
+        }
+        sample.coverage.append(coverage)
+        return sample
     }
 
     @MainActor
@@ -294,6 +360,12 @@ public enum SampleData {
             let model = DashboardModel(engine: engine, state: current, projects: projects, clock: clock)
             model.selection = .apps
             model.selectedItemKey = key
+            return model
+        case .runtimes, .runtimesUnreadable, .runtimesRootError:
+            let model = DashboardModel(engine: engine, state: runtimeState(scenario), projects: projects, clock: clock)
+            model.selection = .runtimes
+            model.selectedItemKey = scenario == .runtimesRootError ? "runtimes/runtime:pyenv:~/.pyenv/versions/3.12.4"
+                                                                    : "runtimes/runtime:nvm:~/.nvm/versions/node/v20.17.0"
             return model
         case .chipSelected:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
