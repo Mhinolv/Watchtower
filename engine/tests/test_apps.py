@@ -528,7 +528,7 @@ def test_apps_command_prints_coverage_and_items(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(apps, "APP_ROOTS", (str(tmp_path / "none"), "~/Applications"))
     monkeypatch.setattr("watchtower_engine.inventory.homebrew.find_brew", lambda: None)
     real = apps.collect_live
-    monkeypatch.setattr(apps, "collect_live", lambda data_dir: real(data_dir, apps.APP_ROOTS))
+    monkeypatch.setattr(apps, "collect_live", lambda data_dir, **kw: real(data_dir, apps.APP_ROOTS, **kw))
     assert cli.main(["--data-dir", str(tmp_path / "data"), "apps"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["coverage"]["source"] == "apps" and out["coverage"]["state"] == "complete"

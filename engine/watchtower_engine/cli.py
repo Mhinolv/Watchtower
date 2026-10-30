@@ -163,7 +163,12 @@ def main(argv=None) -> int:
             from .inventory import apps
             from .store import default_data_dir
 
-            _emit(sys.stdout, apps.collect_live(args.data_dir or default_data_dir()).to_dict())
+            from .inventory import sparkle
+
+            data_dir = args.data_dir or default_data_dir()
+            result = apps.collect_live(data_dir, sparkle_check=lambda targets: sparkle.check(targets, data_dir))
+            _emit(sys.stdout, {**result.to_dict(),
+                               "extra_coverage": [c.to_dict() for c in getattr(result, "extra_coverage", [])]})
             return 0
         if args.cmd == "osv":
             from .scanners import osv
