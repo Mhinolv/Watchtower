@@ -49,7 +49,8 @@ private func path(_ project: String, version: String = "4.17.20") -> FindingPath
     #expect(running.differs && running.needsRestart)
     #expect(running.text == "Running build 30 differs from installed build 31. Restart Slack.")
     let node = try #require(data.on.first { $0.name == "node" })
-    #expect(try #require(RunningEvidence(node, time: utc)).text == "Running: 22.9.0")
+    // The fixture has two node processes: 22.8.0 and 22.9.0 (Cellar paths). The oldest one counts.
+    #expect(try #require(RunningEvidence(node, time: utc)).text == "Running 22.8.0 is older than installed 22.9.0. Restart node.")
     #expect(node.installedVersion == "22.9.0")
 }
 

@@ -98,6 +98,7 @@ def test_projects_command_prints_projects_and_root_errors(tmp_path, capsys):
             "root": "~/Projects",
             "manifests": ["package.json"],
             "state": "active",
+            "container_images": [],
         }],
         "root_errors": [{"root": "~/Real", "kind": "missing", "message": "~/Real does not exist."}],
         "skipped": [],
