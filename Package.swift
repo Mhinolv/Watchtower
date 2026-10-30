@@ -23,5 +23,6 @@ let package = Package(
             dependencies: ["WatchtowerCore"],
             resources: [.copy("Fixtures")]
         ),
+        .testTarget(name: "WatchtowerUITests", dependencies: ["WatchtowerCore", "WatchtowerUI"]),
     ]
 )

@@ -227,3 +227,17 @@ extension DashboardModel {
         itemFilter = (itemFilter == filter) ? .all : filter
     }
 }
+
+// MARK: - Source column
+
+public enum SourceLabel {
+    /// Fixed labels for the item kinds that the engine sends today.
+    public static let kinds: [String: String] = ["os": "macOS", "app": "App", "formula": "Formula", "cask": "Cask"]
+
+    /// `macOS`, `Cask · acme/casks`. An unknown kind shows the engine's source label unchanged.
+    public static func text(kind: String?, sourceLabel: String, origin: String?, project: String?) -> String {
+        let base = kind.flatMap { kinds[$0] } ?? sourceLabel
+        if let extra = origin ?? project { return "\(base) · \(extra)" }
+        return base
+    }
+}
