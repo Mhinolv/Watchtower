@@ -164,8 +164,8 @@ def test_scanner_runs_offline_with_private_database_folder(tmp_path, projects):
     for flag in ("--download-offline-databases", "fix", "--call-analysis", "--experimental-call-analysis"):
         assert flag not in args
     assert call["env"]["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"] == str(data / "osv")
-    assert (data / "osv" / "osv-scanner" / "npm" / "all.zip").is_file()
-    assert (data / "osv" / "osv-scanner" / "PyPI" / "all.zip").is_file()
+    assert (data / "osv" / "osv-scalibr" / "npm" / "all.zip").is_file()
+    assert (data / "osv" / "osv-scalibr" / "PyPI" / "all.zip").is_file()
 
 
 # npm and uv advisories
@@ -392,7 +392,7 @@ def test_database_download_checks(tmp_path):
     assert not bad.fresh and bad.loaded and bad.fetched_at == NOW and bad.error == "OSV database did not update."
     notzip = osvdb.update_database("npm", tmp_path, FakeDownload({NPM_URL: (200, {}, b"<html>")}), lambda: NOW)
     assert not notzip.fresh
-    assert (tmp_path / "osv" / "osv-scanner" / "npm" / "all.zip").read_bytes() == ZIP  # old copy kept
+    assert (tmp_path / "osv" / "osv-scalibr" / "npm" / "all.zip").read_bytes() == ZIP  # old copy kept
 
 
 def test_database_uses_etag_and_304(tmp_path):
@@ -401,17 +401,17 @@ def test_database_uses_etag_and_304(tmp_path):
     db = osvdb.update_database("PyPI", tmp_path, download, lambda: NOW)
     assert download.calls == [(PYPI_URL, {"If-None-Match": '"v1"'})]
     assert db.fresh and db.fetched_at == NOW
-    assert (tmp_path / "osv" / "osv-scanner" / "PyPI" / "all.zip").read_bytes() == ZIP
+    assert (tmp_path / "osv" / "osv-scalibr" / "PyPI" / "all.zip").read_bytes() == ZIP
 
 
 def test_database_files_are_private(tmp_path):
     seed_db(tmp_path / "data", "npm", NOW)
     osv_root = tmp_path / "data" / "osv"
-    for d in (tmp_path / "data", osv_root, osv_root / "osv-scanner", osv_root / "osv-scanner" / "npm"):
+    for d in (tmp_path / "data", osv_root, osv_root / "osv-scalibr", osv_root / "osv-scalibr" / "npm"):
         assert stat.S_IMODE(os.stat(d).st_mode) == 0o700, d
-    for f in (osv_root / "databases.json", osv_root / "osv-scanner" / "npm" / "all.zip"):
+    for f in (osv_root / "databases.json", osv_root / "osv-scalibr" / "npm" / "all.zip"):
         assert stat.S_IMODE(os.stat(f).st_mode) == 0o600, f
-    assert sorted(p.name for p in (osv_root / "osv-scanner" / "npm").iterdir()) == ["all.zip"]
+    assert sorted(p.name for p in (osv_root / "osv-scalibr" / "npm").iterdir()) == ["all.zip"]
 
 
 def test_requests_name_only_the_ecosystem_or_release_asset(tmp_path, projects):
@@ -492,3 +492,120 @@ def test_cli_osv_prints_json(tmp_path, projects, monkeypatch, capsys):
     assert set(out) == {"schema_version", "coverage", "databases", "projects", "matches"}
     assert out["coverage"]["source"] == "osv" and out["coverage"]["source_at"] == NOW
     assert [d["ecosystem"] for d in out["databases"]] == ["PyPI", "npm"]
+
+
+# Bug #49: OSV-Scanner v2.7.0 reads <cache>/osv-scalibr/<ECOSYSTEM>/all.zip.
+
+import pwd
+import shutil
+
+SCALIBR = Path("osv") / "osv-scalibr"
+OLD = Path("osv") / "osv-scanner"
+
+
+def test_new_database_is_saved_where_the_scanner_reads_it(tmp_path):
+    data = tmp_path / "data"
+    seed_db(data, "npm", NOW)
+    assert (data / SCALIBR / "npm" / "all.zip").read_bytes() == ZIP
+    assert not (data / OLD).exists()
+
+
+def test_old_layout_moves_without_a_new_download(tmp_path):
+    data = tmp_path / "data"
+    old = data / OLD / "npm"
+    old.mkdir(parents=True)
+    (old / "all.zip").write_bytes(ZIP)
+    (data / "osv" / "databases.json").write_text(json.dumps(
+        {"npm": {"fetched_at": DAY_AGO, "sha256": hashlib.sha256(ZIP).hexdigest(), "etag": '"e1"'}}))
+    download = FakeDownload()  # every request fails: the network is off
+    db = osvdb.update_database("npm", data, download, lambda: NOW)
+    assert db.loaded and db.fetched_at == DAY_AGO
+    assert db.path == data / SCALIBR / "npm" / "all.zip"
+    assert db.path.read_bytes() == ZIP
+    assert not (data / OLD).exists()
+    assert download.calls == [(NPM_URL, {"If-None-Match": '"e1"'})]  # the same conditional request as before
+
+
+def test_old_copy_is_dropped_when_the_new_layout_already_has_one(tmp_path):
+    data = tmp_path / "data"
+    seed_db(data, "npm", DAY_AGO)
+    stale = data / OLD / "npm"
+    stale.mkdir(parents=True)
+    (stale / "all.zip").write_bytes(b"old")
+    db = osvdb.update_database("npm", data, FakeDownload(), lambda: NOW)
+    assert db.loaded and db.path.read_bytes() == ZIP
+    assert not (data / OLD).exists()
+
+
+def test_scan_with_an_old_layout_database_finds_the_advisories(tmp_path, projects):
+    data = tmp_path / "data"
+    asset, script, log = fake_scanner(tmp_path, code=1)
+    install(data, asset, script)
+    for eco in ("npm", "PyPI"):
+        seed_db(data, eco, DAY_AGO)
+        (data / OLD / eco).mkdir(parents=True)
+        os.replace(data / SCALIBR / eco / "all.zip", data / OLD / eco / "all.zip")  # as an older engine left it
+    result = scan(data, projects, asset, download=FakeDownload())
+    assert result.coverage.state == "complete" and result.matches
+    assert (data / SCALIBR / "npm" / "all.zip").is_file()
+
+
+def test_scanner_error_keeps_its_message_in_detail(tmp_path, projects):
+    data = tmp_path / "data"
+    msg = "could not load db for npm ecosystem: unable to fetch OSV database"
+    asset, script, _ = fake_scanner(tmp_path, code=127, stdout="")
+    script = script.replace(b"sys.stdout.write(text)", f"sys.stderr.write({msg!r})".encode())
+    asset = Asset(asset.name, hashlib.sha256(script).hexdigest())
+    install(data, asset, script)
+    result = scan(data, projects, asset)
+    assert (result.coverage.state, result.coverage.error) == ("failed", "OSV-Scanner stopped with an error.")
+    assert msg in result.coverage.detail and "127" in result.coverage.detail
+
+
+# The real pinned scanner, offline, on a one-advisory database. Skipped where the binary is absent (CI).
+
+REAL_HOME = pwd.getpwuid(os.getuid()).pw_dir  # conftest points HOME at a temp folder
+REAL_SCANNER = Path(REAL_HOME) / "Library/Application Support/Watchtower/tools" / (
+    f"{pin.ASSETS['arm64'].name}-{pin.OSV_SCANNER_VERSION}")
+
+
+def advisory_zip() -> bytes:
+    advisory = {
+        "schema_version": "1.6.0", "id": "GHSA-test-0049-wtwr", "modified": "2026-10-01T00:00:00Z",
+        "published": "2026-10-01T00:00:00Z", "aliases": ["CVE-2099-0049"], "summary": "Test advisory for #49",
+        "affected": [{"package": {"ecosystem": "npm", "name": "lodash"},
+                      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "4.17.21"}]}]}],
+    }
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("GHSA-test-0049-wtwr.json", json.dumps(advisory))
+    return buf.getvalue()
+
+
+@pytest.mark.skipif(not REAL_SCANNER.is_file() or os.uname().machine != "arm64",
+                    reason="the pinned OSV-Scanner binary is not on this Mac")
+def test_real_pinned_scanner_reads_the_saved_database_offline(tmp_path, home):
+    asset = pin.ASSETS["arm64"]
+    pin.verify(REAL_SCANNER, asset)  # run only the pinned, checksum-verified binary
+    data = tmp_path / "data"
+    tools = data / "tools"
+    tools.mkdir(parents=True)
+    shutil.copy2(REAL_SCANNER, pin.scanner_path(data, asset))
+    root = home / "Projects"
+    project = root / "web"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text('{"name": "web", "dependencies": {"lodash": "4.17.20"}}')
+    (project / "package-lock.json").write_text(json.dumps({
+        "name": "web", "lockfileVersion": 3, "requires": True,
+        "packages": {"": {"name": "web", "dependencies": {"lodash": "4.17.20"}},
+                     # A real lockfile has `resolved`. Without it, the scanner does not match the package.
+                     "node_modules/lodash": {
+                         "version": "4.17.20",
+                         "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.20.tgz",
+                         "integrity": "sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA=="}}}))
+    zipped = advisory_zip()
+    download = FakeDownload({NPM_URL: (200, {"etag": '"t"'}, zipped)})
+    result = osv.collect(data, discover((str(root),)).projects, asset=asset, download=download, now=lambda: NOW)
+    assert result.coverage.state == "complete", result.coverage.detail
+    assert [(m.name, m.version) for m in result.matches] == [("lodash", "4.17.20")]
+    assert result.matches[0].advisory_ids == ["GHSA-test-0049-wtwr"]
