@@ -103,7 +103,7 @@ MainActor.assumeIsolated {
                 } else if scenario == .settingsInactive {
                     try render(SettingsView(model: model), size: CGSize(width: 560, height: 380), dark: dark,
                                to: out.appendingPathComponent(name))
-                } else if scenario == .findingUv {
+                } else if [.findingUv, .findingRequirements, .findingRequirementsRefused].contains(scenario) {
                     // The Update… buttons need an update model in the environment.
                     try render(DashboardView(model: model).environment(UpdateModel(client: PreviewEngine())),
                                size: CGSize(width: 1280, height: 720), dark: dark, to: out.appendingPathComponent(name))

@@ -161,6 +161,10 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case findingRequirements = "finding-requirements"
+        case findingRequirementsRefused = "finding-requirements-refused"
+        case projectRequirements = "project-requirements"
+        case projectRequirementsSkipped = "project-requirements-skipped"
         case findingEpssScore = "finding-epss-score"
         case findingEpssNoCve = "finding-epss-no-cve"
         case findingEpssMissing = "finding-epss-missing"
@@ -308,6 +312,21 @@ public enum SampleData {
             return sofaModel(scenario, engine: engine, clock: clock)
         case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
             return sparkleModel(scenario, engine: engine, clock: clock)
+        case .findingRequirements, .findingRequirementsRefused:
+            // A pin in requirements.txt made this finding (#80). It opens the #30 plan.
+            var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            sample.findings.append(requirementsFinding(refused: scenario == .findingRequirementsRefused))
+            let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+            model.selection = .findings
+            model.selectedItemKey = "SEC-0009"
+            return model
+        case .projectRequirements, .projectRequirementsSkipped:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects + requirementsProjects, clock: clock)
+            model.selection = .projects
+            model.selectedItemKey = requirementsProjects[scenario == .projectRequirements ? 0 : 1].path
+            return model
         case .cargoDependencies, .cargoWorkspace:
             let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
                                                                     lastComplete: ago(2)),
@@ -650,6 +669,30 @@ extension SampleData {
                                           PlanRow(label: "Installed (.venv)", value: "httpx \(installed)",
                                                   ok: verified)])
     }
+
+    /// A finding from the exact pin `requests==2.31.0` in a requirements-only project (#80).
+    static func requirementsFinding(refused: Bool) -> FindingRecord {
+        FindingRecord(id: "SEC-0009", ecosystem: "PyPI", package: "requests",
+                      title: "Requests leaks .netrc credentials to third parties", severity: .medium,
+                      advisoryIds: ["GHSA-9hjg-9r4m-mvj7", "PYSEC-2026-1872"], fixedIn: "2.32.4",
+                      firstSeen: days(1), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [FindingPath(project: "script", projectPath: "~/Real/script", lockfile: "requirements.txt",
+                                          version: "2.31.0",
+                                          updateBlock: refused ? "No environment found. Watchtower does not create environments." : nil,
+                                          evidence: PathEvidence(declared: "requests==2.31.0", evidence: "Exact pin",
+                                                                 installed: refused ? nil : "2.31.0"))])
+    }
+
+    /// Two requirements-only projects (#80): one scanned with range lines, one skipped.
+    public static let requirementsProjects: [ProjectRecord] = [
+        ProjectRecord(name: "script", path: NSHomeDirectory() + "/Real/script", root: "~/Real",
+                      manifests: ["requirements.txt"], state: "active",
+                      requirements: [RequirementsFile(file: "requirements.txt", pins: 12, otherLines: 3)]),
+        ProjectRecord(name: "legacy", path: NSHomeDirectory() + "/Real/legacy", root: "~/Real",
+                      manifests: ["requirements.txt"], state: "active",
+                      requirements: [RequirementsFile(file: "requirements.txt", pins: 0, otherLines: 0,
+                                                      skipped: "-r includes or hashes are not supported")]),
+    ]
 
     /// Two Cargo projects (#15): one with the Dependencies table, one workspace that is refused.
     public static let cargoProjects: [ProjectRecord] = [

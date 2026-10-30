@@ -321,6 +321,23 @@ def block_reason(project_path: str, file: str, roots: tuple[str, ...] = PROJECT_
     return None
 
 
+def path_evidence(project_path: str, file: str, name: str) -> dict | None:
+    """The evidence of a finding path in a requirements.txt (#80), or None for other files. Reads text only.
+
+    `declared` is the requirement as written (`requests==2.31.0`), `evidence` is `Exact pin`, `Range` or
+    `Unpinned`, `installed` is the version in `.venv` or None (not checked).
+    """
+    path = Path(os.path.expanduser(project_path)) / file
+    if path.name != FILE_NAME:
+        return None
+    text = read_file(path)
+    entries = entries_for(parse_file(text), name) if text is not None else []
+    entry = entries[0] if len(entries) == 1 else None
+    installed = installed_version(path.parent, name) if has_environment(path.parent) else None
+    return {"declared": entry.text if entry else None, "evidence": entry.evidence if entry else None,
+            "installed": installed}
+
+
 # Plan
 
 

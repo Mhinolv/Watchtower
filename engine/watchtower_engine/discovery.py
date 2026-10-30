@@ -60,6 +60,8 @@ class Project:
     state: str
     # The resolved folder. The inactive choice is stored under it. Not part of the JSON.
     real_path: str = field(default="", repr=False, compare=False)
+    # requirements.txt files of requirements-only folders (#80): pins, other lines, why skipped.
+    requirements: list[dict] | None = field(default=None, compare=False)
     # The `Dependencies` table of a Cargo project (#15), and why it is incomplete. None: no table.
     dependencies: list[dict] | None = field(default=None, compare=False)
     dependency_note: str | None = field(default=None, compare=False)
@@ -75,7 +77,8 @@ class Project:
             "root": self.root,
             "manifests": list(self.manifests),
             "state": self.state,
-        } | ({"dependencies": self.dependencies, "dependency_note": self.dependency_note}
+        } | ({"requirements": self.requirements} if self.requirements is not None else {}) \
+          | ({"dependencies": self.dependencies, "dependency_note": self.dependency_note}
              if self.dependencies is not None or self.dependency_note is not None else {})
 
 

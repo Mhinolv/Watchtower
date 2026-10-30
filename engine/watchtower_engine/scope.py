@@ -84,7 +84,19 @@ class Scope:
 
 def list_projects(data_dir=None, roots: tuple[str, ...] = PROJECT_ROOTS) -> Discovery:
     """Discover the projects and apply the owner's inactive choices."""
-    return with_dependencies(discover(roots, inactive=Scope(data_dir).inactive()))
+    return with_requirements(with_dependencies(discover(roots, inactive=Scope(data_dir).inactive())))
+
+
+def with_requirements(found: Discovery) -> Discovery:
+    """Add the requirements.txt summary to each requirements-only folder (#80). Reads text only."""
+    from .scanners import osv, requirements_pins  # Not at the top: the scanner modules import the store.
+
+    names = set(osv.SUPPORTED) | set(osv.NOT_SUPPORTED)
+    for project in found.projects:
+        rows = requirements_pins.summaries(Path(project.real_path or os.path.expanduser(project.path)),
+                                           project.manifests, names)
+        project.requirements = rows or None
+    return found
 
 
 def with_dependencies(found: Discovery) -> Discovery:
