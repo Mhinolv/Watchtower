@@ -476,6 +476,8 @@ public enum BacklogEntry: Identifiable, Equatable, Sendable {
 public final class DashboardModel {
     public private(set) var state: EngineState?
     public private(set) var projects: [ProjectRecord]
+    /// Settings: `Check running versions` (#17). On by default (owner decision 2026-10-29).
+    public private(set) var checkRunningVersions = true
     public private(set) var isRefreshing = false
     public private(set) var progress: RefreshProgress?
     public private(set) var lastError: EngineError?
@@ -492,9 +494,10 @@ public final class DashboardModel {
 
     public init(engine: any EngineClient, state: EngineState? = nil, projects: [ProjectRecord] = [],
                 isRefreshing: Bool = false, progress: RefreshProgress? = nil,
-                clock: @escaping @Sendable () -> Date = { Date() }) {
+                checkRunningVersions: Bool = true, clock: @escaping @Sendable () -> Date = { Date() }) {
         self.engine = engine
         self.state = state
+        self.checkRunningVersions = checkRunningVersions
         self.projects = projects
         self.isRefreshing = isRefreshing
         self.progress = progress
@@ -511,6 +514,19 @@ public final class DashboardModel {
             lastError = error
         } catch {}
         await loadProjects()
+        if let settings = try? await engine.settings() { checkRunningVersions = settings.checkRunningVersions }
+    }
+
+    /// Turn the running-version check on or off. The detail panes show `Running: not checked` at once.
+    public func setCheckRunningVersions(_ on: Bool) async {
+        let previous = checkRunningVersions
+        checkRunningVersions = on
+        do {
+            checkRunningVersions = try await engine.setCheckRunningVersions(on).checkRunningVersions
+        } catch {
+            checkRunningVersions = previous
+            lastError = (error as? EngineError) ?? .failed(message: "The setting was not saved.", detail: "\(error)")
+        }
     }
 
     public func loadProjects() async {
@@ -738,6 +754,9 @@ public final class DashboardModel {
             lastError = (error as? EngineError) ?? .failed(message: message, detail: "\(error)")
         }
     }
+
+    /// Now, by the clock of the model. The support text counts the days to an end date from it (#59).
+    public var currentDate: Date { clock() }
 
     /// `Homebrew data: 3 h old`, from the source time of the item.
     public func sourceAgeText(for item: ItemRecord) -> String? {

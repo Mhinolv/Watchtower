@@ -1,0 +1,22 @@
+ 1) "loginwindow" ASN:0x0-0x3003: 
+    bundleID="com.apple.loginwindow"
+    bundle path="/System/Library/CoreServices/loginwindow.app"
+    executable path="/System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow"
+    pid = 402 type="UIElement" flavor=3 Version="3037.6.3.100" fileType="APPL" creator="lgnw" Arch=ARM64 
+    checkin time = 2026/10/21 09:23:49 ( 8 days, 22 hours, 20 minutes, 12.3677 seconds ago )
+
+ 2) "universalaccessd" ASN:0x0-0xc00c: 
+    bundleID=[ NULL ] 
+    bundle path="/usr/sbin/universalaccessd"
+    executable path="/usr/sbin/universalaccessd"
+    pid = 1300 !signalled type="BackgroundOnly" flavor=3 Version=[ NULL ]  fileType="????" creator="????" Arch=ARM64 
+
+ 3) "Cloudflare WARP" ASN:0x0-0x1b37b36: 
+    bundleID="com.cloudflare.1dot1dot1dot1.macos"
+    bundle path="/Applications/Cloudflare WARP.app"
+    pid = 12710 type="UIElement" flavor=3 Version="20269008.2115" fileType="APPL" creator="????" Arch=ARM64 
+
+ 4) "Caffeine" ASN:0x0-0x25c45c2: 
+    bundleID="com.intelliscapesolutions.caffeine"
+    bundle path="/Applications/Caffeine.app"
+    pid = 45533 type="UIElement" flavor=3 Version="30" fileType="APPL" Arch=ARM64 sandboxed 

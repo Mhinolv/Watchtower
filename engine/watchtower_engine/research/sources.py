@@ -11,7 +11,8 @@ Only public product names go out, and only as part of the fixed URL. No path, pr
 inventory data is ever sent.
 
 Feed text is untrusted data. The parser:
-- refuses an XML feed with a DOCTYPE or an entity (no entity expansion), and any body over 5 MB;
+- refuses an XML feed with a DOCTYPE or an entity declaration in its prolog (no entity expansion), and any
+  body over 5 MB. Markup text inside an element, for example `<!DOCTYPE html` in a CDATA post body, is data (#93);
 - reads the Apple page with the standard HTML parser, and takes text and the first link of a table cell only;
 - removes markup and control characters from titles and summaries, and cuts them to a fixed length;
 - keeps a link only if it is https and on a host of the source;
@@ -24,6 +25,7 @@ import json
 import re
 import unicodedata
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from html.parser import HTMLParser
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -183,10 +185,39 @@ def _link(node: ET.Element) -> str | None:
     return None
 
 
+class _RootStart(Exception):
+    """The root element starts, so the prolog is complete."""
+
+
+def _refuse_dtd(body: bytes) -> None:
+    """Raise SourceError if the prolog has a DOCTYPE or an entity declaration, in any encoding.
+
+    Expat reads the encoding the same way as the parser below. It stops at the root element: a
+    declaration cannot come later, and text inside an element is not a declaration (#93).
+    """
+    def refuse(*_):
+        raise SourceError("bad data")
+
+    def stop(*_):
+        raise _RootStart
+
+    parser = expat.ParserCreate()
+    parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
+    parser.StartDoctypeDeclHandler = refuse
+    parser.EntityDeclHandler = refuse
+    parser.StartElementHandler = stop
+    try:
+        parser.Parse(body, True)
+    except _RootStart:
+        return
+    except expat.ExpatError as exc:
+        raise SourceError("bad data") from exc
+    raise SourceError("bad data")  # No root element.
+
+
 def parse_rss(source: Source, body: bytes) -> list[Item]:
     """RSS 2.0 and Atom. Raises SourceError for a document that is not a feed."""
-    if b"<!doctype" in body[:100000].lower() or b"<!entity" in body[:100000].lower():
-        raise SourceError("bad data")
+    _refuse_dtd(body)
     try:
         root = ET.fromstring(body)
     except ET.ParseError as exc:

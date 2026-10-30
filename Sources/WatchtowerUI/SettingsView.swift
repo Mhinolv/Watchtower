@@ -1,7 +1,7 @@
 import SwiftUI
 import WatchtowerCore
 
-/// Settings (⌘,). Tab `Projects`: turn a project off to move it to Backlog.
+/// Settings (⌘,). Tab `General`: the running-version check (#17). Tab `Projects`: turn a project off to move it to Backlog.
 public struct SettingsView: View {
     let model: DashboardModel
 
@@ -11,6 +11,8 @@ public struct SettingsView: View {
 
     public var body: some View {
         TabView {
+            GeneralSettings(model: model)
+                .tabItem { Label("General", systemImage: "gearshape") }
             ProjectSettings(model: model)
                 .tabItem { Label("Projects", systemImage: "folder") }
         }
@@ -49,5 +51,23 @@ struct ProjectSettings: View {
             }
             .padding()
         }
+    }
+}
+
+struct GeneralSettings: View {
+    let model: DashboardModel
+
+    var body: some View {
+        Form {
+            Toggle("Check running versions", isOn: Binding(
+                get: { model.checkRunningVersions },
+                set: { on in Task { await model.setCheckRunningVersions(on) } }
+            ))
+            Text("Reads process versions. Watchtower never starts services or reads credentials.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }

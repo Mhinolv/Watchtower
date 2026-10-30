@@ -50,7 +50,7 @@ struct RuntimesView: View {
 }
 
 private enum Column {
-    static let name: CGFloat = 170, version: CGFloat = 80, source: CGFloat = 96, status: CGFloat = 84
+    static let name: CGFloat = 124, version: CGFloat = 68, support: CGFloat = 104, source: CGFloat = 72, status: CGFloat = 84
 }
 
 private struct ColumnHeader: View {
@@ -58,7 +58,8 @@ private struct ColumnHeader: View {
         HStack(spacing: 10) {
             Text("Name").frame(width: Column.name, alignment: .leading)
             Text("Version").frame(width: Column.version, alignment: .leading)
-            Text("Path").frame(maxWidth: .infinity, alignment: .leading)
+            Text("Support").frame(width: Column.support, alignment: .leading)
+            Text("Path").lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
             Text("Source").frame(width: Column.source, alignment: .leading)
             Text("Status").frame(width: Column.status, alignment: .leading)
         }
@@ -83,6 +84,10 @@ private struct RuntimeRowView: View {
             }
             .frame(width: Column.name, alignment: .leading)
             Text(row.version).monospacedDigit().frame(width: Column.version, alignment: .leading)
+            Group {
+                if let support = row.support { SupportLabel(status: support, short: true) } else { Text("") }
+            }
+            .frame(width: Column.support, alignment: .leading)
             Text(row.path).font(.callout.monospaced()).foregroundStyle(.secondary).lineLimit(1)
                 .truncationMode(.middle).frame(maxWidth: .infinity, alignment: .leading)
             Text(row.source).foregroundStyle(.secondary).lineLimit(1).frame(width: Column.source, alignment: .leading)
@@ -93,7 +98,7 @@ private struct RuntimeRowView: View {
         }
         .frame(minHeight: DesignTokens.tableRowHeight)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(row.name), \(row.version), \(row.source)\(row.isOld ? ", old copy" : "")")
+        .accessibilityLabel("\(row.name), \(row.version), \(row.support.map { $0.label + ", " } ?? "")\(row.source)\(row.isOld ? ", old copy" : "")")
     }
 }
 
@@ -102,6 +107,8 @@ struct RuntimeDetail: View {
     let model: DashboardModel
     let item: ItemRecord
     private let time = TimeText()
+
+    private var support: SupportStatus? { SupportStatus(item, now: model.currentDate, time: time) }
 
     var body: some View {
         let copies = model.runtimeCopies(of: item)
@@ -114,9 +121,13 @@ struct RuntimeDetail: View {
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     row("Version", item.installedVersion ?? "—")
+                    if let support { supportRows(support) }
                     row("Path", DisplayPath.abbreviate(item.attributes?["path"] ?? ""))
                     row("Source", item.origin ?? "—")
                     if let seen = item.seenAt { row("Observed", time.absolute(seen)) }
+                }
+                if let failure = support?.failureText {
+                    Label(failure, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.orange.color)
                 }
                 if let note = item.note, item.state == .unknown { Text(note) }
                 if let text = item.copiesText(copies.count) {
@@ -145,5 +156,15 @@ struct RuntimeDetail: View {
             Text(label).foregroundStyle(.secondary)
             Text(value).textSelection(.enabled)
         }
+    }
+
+    /// `Support`, `Release line` and `Data` (#59).
+    @ViewBuilder private func supportRows(_ support: SupportStatus) -> some View {
+        GridRow {
+            Text("Support").foregroundStyle(.secondary)
+            SupportLabel(status: support)
+        }
+        if let line = support.releaseLine(product: item.name) { row("Release line", line) }
+        if let data = support.dataText { row("Data", data) }
     }
 }

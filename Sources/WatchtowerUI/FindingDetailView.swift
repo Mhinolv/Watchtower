@@ -106,6 +106,8 @@ public struct FindingDetailView: View {
                 header
                 actions
                 affected
+                EvidenceSection(rows: Evidence.rows(for: finding, projects: model.projects,
+                                                    enabled: model.checkRunningVersions))
                 facts
                 source
                 if !finding.nextSteps.isEmpty {

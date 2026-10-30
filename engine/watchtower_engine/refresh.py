@@ -61,9 +61,13 @@ def advisory_id_groups(data_dir: Path, scans: list) -> list[set[str]]:
 
 
 def default_sources(data_dir: Path) -> list[Source]:
-    """Homebrew, Applications, macOS, runtimes, SOFA, OSV, KEV, GitHub and EPSS. `brew info` and the catalogs run once."""
-    from .feeds import epss, github, kev, sofa
-    from .inventory import apps, homebrew, macos, runtimes, sparkle
+    """Homebrew, Applications, macOS, runtimes, SOFA, endoflife.date, running versions, OSV, KEV, GitHub and EPSS.
+
+    `brew info` and the catalogs run once.
+    """
+    from .feeds import endoflife, epss, github, kev, sofa
+    from . import settings
+    from .inventory import apps, homebrew, macos, running, runtimes, sparkle
     from .scanners import osv
     from .scope import discovery_coverage, list_projects
 
@@ -82,14 +86,27 @@ def default_sources(data_dir: Path) -> list[Source]:
         return fetches[url]
 
     scans: list = []  # The OSV result of this refresh. The GitHub source reads its advisory ids.
-    inventory: list = []  # The macOS and app items of this refresh. SOFA updates them in place.
+    inventory: list = []  # The macOS, runtime and app items of this refresh. SOFA and endoflife.date update them in place.
+
+    probed: list = []  # The app, Homebrew formula and runtime items. The running-version check updates them in place (#17).
 
     def keep(result: SourceResult) -> SourceResult:
         inventory.extend(result.items)
+        probed.extend(result.items)
         return result
+
+    def keep_probed(result: SourceResult) -> SourceResult:
+        probed.extend(result.items)
+        return result
+
+    def running_source() -> SourceResult:
+        return running.collect(probed, settings.check_running_versions(data_dir), run_once)
 
     def sofa_source() -> SourceResult:
         return SourceResult(sofa.check(inventory, data_dir), [])
+
+    def endoflife_source() -> SourceResult:
+        return SourceResult(endoflife.check(inventory, data_dir), [])
 
     def osv_source() -> SourceResult:
         found = list_projects(data_dir)
@@ -115,13 +132,15 @@ def default_sources(data_dir: Path) -> list[Source]:
 
     return [
         Source(homebrew.SOURCE, homebrew.LABEL,
-               lambda: homebrew.collect(data_dir, run=run_once, fetch=fetch_once)),
+               lambda: keep_probed(homebrew.collect(data_dir, run=run_once, fetch=fetch_once))),
         Source(apps.SOURCE, apps.LABEL, lambda: keep(apps.collect_live(
             data_dir, run=run_once, fetch=fetch_once,
             sparkle_check=lambda targets: sparkle.check(targets, data_dir)))),
         Source(macos.SOURCE, macos.LABEL, lambda: keep(macos.collect())),
-        Source(runtimes.SOURCE, runtimes.LABEL, runtimes.collect),
+        Source(runtimes.SOURCE, runtimes.LABEL, lambda: keep(runtimes.collect())),
         Source(sofa.SOURCE, sofa.LABEL, sofa_source),
+        Source(endoflife.SOURCE, endoflife.LABEL, endoflife_source),
+        Source(running.SOURCE, running.LABEL, running_source),
         Source(osv.SOURCE, osv.LABEL, osv_source),
         Source(kev.SOURCE, kev.LABEL, kev_source),
         Source(github.SOURCE, github.LABEL, github_source),

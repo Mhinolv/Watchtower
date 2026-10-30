@@ -110,6 +110,10 @@ def main(argv=None) -> int:
     sub.add_parser("homebrew", help="check Homebrew formulae and casks, print coverage and items as JSON")
     sub.add_parser("macos", help="print the macOS version and build as JSON")
     sub.add_parser("apps", help="print installed apps and their cask links as JSON")
+    sub.add_parser("settings", help="print the settings as JSON")
+    sset = sub.add_parser("setting-set", help="change one setting, print the settings as JSON")
+    sset.add_argument("name", choices=("check-running-versions",))
+    sset.add_argument("value", choices=("on", "off"))
     sub.add_parser("projects", help="print the projects, root errors and skipped links as JSON")
     sub.add_parser("osv", help="scan the lockfiles of active projects offline with OSV-Scanner, print JSON")
     uplan = sub.add_parser("update-plan", help="plan one Homebrew update, print the plan as JSON")
@@ -165,6 +169,13 @@ def main(argv=None) -> int:
                     _emit(sys.stderr, {"error": "Refresh stopped.", "detail": None})
                     return 130
             _emit(sys.stdout, state)
+            return 0
+        if args.cmd in ("settings", "setting-set"):
+            from . import settings
+
+            if args.cmd == "setting-set":
+                settings.save({"check_running_versions": args.value == "on"}, args.data_dir)
+            _emit(sys.stdout, {"settings": settings.load(args.data_dir)})
             return 0
         if args.cmd == "incidents":
             with Store(args.data_dir) as store:

@@ -197,6 +197,61 @@ private let gitItem = ItemRecord(id: "formula:git", source: "homebrew", name: "g
     #expect(runs.count == 1 && runs[0].1 && runs[0].2)
 }
 
+/// The dialog order for `Update to …`: the alert closes, then the button task runs (#98).
+@MainActor
+@Test func majorAlertClosesBeforeTheButtonTaskAndTheUpdateStillRuns() async {
+    let client = FakeUpdates(plans: [plan(major: true)])
+    let model = UpdateModel(client: client)
+    await model.start(gitItem)
+    await model.confirm()
+    #expect(model.majorQuestionShown)
+    model.majorQuestionShown = false
+    #expect(!model.majorQuestionShown)
+    await model.confirmMajor()
+    #expect(model.step == .result(attempt(.verified), plan(major: true)))
+    let runs = await client.record.runs
+    #expect(runs.count == 1 && runs[0].1 && !runs[0].2)
+}
+
+@MainActor
+@Test func majorAlertCloseThenScriptsStepThenRun() async {
+    let client = FakeUpdates(plans: [plan(major: true, scripts: ["the formula runs a post-install step"])])
+    let model = UpdateModel(client: client)
+    await model.start(gitItem)
+    await model.confirm()
+    model.majorQuestionShown = false
+    await model.confirmMajor()
+    #expect(model.step == .confirmScripts(plan(major: true, scripts: ["the formula runs a post-install step"])))
+    #expect(await client.record.runs.isEmpty)
+    // A late close of the alert does not take the scripts question away.
+    model.majorQuestionShown = false
+    #expect(model.step == .confirmScripts(plan(major: true, scripts: ["the formula runs a post-install step"])))
+    await model.confirmScripts()
+    let runs = await client.record.runs
+    #expect(runs.count == 1 && runs[0].1 && runs[0].2)
+}
+
+@MainActor
+@Test func majorAlertCancelRunsNothingInEitherOrder() async {
+    let client = FakeUpdates(plans: [plan(major: true)])
+    let model = UpdateModel(client: client)
+    await model.start(gitItem)
+    // Cancel action, then the alert closes.
+    await model.confirm()
+    model.backToPlan()
+    model.majorQuestionShown = false
+    #expect(model.step == .plan(plan(major: true)))
+    await model.confirmMajor()
+    // The alert closes, then the Cancel action.
+    await model.confirm()
+    model.majorQuestionShown = false
+    model.backToPlan()
+    #expect(model.step == .plan(plan(major: true)))
+    await model.confirmMajor()
+    #expect(model.step == .plan(plan(major: true)))
+    #expect(await client.record.runs.isEmpty)
+}
+
 @MainActor
 @Test func refusedPlanCannotRun() async {
     let client = FakeUpdates(plans: [plan(refusal: "Pinned with brew pin. Watchtower does not update pinned items.")])

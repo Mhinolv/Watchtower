@@ -224,3 +224,53 @@ struct ItemRow: Identifiable {
     let item: ItemRecord
     var id: String { item.key }
 }
+
+/// The vendor support label (#59): symbol, color and text. It is not a `StatusBadge`. The text is always shown.
+struct SupportLabel: View {
+    let status: SupportStatus
+    var short = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Image(systemName: status.symbol).imageScale(.small)
+            Text(short ? status.shortText : status.label)
+                .lineLimit(short ? 1 : nil)
+                .fixedSize(horizontal: false, vertical: !short)
+        }
+        .foregroundStyle(status.tone.color)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(status.accessibilityText)
+        .help(status.label)
+    }
+}
+
+/// The `Evidence` section of a detail pane (#17): Installed, Lockfile, Running, Container image and Deployment.
+/// Unknown stays `Unknown`. An older running version is orange and says what to do.
+struct EvidenceSection: View {
+    let rows: [EvidenceRow]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Evidence").font(.headline)
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 6) {
+                ForEach(rows, id: \.label) { row in
+                    GridRow {
+                        Text(row.label).foregroundStyle(.secondary)
+                        if row.tone == .orange {
+                            Label(row.value, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(Tone.orange.color)
+                        } else {
+                            Text(row.value).textSelection(.enabled)
+                        }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(row.accessibilityText)
+                }
+            }
+            if rows.contains(where: { $0.label == "Container image" }) {
+                Text("Container image is metadata from project files. Watchtower starts no container.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}

@@ -219,7 +219,9 @@ def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
     ]
 
     # Resolve the new lockfile in a temp copy. The project and node_modules stay as they are.
-    with tempfile.TemporaryDirectory(prefix="watchtower-npm-") as tmp:
+    # The real path: npm 11 keys a symlinked prefix (macOS /var -> /private/var) as `../../private/...` (#95).
+    with tempfile.TemporaryDirectory(prefix="watchtower-npm-") as tmp_link:
+        tmp = os.path.realpath(tmp_link)
         shutil.copy2(manifest, Path(tmp) / "package.json")
         shutil.copy2(lockfile, Path(tmp) / "package-lock.json")
         args = [npm, "install", f"{name}@{spec_after}", SECTIONS[section], "--package-lock-only", *SAFE_FLAGS,

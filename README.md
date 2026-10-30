@@ -62,6 +62,8 @@ The app runs the engine and reads one JSON object on stdout. Every object has `s
 | `watchtower research-status` | `{"schema_version", "state", "text", "topics", "limits", "time_limit_seconds"}`: is Claude Code installed and signed in |
 | `watchtower research-run` | The incidents object, after one Claude web research run. It has `research`, the result of the last run. SIGTERM stops it and saves nothing |
 | `watchtower osv` | `{"schema_version", "coverage", "databases", "projects", "matches"}` for an offline OSV-Scanner lockfile scan |
+| `watchtower settings` | `{"schema_version", "settings"}`: `check_running_versions` (on by default) |
+| `watchtower setting-set check-running-versions on\|off` | The same object, after the change |
 
 If a command fails, stdout stays empty. The engine writes `{"schema_version", "error", "detail"}` to stderr and exits 1.
 The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine tests and the Swift tests both check them.
@@ -86,6 +88,7 @@ The contract fixtures are in `Tests/WatchtowerCoreTests/Fixtures`. The engine te
 | GET `https://pypi.org/pypi/<package>/<version>/json` | The package name and the target version of a uv update. | The plan of a uv update, to see if the target has a wheel for this Mac |
 | GET `<SUFeedURL>`, the Sparkle appcast address in an app's `Info.plist` | None about this Mac. A `Watchtower/<version>` User-Agent. HTTPS only. | App check, each refresh, for apps that Homebrew does not cover |
 | GET `https://sofafeed.macadmins.io/v2/macos_data_feed.json` and `/v2/safari_data_feed.json` | None. Two public bulk feeds (SOFA, MacAdmins). No version, path, bundle id or finding. | SOFA check, each refresh |
+| GET `https://endoflife.date/api/v1/products/<product>/` | The product name only (`macos`, `nodejs`, `python`). No version, path, project, app name or finding. A `Watchtower/<version>` User-Agent. | endoflife.date check (#59), each refresh. One request for each product, not for each install |
 | GET `https://github.blog/security/feed/` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://www.google.com/appsstatus/dashboard/incidents.json` | None. A static feed. | Check Sources (on demand only) |
 | GET `https://support.apple.com/en-us/100100` | None. A static page: the table of Apple security releases. | Check Sources (on demand only) |
@@ -113,6 +116,14 @@ The engine reads only known fields of the feeds, with format checks and limits. 
 The Apple security releases page (`https://support.apple.com/en-us/100100`) stays the primary source. SOFA is a summary of that page.
 Safari compares within its installed major version. The engine keeps the last copy in `cache/sofa/feeds.json`. If a feed fails, it uses that copy and the coverage is `partial`.
 Watchtower never installs macOS or Safari. The `Open Software Update` button opens System Settings.
+
+The endoflife.date check (#59) shows the vendor support status of macOS and of each runtime in the Runtimes list. The compare runs on this Mac.
+Only the product name leaves this Mac. A path, a project, an app name, a version or a finding never goes into a request. The name must match `[a-z0-9][a-z0-9.-]{0,63}`. Watchtower makes one request for each product, even if you have many installs.
+The engine picks the release line of the installed version (`3.12` for `3.12.11`, `15` for macOS `15.1`) and reads only the line name, four dates and two flags, with format checks and limits (at most 2 MB and 300 lines).
+The states are `Supported`, `Ends soon` (the end date is 90 days away or less), `Security fixes only`, `End of life` and `Not known` (no entry at endoflife.date, or Java, which has no product). The app counts the days again at display time, so an old scan never shows `Supported` after the end date.
+This status is not the update status. It does not change `Update available` or `Vulnerable`, and a copy of a runtime that is out of date but still supported stays `Update available`.
+If the request fails, Watchtower keeps the earlier support data, shows `endoflife.date did not respond. Data from <date>.` and makes the endoflife.date coverage row `partial` (or `failed` if nothing answered). The last good answers stay in `cache/endoflife/products.json` in the data folder (mode `0600`). A product that endoflife.date does not know is not a failure: its items show `Not known`.
+Project dependencies and the support status of apps are not part of this check.
 
 The OSV scan runs only OSV-Scanner v2.7.0. `engine/watchtower_engine/scanners/release_pin.py` holds the SHA-256 digests from the official release.
 The engine checks the digest after the download and before each run. If the digest does not match, the scanner does not run.
@@ -187,6 +198,15 @@ An update plan for one direct requirement of a requirements-only project (no loc
 - A pinned package that `.venv` does not have (owner decision on #96): Update changes the pin in `requirements.txt` only. No command runs: no pip, no uv, no PyPI request. The dialog shows `not installed → <version>`. The result is `Pin updated` after the engine reads the new pin again and `.venv` still has no such package.
 - Refused: `-r` includes, constraint files and `--hash` pins (`requirements.txt with -r includes or hashes is not supported.`), a package index option, editable and URL requirements, a package named twice, a missing `.venv`, a `.venv` with no pip and no uv (when a package must be installed), a range or unpinned line of a package that is not installed. Watchtower never creates an environment or installs pip.
 - Success needs both: the installed package in `.venv` and `requirements.txt` show what the plan said. A finding from an exact pin opens this plan from `Update…` (#80).
+
+## Running versions and container images (#17)
+
+The refresh reads which version of an app, a Homebrew formula or a runtime install runs now. It is separate from the installed version. The detail pane shows it in the `Evidence` section. The `Check running versions` toggle in Settings, tab `General`, is on by default. It saves to `settings.json` in the data folder (mode `0600`).
+- The check runs two read-only system tools: `ps -axo pid=,comm=` (the pid and the executable path, never the arguments) and `lsappinfo list` (the build that LaunchServices registered for each running app). It starts no app, service or program of an item. It reads no browser data, keychain, credential or email. No network call.
+- An app matches by the executable path inside its bundle. A formula matches by the version in its Homebrew `Cellar` path (the oldest process counts). A runtime install matches by a process inside its folder.
+- Item attributes: `runningState` (`known`, `unknown_version`, `none`, `denied`, `not_checked`), `runningVersion`, `runningKind` (`version` or `build`) and `runningChecked`. A denied or skipped check is never `none`, and `none` only means that no process was in the list. The `Deployment` row is always `Unknown`: no check writes it.
+- If the owner turns the check off, no program runs and each probed item has `runningState` `not_checked`. The `running` coverage is `not_run`. The app also hides older running data at once.
+- Container images are metadata from text files in the top folder of an active project: `Dockerfile`, `Dockerfile.*`, `*.Dockerfile`, `compose.y(a)ml` and `docker-compose.y(a)ml` (regular files of at most 256 KB, never a link). Project JSON has `container_images`: a list (empty: read, none found) or no key (not read). Watchtower starts no container, no Docker daemon and no `docker` command, and does not read `~/.docker`.
 
 ## Runtimes, SDKs and editor extensions (#16)
 

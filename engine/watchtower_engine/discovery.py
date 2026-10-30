@@ -21,6 +21,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .inventory.containers import project_images
+
 # Project roots, in the form the app shows. Applications are covered by a different source.
 PROJECT_ROOTS = ("~/Projects", "~/Real")
 
@@ -70,6 +72,9 @@ class Project:
     dependency_note: str | None = field(default=None, compare=False)
     # The folder limit if the walk stopped at it (#88). None: every folder was walked.
     cut_after: int | None = field(default=None, compare=False)
+    # Image names from the Dockerfile and compose files in the project folder (#17). An empty list: the files were
+    # read and hold none. None: not read (an inactive or inaccessible project).
+    container_images: list[str] | None = field(default=None, compare=False)
 
     @property
     def cut(self) -> bool:
@@ -89,7 +94,8 @@ class Project:
         } | ({"requirements": self.requirements} if self.requirements is not None else {}) \
           | ({"dependencies": self.dependencies, "dependency_note": self.dependency_note}
              if self.dependencies is not None or self.dependency_note is not None else {}) \
-          | ({"discovery_note": NOTE_CUT.format(limit=self.cut_after)} if self.cut else {})
+          | ({"discovery_note": NOTE_CUT.format(limit=self.cut_after)} if self.cut else {}) \
+          | ({"container_images": list(self.container_images)} if self.container_images is not None else {})
 
 
 @dataclass
@@ -267,7 +273,8 @@ def discover(roots: tuple[str, ...] = PROJECT_ROOTS, inactive=(), max_dirs: int 
             state = "inactive"
         result.projects.append(
             Project(name=name, path=path, root=label, manifests=manifests, state=state, real_path=real,
-                    cut_after=(max_dirs or MAX_DIRS) if cut else None)
+                    cut_after=(max_dirs or MAX_DIRS) if cut else None,
+                    container_images=project_images(real) if state == "active" else None)
         )
 
     result.projects.sort(key=lambda p: (p.root, p.name.lower(), p.name))
