@@ -84,7 +84,33 @@ class Scope:
 
 def list_projects(data_dir=None, roots: tuple[str, ...] = PROJECT_ROOTS) -> Discovery:
     """Discover the projects and apply the owner's inactive choices."""
-    return discover(roots, inactive=Scope(data_dir).inactive())
+    return with_dependencies(discover(roots, inactive=Scope(data_dir).inactive()))
+
+
+def with_dependencies(found: Discovery) -> Discovery:
+    """Add the `Dependencies` table to each Cargo project (#15). Reads Cargo.toml and Cargo.lock only."""
+    from .updates import cargo  # Not at the top: the update modules import the store.
+
+    for project in found.projects:
+        manifests = sorted(m for m in project.manifests if Path(m).name == "Cargo.toml")
+        if not manifests:
+            continue
+        base = Path(project.real_path or os.path.expanduser(project.path))
+        rows, notes, workspaces = [], [], []
+        for manifest in manifests:
+            folder = Path(manifest).parent
+            if any(folder.is_relative_to(w) for w in workspaces):
+                continue  # A member of a workspace that is already reported.
+            found_rows, note = cargo.dependencies(base / folder)
+            if note == cargo.REFUSE_WORKSPACE:
+                workspaces.append(folder)
+            folder = str(folder)
+            rows += [{**r, "manifest": manifest} for r in found_rows or []]
+            if note:
+                notes.append(note if folder == "." else f"{folder}: {note}")
+        project.dependencies = rows if rows or not notes else None
+        project.dependency_note = " ".join(notes) or None
+    return found
 
 
 def set_project_active(

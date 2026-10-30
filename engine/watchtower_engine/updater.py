@@ -17,6 +17,7 @@ from .inventory import mas as mas_inventory
 from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
+from .updates import cargo as cargo_updates
 from .updates import homebrew as brew_updates
 from .updates import mas as mas_updates
 from .updates import npm as npm_updates
@@ -50,7 +51,10 @@ def _item(store: Store, item_key: str):
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
                 uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-                npm: str | None = None, get=None, mas: str | None = None, **platform) -> brew_updates.Plan:
+                npm: str | None = None, get=None, mas: str | None = None, cargo: str | None = None,
+                **platform) -> brew_updates.Plan:
+    if item_key.startswith(cargo_updates.KEY_PREFIX):
+        return cargo_updates.make_plan(item_key, cargo, run)
     if item_key.startswith(uv_updates.KEY_PREFIX):
         return uv_updates.make_plan(item_key, uv, run, fetch, **(uv_options or {}))
     if item_key.startswith(npm_updates.KEY_PREFIX):
@@ -83,10 +87,11 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
                brew: str | None = None, run: Callable = subprocess.run,
                runner: brew_updates.RunStreaming = brew_updates.run_streaming,
                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-               npm: str | None = None, get=None, mas: str | None = None, **platform) -> tuple[Attempt, dict]:
+               npm: str | None = None, get=None, mas: str | None = None, cargo: str | None = None,
+               **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, **platform)
+    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, cargo, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -106,6 +111,8 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
         output.append(text)
         on_line(text)
 
+    if plan.kind == cargo_updates.KIND:
+        return _run_cargo(store, log, plan, attempt_id, line, output, runner)
     if plan.kind == uv_updates.KIND:
         return _run_uv(store, log, plan, attempt_id, confirm_scripts, line, output, runner)
     if plan.kind == npm_updates.KIND:
@@ -223,6 +230,33 @@ def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts
     if status == "failed":
         error = ERROR_FAILED.format(code=code)
     log.finish(attempt_id, status, outcome.installed, code, "\n".join(output), error,
+               outcome.result_rows(req.name, plan.target_version))
+    return log.get(attempt_id), plan.to_dict()
+
+
+def _run_cargo(store: Store, log: UpdateLog, plan, attempt_id: int, line: Callable[[str], None],
+               output: list[str], runner) -> tuple[Attempt, dict]:
+    """Run one cargo update, then read Cargo.lock again. Success is `lockfile_updated`, not `verified` (#15)."""
+    req = cargo_updates.parse_key(plan.item_key)
+    root = req.root
+    before = cargo_updates.snapshot(root)
+    backup = cargo_updates.backup_files(root, store.data_dir, attempt_id)
+    if backup:
+        line(f"Backup of Cargo.toml and Cargo.lock: {backup}")
+    line("$ " + " ".join(plan.command))
+    try:
+        code = runner(list(plan.command), cargo_updates.cargo_env(), line)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id), plan.to_dict()
+    outcome = cargo_updates.read_outcome(root, req.name, before)
+    status, error = cargo_updates.verdict(outcome, plan.target_version, req.name, code)
+    if status == "failed":
+        error = ERROR_FAILED.format(code=code)
+    log.finish(attempt_id, status, outcome.locked, code, "\n".join(output), error,
                outcome.result_rows(req.name, plan.target_version))
     return log.get(attempt_id), plan.to_dict()
 

@@ -1,0 +1,5 @@
+    Updating crates.io index
+error: failed to select a version for the requirement `itoa = "=1.0.9"`
+candidate versions found which didn't match: 1.0.11
+location searched: crates.io index
+required by package `tool v0.1.0 (/tmp/cargo-15/tool)`

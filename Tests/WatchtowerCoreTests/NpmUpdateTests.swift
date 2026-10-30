@@ -29,7 +29,7 @@ private func finding(ecosystem: String = "npm", status: FindingStatus = .open, l
     #expect(UpdateKeys.forFinding(pypi, uvPath)?.hasPrefix("uv/") == true)
     let (yarn, yarnPath) = finding(lockfile: "yarn.lock")
     #expect(UpdateKeys.forFinding(yarn, yarnPath) == nil)
-    #expect(UpdateKeys.blockReason(yarn, yarnPath) == "Watchtower updates projects with package-lock.json or uv.lock only.")
+    #expect(UpdateKeys.blockReason(yarn, yarnPath) == "Watchtower updates projects with package-lock.json, uv.lock or Cargo.lock only.")
     let (resolved, resolvedPath) = finding(status: .resolved)
     #expect(UpdateKeys.forFinding(resolved, resolvedPath) == nil)
     #expect(UpdateKeys.blockReason(resolved, resolvedPath) == "This finding is resolved.")

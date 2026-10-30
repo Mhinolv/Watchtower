@@ -54,6 +54,9 @@ class Project:
     state: str
     # The resolved folder. The inactive choice is stored under it. Not part of the JSON.
     real_path: str = field(default="", repr=False, compare=False)
+    # The `Dependencies` table of a Cargo project (#15), and why it is incomplete. None: no table.
+    dependencies: list[dict] | None = field(default=None, compare=False)
+    dependency_note: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.state not in PROJECT_STATES:
@@ -66,7 +69,8 @@ class Project:
             "root": self.root,
             "manifests": list(self.manifests),
             "state": self.state,
-        }
+        } | ({"dependencies": self.dependencies, "dependency_note": self.dependency_note}
+             if self.dependencies is not None or self.dependency_note is not None else {})
 
 
 @dataclass

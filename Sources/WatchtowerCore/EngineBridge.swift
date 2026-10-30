@@ -27,17 +27,74 @@ public struct ProjectRecord: Codable, Hashable, Sendable, Identifiable {
     public var manifests: [String]
     /// `active`, `inactive` or `inaccessible`.
     public var state: String
+    /// The `Dependencies` table of a Cargo project (#15). nil: the project has no table.
+    public var dependencies: [DependencyRecord]?
+    /// Why the table is incomplete or missing, for example `Cargo workspaces are not supported yet.`
+    public var dependencyNote: String?
 
     public var id: String { path }
     public var isActive: Bool { state != "inactive" }
     public var displayPath: String { DisplayPath.abbreviate(path) }
 
-    public init(name: String, path: String, root: String, manifests: [String], state: String) {
+    public init(name: String, path: String, root: String, manifests: [String], state: String,
+                dependencies: [DependencyRecord]? = nil, dependencyNote: String? = nil) {
         self.name = name
         self.path = path
         self.root = root
         self.manifests = manifests
         self.state = state
+        self.dependencies = dependencies
+        self.dependencyNote = dependencyNote
+    }
+}
+
+/// One row of the `Dependencies` table (#15). Exact pins and ranges are separate evidence types.
+public struct DependencyRecord: Codable, Hashable, Sendable, Identifiable {
+    public var package: String
+    /// The requirement in the manifest, for example `=1.0.9` or `1.0.190`, or `git` and `path`.
+    public var declared: String
+    public var locked: String?
+    /// `exact_pin`, `range`, `git`, `path`, `workspace` or `other-registry`.
+    public var evidence: String
+    public var ecosystem: String
+    /// `dev-dependencies` or `build-dependencies`. nil: normal dependencies.
+    public var table: String?
+    /// The manifest, relative to the project, for example `Cargo.toml` or `capture/Cargo.toml`.
+    public var manifest: String?
+
+    public var id: String { [manifest ?? "", table ?? "", package].joined(separator: "|") }
+
+    public init(package: String, declared: String, locked: String?, evidence: String, ecosystem: String,
+                table: String? = nil, manifest: String? = nil) {
+        self.package = package
+        self.declared = declared
+        self.locked = locked
+        self.evidence = evidence
+        self.ecosystem = ecosystem
+        self.table = table
+        self.manifest = manifest
+    }
+
+    /// `Exact pin`, `Range`, `Git`, `Path`. Never one word for both pins and ranges.
+    public var evidenceText: String {
+        switch evidence {
+        case "exact_pin": "Exact pin"
+        case "range": "Range"
+        case "git": "Git"
+        case "path": "Path"
+        case "workspace": "Workspace"
+        case "other-registry": "Other registry"
+        default: evidence
+        }
+    }
+
+    /// `serde`, or `memchr (dev)` for a dev or build dependency.
+    public var packageText: String {
+        switch table {
+        case "dev-dependencies": "\(package) (dev)"
+        case "build-dependencies": "\(package) (build)"
+        default: package
+        }
     }
 }
 

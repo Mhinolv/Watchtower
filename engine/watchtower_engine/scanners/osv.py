@@ -1,8 +1,8 @@
 """Offline OSV-Scanner lockfile scan for the active projects.
 
 The engine runs the pinned scanner (release_pin.py) with `--offline`: it reads the local
-databases and makes no network requests. It scans `package-lock.json` (npm) and `uv.lock`
-(PyPI) only. It never runs fix, resolve or call-analysis commands.
+databases and makes no network requests. It scans `package-lock.json` (npm), `uv.lock`
+(PyPI) and `Cargo.lock` (crates.io, #15) only. It never runs fix, resolve or call-analysis commands.
 Scanner output is untrusted data: the engine checks its shape and keeps only known fields.
 """
 from __future__ import annotations
@@ -25,11 +25,11 @@ LABEL = "OSV"
 SCAN_TIMEOUT_SECONDS = 600
 
 # Lockfile name -> OSV ecosystem. Only these are scanned.
-SUPPORTED = {"package-lock.json": "npm", "uv.lock": "PyPI"}
+SUPPORTED = {"package-lock.json": "npm", "uv.lock": "PyPI", "Cargo.lock": "crates.io"}
 # Lockfiles that Watchtower lists but does not scan yet.
 NOT_SUPPORTED = frozenset({
     "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb", "poetry.lock", "Pipfile.lock",
-    "Package.resolved", "Cargo.lock", "go.sum", "Gemfile.lock", "composer.lock",
+    "Package.resolved", "go.sum", "Gemfile.lock", "composer.lock",
 })
 # Exit codes of OSV-Scanner: 0 no findings, 1 findings, 128 no packages. 127 is a general error.
 OK_EXIT_CODES = (0, 1, 128)

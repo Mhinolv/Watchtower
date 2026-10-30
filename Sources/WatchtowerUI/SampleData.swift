@@ -167,6 +167,8 @@ public enum SampleData {
         case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
+        case cargoDependencies = "cargo-dependencies"
+        case cargoWorkspace = "cargo-workspace"
         case sparkleNewer = "sparkle-newer"
         case sparkleBeta = "sparkle-beta"
         case sparkleOsTooOld = "sparkle-os-too-old"
@@ -300,6 +302,13 @@ public enum SampleData {
             return model
         case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
             return sparkleModel(scenario, engine: engine, clock: clock)
+        case .cargoDependencies, .cargoWorkspace:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects + cargoProjects, clock: clock)
+            model.selection = .projects
+            model.selectedItemKey = cargoProjects[scenario == .cargoDependencies ? 0 : 1].path
+            return model
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
         case .menubarStale:
@@ -582,6 +591,57 @@ extension SampleData {
                                                   ok: verified)])
     }
 
+    /// Two Cargo projects (#15): one with the Dependencies table, one workspace that is refused.
+    public static let cargoProjects: [ProjectRecord] = [
+        ProjectRecord(name: "tool", path: NSHomeDirectory() + "/Projects/tool", root: "~/Projects",
+                      manifests: ["Cargo.lock", "Cargo.toml"], state: "active",
+                      dependencies: [
+                          DependencyRecord(package: "itoa", declared: "=1.0.9", locked: "1.0.9", evidence: "exact_pin",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "memchr", declared: "2.6", locked: "2.8.0", evidence: "range",
+                                           ecosystem: "crates.io", table: "dev-dependencies", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "serde", declared: "1.0.190", locked: "1.0.190", evidence: "range",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "smallvec", declared: "1.6.0", locked: "1.6.0", evidence: "range",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                      ]),
+        ProjectRecord(name: "engine-ws", path: NSHomeDirectory() + "/Projects/engine-ws", root: "~/Projects",
+                      manifests: ["Cargo.lock", "Cargo.toml", "member/Cargo.toml"], state: "active",
+                      dependencyNote: "Cargo workspaces are not supported yet."),
+    ]
+
+    /// A Cargo plan with the real `cargo update` change of serde_derive (#15).
+    public static func cargoPlan(refusal: String? = nil) -> UpdatePlan {
+        let rows = refusal != nil ? [PlanRow(label: "Project", value: "~/Projects/engine-ws")] : [
+            PlanRow(label: "Project", value: "~/Projects/tool"),
+            PlanRow(label: "Cargo.toml", value: "No change"),
+            PlanRow(label: "Cargo.lock", value: "serde 1.0.190 → 1.0.210"),
+            PlanRow(label: "Other packages", value: "1 package changes", items: ["serde_derive 1.0.190 → 1.0.210"]),
+            PlanRow(label: "Build", value: "Not run. Cargo builds on next use."),
+        ]
+        let project = refusal != nil ? "~/Projects/engine-ws" : "~/Projects/tool"
+        return UpdatePlan(id: "5be1d2c3a4f50617", itemKey: "cargo/serde@1.0.210|\(project)|Cargo.lock", name: "serde",
+                          kind: "cargo", fullName: "serde", installedVersion: refusal == nil ? "1.0.190" : nil,
+                          targetVersion: "1.0.210",
+                          // A refused plan has no command line: the engine sends the cargo path only.
+                          command: refusal != nil ? ["/Users/me/.cargo/bin/cargo"] :
+                              ["/Users/me/.cargo/bin/cargo", "update", "--manifest-path",
+                               "/Users/me/Projects/tool/Cargo.toml", "-p", "serde@1.0.190", "--precise", "1.0.210"],
+                          manualSteps: refusal != nil ? [] : ["Build or test the project to use the new version."],
+                          refusal: refusal, rows: rows)
+    }
+
+    public static func cargoAttempt() -> UpdateAttempt {
+        UpdateAttempt(id: 11, itemKey: "cargo/serde@1.0.210|~/Projects/tool|Cargo.lock", name: "serde", kind: "cargo",
+                      command: cargoPlan().command, beforeVersion: "1.0.190", targetVersion: "1.0.210",
+                      afterVersion: "1.0.210", status: .lockfileUpdated, exitCode: 0,
+                      output: "    Updating crates.io index\n    Updating serde v1.0.190 -> v1.0.210", error: nil,
+                      manualSteps: ["Build or test the project to use the new version."],
+                      startedAt: ago(0.1), finishedAt: ago(0.09),
+                      resultRows: [PlanRow(label: "Lockfile", value: "serde 1.0.210", ok: true),
+                                   PlanRow(label: "Installed", value: "not checked. Cargo builds crates on next use.")])
+    }
+
     public enum UpdateScenario: String, CaseIterable, Sendable {
         case plan = "update-plan"
         case majorAlert = "update-major-alert"
@@ -598,6 +658,9 @@ extension SampleData {
         case uvVerified = "update-uv-verified"
         case uvLockOnly = "update-uv-lock-only"
         case uvNoEnv = "update-uv-no-env"
+        case cargoPlan = "update-cargo-plan"
+        case cargoLockfileUpdated = "update-cargo-lockfile-updated"
+        case cargoWorkspace = "update-cargo-workspace"
         case npmPlan = "update-npm-plan"
         case npmScripts = "update-npm-scripts"
         case npmVerified = "update-npm-verified"
@@ -669,6 +732,9 @@ extension SampleData {
         case .uvVerified: .result(uvAttempt(verified: true), uvPlan())
         case .uvLockOnly: .result(uvAttempt(verified: false), uvPlan())
         case .uvNoEnv: .plan(uvPlan(refusal: "No environment found. Watchtower does not create environments."))
+        case .cargoPlan: .plan(cargoPlan())
+        case .cargoLockfileUpdated: .result(cargoAttempt(), cargoPlan())
+        case .cargoWorkspace: .plan(cargoPlan(refusal: "Cargo workspaces are not supported yet."))
         case .npmPlan: .plan(npmPlan())
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())

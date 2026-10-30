@@ -369,12 +369,17 @@ struct ResultStep: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             if let rows = attempt.resultRows, !rows.isEmpty {
-                // A uv update: the lockfile and the installed package have separate lines.
+                // The lockfile and the installed package have separate lines. A row without `ok` was
+                // not checked (Cargo, #15): gray, with no verified symbol.
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(rows, id: \.label) { row in
-                        let good = row.ok ?? true
-                        Label("\(row.label): \(row.value)", systemImage: good ? "checkmark.circle" : "exclamationmark.triangle")
-                            .foregroundStyle(good ? Color.primary : Tone.orange.color)
+                        let symbol = switch row.ok {
+                        case true: "checkmark.circle"
+                        case false: "exclamationmark.triangle"
+                        default: "minus.circle"
+                        }
+                        Label("\(row.label): \(row.value)", systemImage: symbol)
+                            .foregroundStyle(row.ok == true ? Color.primary : row.ok == false ? Tone.orange.color : Color.secondary)
                             .symbolRenderingMode(.hierarchical)
                             .textSelection(.enabled)
                     }
@@ -391,13 +396,13 @@ struct ResultStep: View {
                     }
                 }
             }
-            if attempt.status == .verified, !attempt.manualSteps.isEmpty {
+            if attempt.status == .verified || attempt.status == .lockfileUpdated, !attempt.manualSteps.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Manual steps").font(.headline)
                     ForEach(attempt.manualSteps, id: \.self) { Text("• \($0)") }
                 }
             }
-            if !attempt.output.isEmpty, attempt.status != .verified, attempt.status != .notVerified {
+            if !attempt.output.isEmpty, ![.verified, .notVerified, .lockfileUpdated].contains(attempt.status) {
                 DisclosureGroup("Show output", isExpanded: $showsOutput) {
                     OutputText(text: attempt.output)
                 }
