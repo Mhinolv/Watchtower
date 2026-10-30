@@ -1,0 +1,173 @@
+{
+ "schema_version": "1.2.1",
+ "generated_at": "2026-10-30T09:10:13+00:00",
+ "last_modified": "2026-10-09T00:08:39+00:00",
+ "result": {
+  "name": "kotlin",
+  "aliases": [
+   "kotlinlang"
+  ],
+  "label": "Kotlin",
+  "category": "lang",
+  "tags": [
+   "jetbrains",
+   "lang"
+  ],
+  "versionCommand": "kotlinc-native -version",
+  "identifiers": [
+   {
+    "type": "repology",
+    "id": "kotlin"
+   }
+  ],
+  "labels": {
+   "eoas": null,
+   "discontinued": null,
+   "eol": "Security Support",
+   "eoes": null
+  },
+  "links": {
+   "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/kotlin.svg",
+   "html": "https://endoflife.date/kotlin",
+   "releasePolicy": "https://kotlinlang.org/docs/security.html"
+  },
+  "releases": [
+   {
+    "name": "2.4",
+    "codename": null,
+    "label": "2.4",
+    "releaseDate": "2026-06-03",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": false,
+    "eolFrom": null,
+    "isMaintained": true,
+    "latest": {
+     "name": "2.4.21",
+     "date": "2026-10-08",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v2.4.21"
+    },
+    "custom": null
+   },
+   {
+    "name": "2.3",
+    "codename": null,
+    "label": "2.3",
+    "releaseDate": "2025-12-16",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-06-03",
+    "isMaintained": false,
+    "latest": {
+     "name": "2.3.21",
+     "date": "2026-04-23",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v2.3.21"
+    },
+    "custom": null
+   },
+   {
+    "name": "2.2",
+    "codename": null,
+    "label": "2.2",
+    "releaseDate": "2025-06-23",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2025-12-16",
+    "isMaintained": false,
+    "latest": {
+     "name": "2.2.21",
+     "date": "2025-10-23",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v2.2.21"
+    },
+    "custom": null
+   },
+   {
+    "name": "2.1",
+    "codename": null,
+    "label": "2.1",
+    "releaseDate": "2024-11-27",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2025-06-23",
+    "isMaintained": false,
+    "latest": {
+     "name": "2.1.21",
+     "date": "2025-05-13",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v2.1.21"
+    },
+    "custom": null
+   },
+   {
+    "name": "2.0",
+    "codename": null,
+    "label": "2.0",
+    "releaseDate": "2024-05-21",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2024-11-27",
+    "isMaintained": false,
+    "latest": {
+     "name": "2.0.21",
+     "date": "2024-10-10",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v2.0.21"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.9",
+    "codename": null,
+    "label": "1.9",
+    "releaseDate": "2023-07-06",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2024-05-21",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.9.25",
+     "date": "2024-07-19",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v1.9.25"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.8",
+    "codename": null,
+    "label": "1.8",
+    "releaseDate": "2022-12-28",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2023-07-06",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.8.22",
+     "date": "2023-06-08",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v1.8.22"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.7",
+    "codename": null,
+    "label": "1.7",
+    "releaseDate": "2022-06-09",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2022-12-28",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.7.22",
+     "date": "2022-11-28",
+     "link": "https://github.com/JetBrains/kotlin/releases/tag/v1.7.22"
+    },
+    "custom": null
+   }
+  ]
+ }
+}

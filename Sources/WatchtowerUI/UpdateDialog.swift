@@ -51,7 +51,7 @@ public struct UpdateDialog: View {
     }
 
     var majorBinding: Binding<Bool> {
-        Binding(get: { majorPlan != nil }, set: { shown in if !shown { model.backToPlan() } })
+        Binding(get: { model.majorQuestionShown }, set: { model.majorQuestionShown = $0 })
     }
 }
 

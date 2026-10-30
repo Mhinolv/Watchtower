@@ -35,6 +35,8 @@ public struct RuntimeRow: Identifiable, Equatable, Sendable {
     /// `Version not found in <file>.` for an unreadable version.
     public var note: String?
     public var isOld: Bool
+    /// The vendor support of a runtime (#59). nil for an SDK, an extension, or a scan from before #59.
+    public var support: SupportStatus?
 }
 
 public struct RuntimeSection: Identifiable, Equatable, Sendable {
@@ -47,7 +49,7 @@ public struct RuntimeSection: Identifiable, Equatable, Sendable {
 }
 
 extension RuntimeRow {
-    public init(_ item: ItemRecord, home: String = NSHomeDirectory()) {
+    public init(_ item: ItemRecord, home: String = NSHomeDirectory(), now: Date = Date(), time: TimeText = TimeText()) {
         let attributes = item.attributes ?? [:]
         let old = attributes["oldCopy"] == "true"
         var secondary: [String] = []
@@ -57,7 +59,8 @@ extension RuntimeRow {
                   version: item.installedVersion ?? "—",
                   path: DisplayPath.abbreviate(attributes["path"] ?? "", home: home), source: item.origin ?? "—",
                   badge: item.state == .manual ? nil : item.state,
-                  note: item.installedVersion == nil ? item.note : nil, isOld: old)
+                  note: item.installedVersion == nil ? item.note : nil, isOld: old,
+                  support: SupportStatus(item, now: now, time: time))
     }
 }
 
@@ -66,11 +69,17 @@ extension DashboardModel {
     public var runtimeSections: [RuntimeSection] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         let errors = runtimeRootErrors
+        let now = currentDate
         let all = items(in: .runtimes)
         return RuntimeGroup.allCases.compactMap { group in
-            let rows = all.filter { $0.kind == group.rawValue }.map { RuntimeRow($0) }.filter { row in
+            let found = all.filter { $0.kind == group.rawValue }.map { RuntimeRow($0, now: now) }.filter { row in
                 query.isEmpty || [row.name, row.version, row.path, row.source].contains { $0.localizedCaseInsensitiveContains(query) }
             }
+            // `End of life` first inside a group (#59). The other order stays: name, then newest version.
+            let rows = found.enumerated().sorted { a, b in
+                let (x, y) = (a.element.support?.state == .endOfLife ? 0 : 1, b.element.support?.state == .endOfLife ? 0 : 1)
+                return x == y ? a.offset < b.offset : x < y
+            }.map(\.element)
             let own = errors[group] ?? []
             return rows.isEmpty && own.isEmpty ? nil : RuntimeSection(group: group, rows: rows, rootErrors: own)
         }

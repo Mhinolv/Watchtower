@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -159,6 +160,35 @@ def test_planning_never_changes_the_project(store, tmp_path):
     assert {f: (project / f).read_bytes() for f in before} == before
     prefix = fake.calls[0][fake.calls[0].index("--prefix") + 1]
     assert Path(prefix) != project and not Path(prefix).exists()  # a temp copy, removed after
+
+
+class SymlinkNpm(FakeNpm):
+    """npm 11 keys the lockfile from the real path. A symlinked --prefix gives `../../real/.../node_modules/x`."""
+
+    def __call__(self, args, **kwargs):
+        result = super().__call__(args, **kwargs)
+        prefix = args[args.index("--prefix") + 1]
+        up = os.path.relpath(os.path.realpath(prefix), prefix)
+        if up != ".":
+            path = Path(prefix) / "package-lock.json"
+            data = json.loads(path.read_text())
+            data["packages"] = {(k and f"{up}/{k}"): v for k, v in data["packages"].items()}
+            path.write_text(json.dumps(data))
+        return result
+
+
+def test_plan_resolves_in_a_symlinked_temp_folder(store, tmp_path, monkeypatch):
+    # macOS: the temp folder /var/folders/... is a symlink to /private/var/folders/... (#95).
+    (tmp_path / "private-tmp").mkdir()
+    (tmp_path / "tmp").symlink_to(tmp_path / "private-tmp")
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "tmp"))
+    project = make_project(tmp_path / "home" / "Projects" / "web")
+    fake = SymlinkNpm(lock("4.19.2"))
+    p = plan_for(store, project, npm_run=fake)
+    assert (p.refusal, p.detail) == (None, None)
+    assert p.target_version == "4.19.2"
+    prefix = fake.calls[0][fake.calls[0].index("--prefix") + 1]
+    assert prefix == os.path.realpath(prefix)
 
 
 def test_registry_gets_only_the_package_name(store, tmp_path):

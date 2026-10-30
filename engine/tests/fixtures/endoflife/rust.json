@@ -1,0 +1,178 @@
+{
+ "schema_version": "1.2.1",
+ "generated_at": "2026-10-30T09:10:13+00:00",
+ "last_modified": "2026-10-16T00:08:37+00:00",
+ "result": {
+  "name": "rust",
+  "aliases": [
+   "rustlang",
+   "rust-lang"
+  ],
+  "label": "Rust",
+  "category": "lang",
+  "tags": [
+   "lang",
+   "rust-foundation"
+  ],
+  "versionCommand": "rustc --version",
+  "identifiers": [
+   {
+    "type": "repology",
+    "id": "rust"
+   },
+   {
+    "type": "cpe",
+    "id": "cpe:2.3:a:rust-lang:rust"
+   }
+  ],
+  "labels": {
+   "eoas": null,
+   "discontinued": null,
+   "eol": "Supported",
+   "eoes": null
+  },
+  "links": {
+   "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/rust.svg",
+   "html": "https://endoflife.date/rust",
+   "releasePolicy": "https://rust-lang.github.io/rustup/concepts/channels.html"
+  },
+  "releases": [
+   {
+    "name": "1.99",
+    "codename": null,
+    "label": "1.99",
+    "releaseDate": "2026-10-01",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": false,
+    "eolFrom": null,
+    "isMaintained": true,
+    "latest": {
+     "name": "1.99.1",
+     "date": "2026-10-15",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.99.1"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.98",
+    "codename": null,
+    "label": "1.98",
+    "releaseDate": "2026-08-20",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-10-01",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.98.1",
+     "date": "2026-09-03",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.98.1"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.97",
+    "codename": null,
+    "label": "1.97",
+    "releaseDate": "2026-07-09",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-08-20",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.97.1",
+     "date": "2026-07-16",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.97.1"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.96",
+    "codename": null,
+    "label": "1.96",
+    "releaseDate": "2026-05-28",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-07-09",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.96.1",
+     "date": "2026-06-30",
+     "link": "https://doc.rust-lang.org/stable/releases.html#version-1961-2026-06-30"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.95",
+    "codename": null,
+    "label": "1.95",
+    "releaseDate": "2026-04-16",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-05-28",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.95.0",
+     "date": "2026-04-16",
+     "link": "https://doc.rust-lang.org/stable/releases.html#version-1950-2026-04-16"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.94",
+    "codename": null,
+    "label": "1.94",
+    "releaseDate": "2026-03-06",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-04-16",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.94.1",
+     "date": "2026-03-26",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.94.1"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.93",
+    "codename": null,
+    "label": "1.93",
+    "releaseDate": "2026-01-22",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-03-06",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.93.1",
+     "date": "2026-02-12",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.93.1"
+    },
+    "custom": null
+   },
+   {
+    "name": "1.92",
+    "codename": null,
+    "label": "1.92",
+    "releaseDate": "2025-12-11",
+    "isLts": false,
+    "ltsFrom": null,
+    "isEol": true,
+    "eolFrom": "2026-01-22",
+    "isMaintained": false,
+    "latest": {
+     "name": "1.92.0",
+     "date": "2025-12-11",
+     "link": "https://github.com/rust-lang/rust/releases/tag/1.92.0"
+    },
+    "custom": null
+   }
+  ]
+ }
+}
