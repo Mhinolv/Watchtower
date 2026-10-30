@@ -25,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import pwd
 import re
 import shutil
 import sqlite3
@@ -109,8 +110,19 @@ def find_claude() -> str | None:
 
 
 def claude_env() -> dict:
-    """Only what Claude Code needs to find the owner's login. No variable of the owner's shell passes."""
+    """Only what Claude Code needs to find the owner's login. No variable of the owner's shell passes.
+
+    The app starts the engine with no USER (#104). Claude Code needs it to find the login, so it comes from the
+    process user id."""
     env = {k: os.environ[k] for k in ("HOME", "USER", "LOGNAME", "TMPDIR") if k in os.environ}
+    if "USER" not in env or "LOGNAME" not in env:
+        try:
+            name = pwd.getpwuid(os.getuid()).pw_name
+        except KeyError:
+            name = None
+        if name:
+            env.setdefault("USER", name)
+            env.setdefault("LOGNAME", name)
     return env | {"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"}
 
 
