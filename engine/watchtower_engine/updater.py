@@ -12,11 +12,13 @@ import signal
 import subprocess
 from typing import Callable
 
+from .feeds.homebrew import http_fetch
 from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
 from .updates import homebrew as brew_updates
 from .updates import npm as npm_updates
+from .updates import uv as uv_updates
 
 ERROR_NOT_UPDATABLE = "Watchtower can update Homebrew formulae and casks only."
 ERROR_NO_BREW = "Homebrew is not installed."
@@ -45,8 +47,11 @@ def _item(store: Store, item_key: str):
 
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
+                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
                 npm: str | None = None, get=None, **platform) -> brew_updates.Plan:
-    if item_key.startswith("npm|"):
+    if item_key.startswith(uv_updates.KEY_PREFIX):
+        return uv_updates.make_plan(item_key, uv, run, fetch, **(uv_options or {}))
+    if item_key.startswith(npm_updates.KEY_PREFIX):
         options = {"get": get} if get else {}
         return npm_updates.make_plan(item_key, npm, run, **options)
     item = _item(store, item_key)
@@ -71,11 +76,12 @@ def _mark_item_updated(store: Store, plan: brew_updates.Plan, after: str) -> Non
 def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = False,
                confirm_scripts: bool = False, on_line: Callable[[str], None] = lambda line: None,
                brew: str | None = None, run: Callable = subprocess.run,
-               runner: brew_updates.RunStreaming = brew_updates.run_streaming, npm: str | None = None,
-               get=None, **platform) -> tuple[Attempt, dict]:
+               runner: brew_updates.RunStreaming = brew_updates.run_streaming,
+               uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
+               npm: str | None = None, get=None, **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, npm, get, **platform)
+    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -95,7 +101,9 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
         output.append(text)
         on_line(text)
 
-    if plan.kind == "npm":
+    if plan.kind == uv_updates.KIND:
+        return _run_uv(store, log, plan, attempt_id, confirm_scripts, line, output, runner)
+    if plan.kind == npm_updates.KIND:
         return _run_npm(log, attempt_id, plan, confirm_scripts, line, runner, output), plan.to_dict()
 
     try:
@@ -139,15 +147,43 @@ def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line,
     except Exception as exc:
         log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
         return log.get(attempt_id)
-    ok, after, checks, error = npm_updates.verify(plan)
+    ok, after, rows, error = npm_updates.verify(plan)
     text = "\n".join(output)
     if code != 0:
-        log.finish(attempt_id, "failed", after, code, text, script_error or ERROR_FAILED.format(code=code), checks)
+        log.finish(attempt_id, "failed", after, code, text, script_error or ERROR_FAILED.format(code=code), rows)
     elif ok:
-        log.finish(attempt_id, "verified", after, code, text, None, checks)
+        log.finish(attempt_id, "verified", after, code, text, None, rows)
     else:
-        log.finish(attempt_id, "not_verified", after, code, text, error, checks)
+        log.finish(attempt_id, "not_verified", after, code, text, error, rows)
     return log.get(attempt_id)
+
+
+def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,
+            line: Callable[[str], None], output: list[str], runner) -> tuple[Attempt, dict]:
+    """Run one uv sync, then read the lockfile and the environment again. Success needs both."""
+    req = uv_updates.parse_key(plan.item_key)
+    root = req.root
+    before = uv_updates.snapshot(root)
+    backup = uv_updates.backup_files(root, store.data_dir, attempt_id)
+    if backup:
+        line(f"Backup of pyproject.toml and uv.lock: {backup}")
+    command = uv_updates.command_to_run(plan, confirm_scripts)
+    line("$ " + " ".join(command))
+    try:
+        code = runner(command, uv_updates.uv_env(), line)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id), plan.to_dict()
+    outcome = uv_updates.read_outcome(root, req.name, before)
+    status, error = uv_updates.verdict(outcome, plan.target_version, req.name, code)
+    if status == "failed":
+        error = ERROR_FAILED.format(code=code)
+    log.finish(attempt_id, status, outcome.installed, code, "\n".join(output), error,
+               outcome.result_rows(req.name, plan.target_version))
+    return log.get(attempt_id), plan.to_dict()
 
 
 class InterruptOnSigterm:

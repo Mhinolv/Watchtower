@@ -24,6 +24,8 @@ from ..discovery import display_path
 from ..feeds import npm_registry
 from .homebrew import Change, Plan, RunStreaming, is_major_change, run_streaming
 
+KIND = "npm"
+KEY_PREFIX = "npm|"
 NPM_PATHS = ("/opt/homebrew/bin/npm", "/usr/local/bin/npm")
 NPM_TIMEOUT_SECONDS = 300
 SAFE_FLAGS = ["--ignore-scripts", "--no-audit", "--no-fund"]
@@ -153,9 +155,8 @@ def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
     folder, name, fixed_in = parse_key(key)
     manifest, lockfile = folder / "package.json", folder / "package-lock.json"
     npm = npm or find_npm() or "npm"
-    plan = Plan(key, name, "npm", name, None, None, [npm, "install", name],
-                changes_title="Other packages", scripts_off_text="Disabled (--ignore-scripts)")
-    plan.rows = [{"label": "Project", "value": display_path(folder)}]
+    plan = Plan(key, name, KIND, name, None, None, [npm, "install", name])
+    plan.rows = [_row("Project", display_path(folder))]
 
     def refuse(reason: str, detail: str | None = None) -> Plan:
         plan.refusal, plan.detail = reason, detail
@@ -217,7 +218,14 @@ def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
     resolved = (new_lock.get("packages", {}).get(f"node_modules/{name}") or {}).get("version")
     if resolved != target:
         return refuse(REFUSE_RESOLVE, f"lockfile resolved {name} to {resolved}, plan target {target}")
-    plan.also_changes = lock_changes(lock, new_lock, name)
+    others = lock_changes(lock, new_lock, name)
+    plan.also_changes = []  # The plan step shows the `Other packages` row instead (as uv, #11).
+    plan.rows.append(_row(
+        "Other packages",
+        "No other packages change." if not others
+        else "1 package changes" if len(others) == 1 else f"{len(others)} packages change",
+        [_change_text(c) for c in others] if others else None))
+    plan.rows.append(_row("Scripts", "Disabled (--ignore-scripts)"))
 
     # Install scripts: from the lockfile flag, with the names from the registry.
     for key_path, entry in sorted((new_lock.get("packages") or {}).items()):
@@ -239,12 +247,28 @@ def make_plan(key: str, npm: str | None = None, run: Callable = subprocess.run,
             plan.scripts.append(f"{pkg_name} needs its {script} script")
     if plan.script_details:
         names = sorted({d["package"] for d in plan.script_details})
-        plan.rows.append({"label": "Scripts command", "value": " ".join(rebuild_command(plan, names))})
+        plan.scripts_command = rebuild_command(plan, names)
+        plan.scripts_message = ". ".join(plan.scripts) + "."
 
     plan.manual_steps = ["Restart anything that runs this project."]
     if "test" in (pkg.get("scripts") or {}):
         plan.manual_steps.insert(0, "Run the project tests: npm test")
     return plan
+
+
+def _row(label: str, value: str, items: list[str] | None = None) -> dict:
+    row = {"label": label, "value": value}
+    if items is not None:
+        row["items"] = items
+    return row
+
+
+def _change_text(c: Change) -> str:
+    if c.change == "install":
+        return f"{c.name} {c.after} (new)"
+    if c.change == "remove":
+        return f"{c.name} {c.before} → removed"
+    return f"{c.name} {c.before} → {c.after}"
 
 
 def rebuild_command(plan: Plan, names: list[str]) -> list[str]:
@@ -272,8 +296,7 @@ def execute(plan: Plan, on_line: Callable[[str], None], confirm_scripts: bool,
                 on_line(f"Watchtower restored {path.name}.")
         return code, None
     if plan.script_details and confirm_scripts:
-        names = sorted({d["package"] for d in plan.script_details})
-        code = runner(rebuild_command(plan, names), env, on_line)
+        code = runner(list(plan.scripts_command), env, on_line)
         if code != 0:
             return code, ERROR_SCRIPTS_FAILED.format(code=code)
     return 0, None

@@ -37,12 +37,9 @@ CREATE TABLE IF NOT EXISTS update_attempts (
     pid INTEGER,
     started_at TEXT NOT NULL,
     finished_at TEXT,
-    checks TEXT NOT NULL DEFAULT '[]'
+    result_rows TEXT NOT NULL DEFAULT '[]'
 );
 """
-
-# Columns added after the first release of this table. Old stores get them with ALTER TABLE.
-_ADDED_COLUMNS = {"checks": "TEXT NOT NULL DEFAULT '[]'"}
 
 
 @dataclass
@@ -65,8 +62,8 @@ class Attempt:
     plan_id: str | None = None
     started_at: str = ""
     finished_at: str | None = None
-    # Separate verification lines, for example lockfile and node_modules: {"label", "value", "ok"}.
-    checks: list[dict] = field(default_factory=list)
+    # Lines for the result step, for example the lockfile and the installed version of a uv update.
+    result_rows: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -90,9 +87,8 @@ class UpdateLog:
         self.db = store.db
         self.db.executescript(_SCHEMA)
         have = {r["name"] for r in self.db.execute("PRAGMA table_info(update_attempts)")}
-        for column, kind in _ADDED_COLUMNS.items():
-            if column not in have:
-                self.db.execute(f"ALTER TABLE update_attempts ADD COLUMN {column} {kind}")
+        if "result_rows" not in have:  # A log from before #11.
+            self.db.execute("ALTER TABLE update_attempts ADD COLUMN result_rows TEXT NOT NULL DEFAULT '[]'")
 
     def begin(self, plan, confirmed_major: bool, confirmed_scripts: bool, status: str = "running",
               error: str | None = None) -> int:
@@ -108,14 +104,14 @@ class UpdateLog:
         return cur.lastrowid
 
     def finish(self, attempt_id: int, status: str, after: str | None, exit_code: int | None, output: str,
-               error: str | None = None, checks: list[dict] | None = None) -> None:
+               error: str | None = None, result_rows: list[dict] | None = None) -> None:
         if status not in STATUSES:
             raise ValueError(f"unknown status {status!r}")
         self.db.execute(
             "UPDATE update_attempts SET status = ?, after_version = ?, exit_code = ?, output = ?, error = ?, "
-            "finished_at = ?, checks = ? WHERE id = ?",
+            "finished_at = ?, result_rows = ? WHERE id = ?",
             (status, after, exit_code, output[-OUTPUT_MAX_CHARS:], owner_error(error), self.store.clock(),
-             json.dumps(checks or []), attempt_id),
+             json.dumps(result_rows or []), attempt_id),
         )
 
     def attempts(self, limit: int = 500) -> list[Attempt]:
@@ -131,9 +127,9 @@ class UpdateLog:
                 target_version=r["target_version"], after_version=r["after_version"], status=status,
                 exit_code=r["exit_code"], output=r["output"], error=r["error"],
                 manual_steps=json.loads(r["manual_steps"]), confirmed_major=bool(r["confirmed_major"]),
-                checks=json.loads(r["checks"] or "[]"),
                 confirmed_scripts=bool(r["confirmed_scripts"]), plan_id=r["plan_id"],
                 started_at=r["started_at"], finished_at=r["finished_at"],
+                result_rows=json.loads(r["result_rows"] or "[]"),
             ))
         return out
 

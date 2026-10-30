@@ -400,6 +400,7 @@ struct ToolbarButtonLabel: View {
 struct ProjectDetail: View {
     let model: DashboardModel
     let project: ProjectRecord
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
 
     var body: some View {
         ScrollView {
@@ -427,15 +428,22 @@ struct ProjectDetail: View {
                 if !findings.isEmpty {
                     Text("Findings").font(.headline)
                     ForEach(findings) { finding in
+                        let path = finding.paths.first { $0.projectPath == project.displayPath }
                         HStack {
                             Text(finding.id).font(.callout.monospaced())
-                            Text("\(finding.package) \(finding.paths.first { $0.projectPath == project.displayPath }?.version ?? "")")
+                            Text("\(finding.package) \(path?.version ?? "")")
                             Spacer()
                             SeverityBadge(severity: finding.severity)
-                            if finding.ecosystem == "npm",
-                               let path = finding.paths.first(where: { $0.projectPath == project.displayPath }) {
-                                NpmUpdateButton(finding: finding, path: path)
+                            if let path, UpdateKeys.forFinding(finding, path) != nil {
+                                let block = updates == nil ? "Updates are not available here." : path.updateBlock
+                                Button("Update…") { Task { await updates?.start(finding: finding, path: path) } }
+                                    .controlSize(.small)
+                                    .disabled(block != nil)
+                                    .help(block ?? "Show the update plan for \(finding.package). Nothing runs before you confirm.")
                             }
+                        }
+                        if let path, let block = path.updateBlock, UpdateKeys.forFinding(finding, path) != nil {
+                            Label(block, systemImage: "hand.raised").font(.caption).foregroundStyle(.orange)
                         }
                     }
                 }

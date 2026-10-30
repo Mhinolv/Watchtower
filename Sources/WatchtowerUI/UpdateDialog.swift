@@ -61,7 +61,6 @@ struct PlanStep: View {
     let model: UpdateModel
     let plan: UpdatePlan
     @FocusState private var cancelFocused: Bool
-    @State var showsChanges = false
 
     var body: some View {
         if let refusal = plan.refusal, plan.targetVersion == nil {
@@ -108,36 +107,44 @@ struct PlanStep: View {
                     Text("Command").foregroundStyle(.secondary)
                     CommandBox(text: plan.commandText)
                 }
-                ForEach(plan.rows ?? [], id: \.label) { row in
-                    GridRow {
-                        Text(row.label).foregroundStyle(.secondary)
-                        Text(row.value).font(.callout.monospaced()).textSelection(.enabled)
+                if let rows = plan.rows, !rows.isEmpty {
+                    // An npm or uv plan: its rows come from the engine (project, files, other packages, ...).
+                    ForEach(rows, id: \.label) { row in
+                        GridRow {
+                            Text(row.label).foregroundStyle(.secondary)
+                            PlanRowValue(row: row)
+                        }
                     }
-                }
-                GridRow {
-                    Text(plan.changesTitle ?? "Also changes").foregroundStyle(.secondary)
-                    if plan.alsoChanges.isEmpty {
-                        Text("No other packages change.")
-                    } else if plan.changesTitle != nil {
-                        // Project adapters: a count, the list opens on request.
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(plan.changesSummary)
-                            DisclosureGroup(showsChanges ? "Hide list" : "Show list", isExpanded: $showsChanges) {
-                                ChangeList(changes: plan.alsoChanges)
+                } else {
+                    GridRow {
+                        Text("Also changes").foregroundStyle(.secondary)
+                        if plan.alsoChanges.isEmpty {
+                            Text("No other packages change.")
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(plan.alsoChanges, id: \.name) { change in
+                                    HStack {
+                                        Text(change.name)
+                                        Spacer()
+                                        Text(change.change == "install"
+                                             ? "new \(change.after ?? "")"
+                                             : "\(change.before ?? "?") → \(change.after ?? "?")")
+                                            .font(.callout.monospaced())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        ChangeList(changes: plan.alsoChanges)
                     }
-                }
-                GridRow {
-                    Text("Scripts").foregroundStyle(.secondary)
-                    if plan.scripts.isEmpty {
-                        SmallBadge(text: plan.scriptsOffText ?? "Disabled", tone: .gray)
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            SmallBadge(text: "Needed", tone: .orange)
-                            Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                    GridRow {
+                        Text("Scripts").foregroundStyle(.secondary)
+                        if plan.scripts.isEmpty {
+                            SmallBadge(text: "Disabled", tone: .gray)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                SmallBadge(text: "Needed", tone: .orange)
+                                Text(plan.scripts.joined(separator: ", ")).font(.callout).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -155,9 +162,48 @@ struct PlanStep: View {
                     .disabled(plan.refusal != nil)
             }
         }
-        .onAppear {
-            cancelFocused = true
-            showsChanges = plan.alsoChanges.count <= 5  // A short list is open at once.
+        .onAppear { cancelFocused = true }
+    }
+}
+
+/// The value of a plan row. `Disabled` is a gray badge. A row with a list shows `Show list` under the
+/// value, as in the approved mockup. Each item reads `<name> <versions>`: the versions go to the right.
+struct PlanRowValue: View {
+    let row: PlanRow
+    @State private var opened = false
+
+    var body: some View {
+        if let items = row.items, !items.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(row.value)
+                Button {
+                    opened.toggle()
+                } label: {
+                    Label(opened ? "Hide list" : "Show list", systemImage: opened ? "chevron.down" : "chevron.right")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(opened ? "Hide list of \(row.label)" : "Show list of \(row.label)")
+                if opened {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(items, id: \.self) { item in
+                            let parts = item.split(separator: " ", maxSplits: 1).map(String.init)
+                            HStack {
+                                Text(parts.first ?? item)
+                                Spacer()
+                                Text(parts.count > 1 ? parts[1] : "")
+                                    .font(.callout.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        } else if row.value.hasPrefix("Disabled") {
+            SmallBadge(text: row.value, tone: .gray)  // "Disabled", "Disabled (--ignore-scripts)"
+        } else {
+            Text(row.value).textSelection(.enabled)
         }
     }
 }
@@ -225,11 +271,14 @@ struct ScriptsStep: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(plan.scriptsText).font(.system(size: 15, weight: .semibold))
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Scripts run only after you click Run Scripts.").foregroundStyle(.secondary)
+                    Text(plan.kind == "uv" ? "The build runs only after you click Run Scripts."
+                                           : "Scripts run only after you click Run Scripts.")
+                        .foregroundStyle(.secondary)
                 }
             }
             .accessibilityElement(children: .combine)
             if let details = plan.scriptDetails, !details.isEmpty {
+                // npm: the package and the script for each line (update-dialog-npm-uv.html, panel 2).
                 Grid(alignment: .leading, horizontalSpacing: 40, verticalSpacing: 8) {
                     ForEach(details, id: \.self) { d in
                         GridRow {
@@ -252,27 +301,6 @@ struct ScriptsStep: View {
             }
         }
         .onAppear { notNowFocused = true }
-    }
-}
-
-/// `name before → after` lines, versions right-aligned.
-struct ChangeList: View {
-    let changes: [PackageChange]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(changes, id: \.name) { change in
-                HStack {
-                    Text(change.name)
-                    Spacer()
-                    Text(change.change == "install" ? "new \(change.after ?? "")"
-                         : change.change == "remove" ? "\(change.before ?? "?") → removed"
-                         : "\(change.before ?? "?") → \(change.after ?? "?")")
-                        .font(.callout.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 }
 
@@ -329,17 +357,15 @@ struct ResultStep: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
-            if let checks = attempt.checks, !checks.isEmpty {
-                // Project adapters: one line for each check, each with its own symbol.
+            if let rows = attempt.resultRows, !rows.isEmpty {
+                // A uv update: the lockfile and the installed package have separate lines.
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(checks, id: \.label) { check in
-                        HStack(spacing: 6) {
-                            Image(systemName: check.ok ? "checkmark.seal" : "exclamationmark.triangle")
-                                .foregroundStyle(check.ok ? Tone.green.color : Tone.orange.color)
-                            Text("\(check.label): \(check.value)")
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(check.label): \(check.value), \(check.ok ? "verified" : "not verified")")
+                    ForEach(rows, id: \.label) { row in
+                        let good = row.ok ?? true
+                        Label("\(row.label): \(row.value)", systemImage: good ? "checkmark.circle" : "exclamationmark.triangle")
+                            .foregroundStyle(good ? Color.primary : Tone.orange.color)
+                            .symbolRenderingMode(.hierarchical)
+                            .textSelection(.enabled)
                     }
                 }
             } else if attempt.status == .verified || attempt.status == .notVerified {
@@ -465,25 +491,6 @@ struct UpdateLogDetail: View {
 }
 
 // MARK: - Wiring
-
-/// `Update…` for one npm package in one project. Off, with the reason as help, when not supported.
-struct NpmUpdateButton: View {
-    let finding: FindingRecord
-    let path: FindingPath
-    @Environment(UpdateModel.self) private var updates: UpdateModel?
-
-    var body: some View {
-        let reason = updates == nil ? "Updates are not available here." : UpdateKeys.npmBlockReason(finding, path)
-        Button("Update…") {
-            let key = UpdateKeys.npm(projectPath: path.projectPath, lockfile: path.lockfile,
-                                     package: finding.package, fixedIn: finding.fixedIn)
-            Task { await updates?.start(itemKey: key, name: finding.package) }
-        }
-        .controlSize(.small)
-        .disabled(reason != nil)
-        .help(reason ?? "Show the update plan for \(finding.package) in \(path.projectPath). Nothing runs before you confirm.")
-    }
-}
 
 /// Shows the update sheet when the app gives an UpdateModel in the environment.
 struct UpdateSheetHost: ViewModifier {

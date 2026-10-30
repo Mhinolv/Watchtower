@@ -142,12 +142,12 @@ def test_plan_shows_command_rows_and_three_other_packages(store, tmp_path):
         {"label": "Project", "value": "~/Projects/web"},
         {"label": "package.json", "value": '"express": "^4.17.1" → "^4.19.2"'},
         {"label": "package-lock.json", "value": "express 4.17.1 → 4.19.2"},
+        {"label": "Other packages", "value": "3 packages change",
+         "items": ["cookie 0.5.0 → 0.6.0", "path-to-regexp 0.1.7 → 0.1.10", "send 0.18.0 → 0.19.0"]},
+        {"label": "Scripts", "value": "Disabled (--ignore-scripts)"},
     ]
-    assert p["changes_title"] == "Other packages"
-    assert [(c["name"], c["before"], c["after"]) for c in p["also_changes"]] == [
-        ("cookie", "0.5.0", "0.6.0"), ("path-to-regexp", "0.1.7", "0.1.10"), ("send", "0.18.0", "0.19.0"),
-    ]
-    assert p["scripts"] == [] and p["scripts_off_text"] == "Disabled (--ignore-scripts)"
+    assert p["also_changes"] == []  # shown as the Other packages row, as for uv
+    assert p["scripts"] == [] and p["scripts_command"] is None
     assert p["manual_steps"][0] == "Run the project tests: npm test"
 
 
@@ -218,8 +218,8 @@ def test_install_scripts_need_a_second_confirmation(store, tmp_path):
     p = plan_for(store, project, registry=registry, new_lock=scripts_lock())
     assert p.scripts == ["esbuild needs its postinstall script"]
     assert p.script_details == [{"package": "esbuild", "version": "0.21.5", "script": "postinstall"}]
-    assert {"label": "Scripts command",
-            "value": f"{NPM} rebuild esbuild --ignore-scripts=false --prefix {project}"} in p.rows
+    assert p.scripts_command == [NPM, "rebuild", "esbuild", "--ignore-scripts=false", "--prefix", str(project)]
+    assert p.scripts_message == "esbuild needs its postinstall script."
     installer = FakeInstall(project)
     refused, _ = run_for(store, project, p, installer, registry=registry, new_lock=scripts_lock())
     assert refused.status == "refused" and installer.calls == []
@@ -302,12 +302,12 @@ def test_verified_update_checks_lockfile_and_node_modules(store, tmp_path):
     installer = FakeInstall(project)
     a, _ = run_for(store, project, p, installer)
     assert a.status == "verified" and a.after_version == "4.19.2"
-    assert a.checks == [
+    assert a.result_rows == [
         {"label": "Lockfile", "value": "express 4.19.2", "ok": True},
         {"label": "Installed (node_modules)", "value": "express 4.19.2", "ok": True},
     ]
     assert installer.calls == [p.command]
-    assert UpdateLog(store).attempts()[0].checks == a.checks
+    assert UpdateLog(store).attempts()[0].result_rows == a.result_rows
 
 
 def test_lockfile_only_is_not_verified(store, tmp_path):
@@ -316,7 +316,7 @@ def test_lockfile_only_is_not_verified(store, tmp_path):
     a, _ = run_for(store, project, p, FakeInstall(project, lock_only=True))
     assert a.status == "not_verified" and a.exit_code == 0
     assert a.error == "Not verified: the installed package is still 4.17.1."
-    assert [c["ok"] for c in a.checks] == [True, False]
+    assert [r["ok"] for r in a.result_rows] == [True, False]
 
 
 def test_failed_install_restores_the_project_files(store, tmp_path):
@@ -340,7 +340,7 @@ def test_edit_after_the_plan_changes_the_plan(store, tmp_path):
     assert a.status == "plan_changed" and installer.calls == []
 
 
-def test_old_log_table_gets_the_checks_column(store, tmp_path):
+def test_old_log_table_gets_the_result_rows_column(store, tmp_path):
     store.db.executescript("""
         CREATE TABLE update_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, item_key TEXT NOT NULL,
             name TEXT NOT NULL, kind TEXT, command TEXT NOT NULL, before_version TEXT, target_version TEXT,
@@ -351,7 +351,7 @@ def test_old_log_table_gets_the_checks_column(store, tmp_path):
         INSERT INTO update_attempts (item_key, name, command, status, started_at)
             VALUES ('homebrew/formula:git', 'git', '["brew"]', 'verified', '2026-10-29T10:00:00Z');
     """)
-    assert UpdateLog(store).attempts()[0].checks == []
+    assert UpdateLog(store).attempts()[0].result_rows == []
 
 
 # CLI
@@ -364,4 +364,5 @@ def test_cli_plan_for_an_npm_key(tmp_path, monkeypatch, capsys):
         store, item, npm=NPM, run=FakeNpm(lock("4.19.2")), get=FakeRegistry()))
     assert cli.main(["--data-dir", str(tmp_path / "data"), "update-plan", key(project)]) == 0
     plan = json.loads(capsys.readouterr().out)["plan"]
-    assert plan["kind"] == "npm" and plan["target_version"] == "4.19.2" and len(plan["also_changes"]) == 3
+    other = next(r for r in plan["rows"] if r["label"] == "Other packages")
+    assert plan["kind"] == "npm" and plan["target_version"] == "4.19.2" and len(other["items"]) == 3

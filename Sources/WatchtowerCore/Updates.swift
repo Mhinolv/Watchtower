@@ -20,18 +20,24 @@ public struct PackageChange: Codable, Hashable, Sendable {
     }
 }
 
-/// One extra plan row from a project adapter, for example `package.json`.
+/// One more row of the plan step or the result step: a label, a value and an optional list.
 public struct PlanRow: Codable, Hashable, Sendable {
     public var label: String
     public var value: String
+    /// A list that opens under the value, for example the other packages that change.
+    public var items: [String]?
+    /// For a result row: true if this part of the update is verified, false if it is not. nil: no mark.
+    public var ok: Bool?
 
-    public init(label: String, value: String) {
+    public init(label: String, value: String, items: [String]? = nil, ok: Bool? = nil) {
         self.label = label
         self.value = value
+        self.items = items
+        self.ok = ok
     }
 }
 
-/// One install script that needs the separate confirmation.
+/// One install script that needs the separate confirmation (npm, #10).
 public struct ScriptDetail: Codable, Hashable, Sendable {
     public var package: String
     public var version: String?
@@ -41,19 +47,6 @@ public struct ScriptDetail: Codable, Hashable, Sendable {
         self.package = package
         self.version = version
         self.script = script
-    }
-}
-
-/// One verification line of a result, for example the lockfile or node_modules.
-public struct UpdateCheck: Codable, Hashable, Sendable {
-    public var label: String
-    public var value: String
-    public var ok: Bool
-
-    public init(label: String, value: String, ok: Bool) {
-        self.label = label
-        self.value = value
-        self.ok = ok
     }
 }
 
@@ -75,17 +68,18 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
     /// Set when Watchtower must not run this plan. One sentence for the owner.
     public var refusal: String?
     public var detail: String?
-    // Project adapters (npm, uv). Optional: Homebrew plans and older engines leave them out.
+    /// More plan rows. A uv plan has them: project, environment, files, groups, other packages, build.
     public var rows: [PlanRow]?
-    public var changesTitle: String?
-    public var scriptsOffText: String?
+    /// The text of the scripts step, if it is not `<name> needs install scripts: <reasons>.`
+    public var scriptsMessage: String?
+    /// The package and script for each line of the scripts step (npm). Nil for Homebrew and uv.
     public var scriptDetails: [ScriptDetail]?
 
     public init(id: String, itemKey: String, name: String, kind: String, fullName: String,
                 installedVersion: String?, targetVersion: String?, command: [String], alsoChanges: [PackageChange] = [],
                 majorChange: Bool = false, scripts: [String] = [], manualSteps: [String] = [],
-                refusal: String? = nil, detail: String? = nil, rows: [PlanRow]? = nil, changesTitle: String? = nil,
-                scriptsOffText: String? = nil, scriptDetails: [ScriptDetail]? = nil) {
+                refusal: String? = nil, detail: String? = nil, rows: [PlanRow]? = nil,
+                scriptsMessage: String? = nil, scriptDetails: [ScriptDetail]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -102,8 +96,7 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         self.refusal = refusal
         self.detail = detail
         self.rows = rows
-        self.changesTitle = changesTitle
-        self.scriptsOffText = scriptsOffText
+        self.scriptsMessage = scriptsMessage
         self.scriptDetails = scriptDetails
     }
 
@@ -118,18 +111,9 @@ public struct UpdatePlan: Codable, Hashable, Sendable, Identifiable {
         return "\(old).x → \(targetVersion ?? "?") can break your setup."
     }
 
-    /// `<name> needs install scripts: <reason>.` A project adapter names the package and script:
-    /// `esbuild needs its postinstall script.`
+    /// `<name> needs install scripts: <reason>.`
     public var scriptsText: String {
-        if scriptDetails?.isEmpty == false {
-            return scripts.joined(separator: ". ") + "."
-        }
-        return "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
-    }
-
-    /// `3 packages change`.
-    public var changesSummary: String {
-        alsoChanges.count == 1 ? "1 package changes" : "\(alsoChanges.count) packages change"
+        scriptsMessage ?? "\(name) needs install scripts: \(scripts.joined(separator: ", "))."
     }
 }
 
@@ -170,14 +154,14 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
     public var planId: String?
     public var startedAt: Date
     public var finishedAt: Date?
-    /// Separate verification lines (npm: lockfile and node_modules). Empty or nil for Homebrew.
-    public var checks: [UpdateCheck]?
+    /// Lines for the result step, for example `Lockfile: httpx 0.27.2` of a uv update.
+    public var resultRows: [PlanRow]?
 
     public init(id: Int, itemKey: String, name: String, kind: String?, command: [String], beforeVersion: String?,
                 targetVersion: String?, afterVersion: String?, status: UpdateStatus, exitCode: Int?, output: String,
                 error: String?, manualSteps: [String] = [], confirmedMajor: Bool = false,
                 confirmedScripts: Bool = false, planId: String? = nil, startedAt: Date, finishedAt: Date? = nil,
-                checks: [UpdateCheck]? = nil) {
+                resultRows: [PlanRow]? = nil) {
         self.id = id
         self.itemKey = itemKey
         self.name = name
@@ -196,7 +180,7 @@ public struct UpdateAttempt: Codable, Hashable, Sendable, Identifiable {
         self.planId = planId
         self.startedAt = startedAt
         self.finishedAt = finishedAt
-        self.checks = checks
+        self.resultRows = resultRows
     }
 
     public var commandText: String { command.joined(separator: " ") }
@@ -212,7 +196,7 @@ public struct UpdateResultStyle: Equatable, Sendable {
         switch symbol {
         case "checkmark.seal": "Watchtower read the version again after the command."
         case "xmark.octagon": "Watchtower did not confirm any change."
-        case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified"):
+        case "exclamationmark.triangle" where text.hasPrefix("The command finished") || text.hasPrefix("Not verified:"):
             "Watchtower does not count this update as done."
         default: nil
         }
@@ -223,11 +207,10 @@ public struct UpdateResultStyle: Equatable, Sendable {
         case .verified:
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
-        case .notVerified where attempt.checks?.isEmpty == false && attempt.error != nil:
-            // A project adapter names the check that failed: "Not verified: the installed package is still 4.17.1."
-            (symbol, tone, text) = ("exclamationmark.triangle", .orange, attempt.error!)
         case .notVerified:
-            let text = if let after = attempt.afterVersion, after != attempt.beforeVersion {
+            let text = if attempt.kind == "uv" || attempt.kind == "npm", let error = attempt.error {
+                error  // The engine says what is not verified: the lockfile or the installed package.
+            } else if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
             } else {
                 "The command finished, but the installed version is still \(attempt.afterVersion ?? "unknown")."
@@ -249,23 +232,47 @@ public struct UpdateResultStyle: Equatable, Sendable {
     }
 }
 
-public enum UpdateKeys {
-    /// The engine key for one npm package in the project folder that holds `lockfile`.
-    /// `projectPath` is the display path (`~/Projects/web`), `lockfile` is relative (`app/package-lock.json`).
-    public static func npm(projectPath: String, lockfile: String, package: String, fixedIn: String?) -> String {
-        let folder = (lockfile as NSString).deletingLastPathComponent
-        let dir = folder.isEmpty ? projectPath : projectPath + "/" + folder
-        return "npm|\(dir)|\(package)|\(fixedIn ?? "-")"
+/// The item key and the policy of the uv update, from a finding (#11).
+public enum UVUpdate {
+    /// `uv/httpx@0.27.2|~/Real/tool|uv.lock`. nil if this path has no uv update: another lockfile,
+    /// another ecosystem, or no fixed version.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "PyPI", (path.lockfile as NSString).lastPathComponent == "uv.lock",
+              let fixed = finding.fixedIn, !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        return "uv/\(finding.package)@\(fixed)|\(path.projectPath)|\(path.lockfile)"
     }
 
-    /// Nil if a finding path can open an npm plan, else why not. The plan itself checks the rest.
-    public static func npmBlockReason(_ finding: FindingRecord, _ path: FindingPath) -> String? {
-        guard finding.ecosystem == "npm" else { return "Watchtower cannot update this ecosystem yet." }
-        guard (path.lockfile as NSString).lastPathComponent == "package-lock.json" else {
-            return "Watchtower updates projects with package-lock.json only."
+    /// Nil if `Update…` can open the plan, else why it is off.
+    public static func blockReason(_ path: FindingPath) -> String? { path.updateBlock }
+}
+
+public enum NPMUpdate {
+    /// `npm|~/Projects/web/app|express|4.19.0`: the folder of the package-lock.json, the package and the
+    /// fixed version (or `-`). nil if this path has no npm update: another lockfile, ecosystem, or resolved.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "npm", (path.lockfile as NSString).lastPathComponent == "package-lock.json",
+              !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        let folder = (path.lockfile as NSString).deletingLastPathComponent
+        let dir = folder.isEmpty ? path.projectPath : path.projectPath + "/" + folder
+        return "npm|\(dir)|\(finding.package)|\(finding.fixedIn ?? "-")"
+    }
+}
+
+public enum UpdateKeys {
+    /// The engine key for one finding path: uv (#11) or npm (#10). nil if neither adapter fits.
+    public static func forFinding(_ finding: FindingRecord, _ path: FindingPath) -> String? {
+        UVUpdate.key(finding: finding, path: path) ?? NPMUpdate.key(finding: finding, path: path)
+    }
+
+    /// Nil if `Update…` can open a plan for this path, else why it is off.
+    public static func blockReason(_ finding: FindingRecord, _ path: FindingPath) -> String? {
+        if let block = path.updateBlock { return block }
+        if forFinding(finding, path) != nil { return nil }
+        if finding.status == .resolved { return "This finding is resolved." }
+        switch (path.lockfile as NSString).lastPathComponent {
+        case "uv.lock": return "No fixed version is known."
+        default: return "Watchtower updates projects with package-lock.json or uv.lock only."
         }
-        guard finding.status != .resolved else { return "This finding is resolved." }
-        return nil
     }
 }
 
@@ -375,7 +382,13 @@ public final class UpdateModel {
         await loadPlan(itemKey: item.key, name: item.name)
     }
 
-    /// Open the sheet for an engine key, for example an npm package in one project.
+    /// Open the sheet for one npm or uv dependency of a finding. Nothing runs yet.
+    public func start(finding: FindingRecord, path: FindingPath) async {
+        guard let key = UpdateKeys.forFinding(finding, path) else { return }
+        await loadPlan(itemKey: key, name: finding.package)
+    }
+
+    /// Open the sheet for an engine key. Nothing runs yet.
     public func start(itemKey: String, name: String) async {
         await loadPlan(itemKey: itemKey, name: name)
     }
