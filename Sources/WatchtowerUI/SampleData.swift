@@ -668,6 +668,61 @@ extension SampleData {
         case masCurrent = "update-mas-current"
         case masSignedOut = "update-mas-signed-out"
         case masAdmin = "update-mas-admin"
+        case reqPlan = "update-req-plan"
+        case reqBuild = "update-req-build"
+        case reqVerified = "update-req-verified"
+        case reqNotVerified = "update-req-not-verified"
+        case reqInclude = "update-req-include"
+    }
+
+    /// A requirements-only project plan (#30). `refusal` is the explicit state from the engine.
+    public static func reqPlan(build: Bool = false, refusal: String? = nil) -> UpdatePlan {
+        let python = "/Users/me/Real/script/.venv/bin/python"
+        let rows = [
+            PlanRow(label: "Project", value: "~/Real/script"),
+            PlanRow(label: "Environment", value: ".venv (exists)"),
+            PlanRow(label: "requirements.txt", value: build ? "pycrypto==2.6.0 → pycrypto==2.6.1"
+                                                           : "requests==2.31.0 → requests==2.32.3"),
+            PlanRow(label: "Evidence", value: build ? "Exact pin (==2.6.0)" : "Exact pin (==2.31.0)"),
+            PlanRow(label: "Lockfile", value: "No lockfile."),
+            PlanRow(label: "Other packages", value: build ? "Not known before the build step" : "2 packages change",
+                    items: build ? nil : ["idna 3.4 → 3.20", "charset-normalizer 3.5.2 (new)"]),
+            PlanRow(label: "Build", value: "Disabled (wheels only)"),
+        ]
+        if let refusal {
+            // The engine refuses before it has a target: the plan holds the project row and the reason.
+            return UpdatePlan(id: "0", itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt",
+                              name: "requests", kind: "requirements", fullName: "requests", installedVersion: nil,
+                              targetVersion: nil, command: [python], refusal: refusal,
+                              rows: [PlanRow(label: "Project", value: "~/Real/script")])
+        }
+        let name = build ? "pycrypto" : "requests"
+        let reason = "pycrypto needs a source build: no wheel for this platform."
+        return UpdatePlan(id: "7a3d1c9e5b2f4a60", itemKey: "requirements/\(name)@\(build ? "2.6.1" : "2.32.3")|~/Real/script|requirements.txt",
+                          name: name, kind: "requirements", fullName: name,
+                          installedVersion: build ? "2.6.0" : "2.31.0", targetVersion: build ? "2.6.1" : "2.32.3",
+                          command: [python, "-m", "pip", "install", "--only-binary=:all:",
+                                    "--disable-pip-version-check", "--no-input", "\(name)==\(build ? "2.6.1" : "2.32.3")"],
+                          scripts: build ? [reason] : [], manualSteps: ["Restart the dev server after the update."],
+                          refusal: refusal, rows: rows, scriptsMessage: build ? reason : nil)
+    }
+
+    public static func reqAttempt(verified: Bool) -> UpdateAttempt {
+        let installed = verified ? "2.32.3" : "2.31.0"
+        return UpdateAttempt(
+            id: 8, itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt", name: "requests",
+            kind: "requirements",
+            command: ["/Users/me/Real/script/.venv/bin/python", "-m", "pip", "install", "--only-binary=:all:",
+                      "--disable-pip-version-check", "--no-input", "requests==2.32.3"],
+            beforeVersion: "2.31.0", targetVersion: "2.32.3", afterVersion: installed,
+            status: verified ? .verified : .notVerified, exitCode: 0,
+            output: "Collecting requests==2.32.3\nSuccessfully installed requests-2.32.3",
+            error: verified ? nil : "Not verified: the environment still has 2.31.0.",
+            manualSteps: verified ? ["Restart the dev server after the update."] : [],
+            startedAt: ago(0.1), finishedAt: ago(0.09),
+            resultRows: [PlanRow(label: "requirements.txt", value: verified ? "requests==2.32.3" : "requests==2.31.0",
+                                 ok: verified),
+                         PlanRow(label: "Installed (.venv)", value: "requests \(installed)", ok: verified)])
     }
 
     /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
@@ -729,6 +784,11 @@ extension SampleData {
         case .uvVerified: .result(uvAttempt(verified: true), uvPlan())
         case .uvLockOnly: .result(uvAttempt(verified: false), uvPlan())
         case .uvNoEnv: .plan(uvPlan(refusal: "No environment found. Watchtower does not create environments."))
+        case .reqPlan: .plan(reqPlan())
+        case .reqBuild: .confirmScripts(reqPlan(build: true))
+        case .reqVerified: .result(reqAttempt(verified: true), reqPlan())
+        case .reqNotVerified: .result(reqAttempt(verified: false), reqPlan())
+        case .reqInclude: .plan(reqPlan(refusal: "requirements.txt with -r includes or hashes is not supported."))
         case .npmPlan: .plan(npmPlan())
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())

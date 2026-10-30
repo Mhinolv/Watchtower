@@ -208,7 +208,7 @@ public struct UpdateResultStyle: Equatable, Sendable {
             (symbol, tone, text) = ("checkmark.seal", .green,
                                     "Updated. Installed version is now \(attempt.afterVersion ?? "?").")
         case .notVerified:
-            let text = if attempt.kind == "uv" || attempt.kind == "npm", let error = attempt.error {
+            let text = if ["uv", "npm", "requirements"].contains(attempt.kind), let error = attempt.error {
                 error  // The engine says what is not verified: the lockfile or the installed package.
             } else if let after = attempt.afterVersion, after != attempt.beforeVersion {
                 "The command finished, but the installed version is \(after), not \(attempt.targetVersion ?? "?")."
@@ -258,10 +258,22 @@ public enum NPMUpdate {
     }
 }
 
+public enum RequirementsUpdate {
+    /// `requirements/requests@2.32.3|~/Real/script|requirements.txt` (#30): the package, the fixed version and
+    /// the requirements file. nil if this path has no requirements update: another file, ecosystem, no fixed
+    /// version, or resolved.
+    public static func key(finding: FindingRecord, path: FindingPath) -> String? {
+        guard finding.ecosystem == "PyPI", (path.lockfile as NSString).lastPathComponent == "requirements.txt",
+              let fixed = finding.fixedIn, !finding.package.isEmpty, finding.status != .resolved else { return nil }
+        return "requirements/\(finding.package)@\(fixed)|\(path.projectPath)|\(path.lockfile)"
+    }
+}
+
 public enum UpdateKeys {
-    /// The engine key for one finding path: uv (#11) or npm (#10). nil if neither adapter fits.
+    /// The engine key for one finding path: uv (#11), npm (#10) or requirements (#30). nil if no adapter fits.
     public static func forFinding(_ finding: FindingRecord, _ path: FindingPath) -> String? {
         UVUpdate.key(finding: finding, path: path) ?? NPMUpdate.key(finding: finding, path: path)
+            ?? RequirementsUpdate.key(finding: finding, path: path)
     }
 
     /// Nil if `Update…` can open a plan for this path, else why it is off.
@@ -270,8 +282,8 @@ public enum UpdateKeys {
         if forFinding(finding, path) != nil { return nil }
         if finding.status == .resolved { return "This finding is resolved." }
         switch (path.lockfile as NSString).lastPathComponent {
-        case "uv.lock": return "No fixed version is known."
-        default: return "Watchtower updates projects with package-lock.json or uv.lock only."
+        case "uv.lock", "requirements.txt": return "No fixed version is known."
+        default: return "Watchtower updates projects with package-lock.json, uv.lock or requirements.txt only."
         }
     }
 }
