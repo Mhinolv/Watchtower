@@ -69,6 +69,17 @@ def run(targets, data, fetch, now=T2, os_version="15.1"):
     ("https://[::1]/appcast.xml", NOTE_LOCAL),
     ("https://169.254.169.254/latest", NOTE_LOCAL),
     ("https://nas.local/appcast.xml", NOTE_LOCAL),
+    # QA 14-1 defect 2: numeric host forms that the OS reads as a local address.
+    ("https://2130706433/appcast.xml", NOTE_LOCAL),
+    ("https://127.1/appcast.xml", NOTE_LOCAL),
+    ("https://0x7f.0.0.1/appcast.xml", NOTE_LOCAL),
+    ("https://017700000001/appcast.xml", NOTE_LOCAL),
+    ("https://0/appcast.xml", NOTE_LOCAL),
+    ("https://0xa000005/appcast.xml", NOTE_LOCAL),
+    ("https://[::ffff:127.0.0.1]/appcast.xml", NOTE_LOCAL),
+    ("https://[fd00::1]/appcast.xml", NOTE_LOCAL),
+    ("https://100.64.0.1/appcast.xml", NOTE_LOCAL),
+    ("https://8.8.8.8/appcast.xml", None),
 ])
 def test_url_rules(url, problem):
     assert url_problem(url) == problem
@@ -114,6 +125,36 @@ def test_parse_refuses_documents_without_a_release(data):
 def test_parse_refuses_dtd_and_entities():
     with pytest.raises(ValueError, match="DTD or entities"):
         parse_appcast(appcast("entities.xml"))
+
+
+# QA 14-1 defect 1: the same document in another encoding must also be refused.
+ENTITY_APPCAST = ('<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE rss [<!ENTITY a "EXPANDED">]>'
+                  '<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2"><channel>'
+                  '<item><enclosure sparkle:version="9" sparkle:shortVersionString="&a;"/></item></channel></rss>')
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be"])
+def test_parse_refuses_dtd_and_entities_in_any_encoding(encoding):
+    with pytest.raises(ValueError, match="DTD or entities"):
+        parse_appcast(ENTITY_APPCAST.encode(encoding))
+
+
+def test_parse_refuses_a_doctype_after_the_first_4096_bytes():
+    data = ('<?xml version="1.0"?><!--' + "x" * 5000 + '--><!DOCTYPE rss SYSTEM "http://127.0.0.1:9/x.dtd">'
+            + ENTITY_APPCAST.split("]>", 1)[1].replace("&a;", "1.0"))
+    with pytest.raises(ValueError, match="DTD or entities"):
+        parse_appcast(data.encode())
+
+
+def test_parse_refuses_a_doctype_without_entities():
+    data = appcast("stable.xml").replace(b"<rss", b"<!DOCTYPE rss SYSTEM \"https://example.com/x.dtd\">\n<rss", 1)
+    with pytest.raises(ValueError, match="DTD or entities"):
+        parse_appcast(data)
+
+
+def test_parse_reads_a_utf16_appcast_without_a_dtd():
+    text = appcast("stable.xml").decode().replace('encoding="utf-8"', 'encoding="UTF-16"')
+    assert parse_appcast(text.encode("utf-16"))[0].version == "3.4.1"
 
 
 # Compare

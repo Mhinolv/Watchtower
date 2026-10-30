@@ -17,10 +17,12 @@ import ipaddress
 import json
 import os
 import platform
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -74,13 +76,28 @@ def url_problem(url: str) -> str | None:
     host = host.lower().rstrip(".")
     if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan", ".home.arpa")):
         return NOTE_LOCAL
+    ip = host_ip(host)
+    if ip is not None and not ip.is_global:
+        return NOTE_LOCAL
+    return None
+
+
+def host_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """The IP address that the OS reads from a numeric host, or None for a host name.
+
+    The OS also reads short and numeric forms (`127.1`, `2130706433`, `0x7f.0.0.1`, `017700000001`, `0`),
+    so the engine reads them the same way with `inet_aton` (QA 14-1). An IPv4-mapped IPv6 address
+    counts as its IPv4 address.
+    """
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return None
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
-        return NOTE_LOCAL
-    return None
+        try:
+            ip = ipaddress.IPv4Address(socket.inet_aton(host))
+        except OSError:
+            return None
+    mapped = getattr(ip, "ipv4_mapped", None)
+    return mapped or ip
 
 
 def shown_url(url: str) -> str | None:
@@ -132,11 +149,28 @@ def _text(node, tag: str) -> str | None:
     return value or None
 
 
+def refuse_dtd(data: bytes) -> None:
+    """Raise ValueError if the document has a DOCTYPE or an entity declaration, in any encoding.
+
+    Expat reads the encoding of the document (UTF-8, UTF-16 with or without a BOM) the same way as
+    the parser below, so a byte search cannot miss what the parser would read (QA 14-1).
+    """
+    def refuse(*_):
+        raise ValueError("appcast has a DTD or entities")
+
+    parser = expat.ParserCreate()
+    parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
+    parser.StartDoctypeDeclHandler = refuse
+    parser.EntityDeclHandler = refuse
+    try:
+        parser.Parse(data, True)
+    except expat.ExpatError as exc:
+        raise ValueError(f"appcast is not XML: {exc}") from exc
+
+
 def parse_appcast(data: bytes) -> list[Release]:
     """Releases in the appcast. Raises ValueError for a document that is not a safe appcast."""
-    head = data[:4096].lower()
-    if b"<!doctype" in head or b"<!entity" in data.lower():
-        raise ValueError("appcast has a DTD or entities")
+    refuse_dtd(data)
     try:
         root = ET.fromstring(data)
     except ET.ParseError as exc:
