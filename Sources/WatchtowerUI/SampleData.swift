@@ -161,12 +161,18 @@ public enum SampleData {
         case findingWithdrawn = "finding-withdrawn"
         case findingFeedFailed = "finding-feed-failed"
         case findingUv = "finding-uv"
+        case findingRequirements = "finding-requirements"
+        case findingRequirementsRefused = "finding-requirements-refused"
+        case projectRequirements = "project-requirements"
+        case projectRequirementsSkipped = "project-requirements-skipped"
         case findingEpssScore = "finding-epss-score"
         case findingEpssNoCve = "finding-epss-no-cve"
         case findingEpssMissing = "finding-epss-missing"
         case findingEpssStale = "finding-epss-stale"
         case failed
         case chipSelected = "chip-selected"
+        case cargoDependencies = "cargo-dependencies"
+        case cargoWorkspace = "cargo-workspace"
         case sofaMacosCurrent = "sofa-macos-current"
         case sofaMacosExploited = "sofa-macos-exploited"
         case sofaSafariBehind = "sofa-safari-behind"
@@ -378,6 +384,28 @@ public enum SampleData {
             return sofaModel(scenario, engine: engine, clock: clock)
         case .sparkleNewer, .sparkleBeta, .sparkleOsTooOld, .sparkleRejected, .sparkleFailed:
             return sparkleModel(scenario, engine: engine, clock: clock)
+        case .findingRequirements, .findingRequirementsRefused:
+            // A pin in requirements.txt made this finding (#80). It opens the #30 plan.
+            var sample = state(status: .complete, finished: ago(2), lastComplete: ago(2))
+            sample.findings.append(requirementsFinding(refused: scenario == .findingRequirementsRefused))
+            let model = DashboardModel(engine: engine, state: sample, projects: projects, clock: clock)
+            model.selection = .findings
+            model.selectedItemKey = "SEC-0009"
+            return model
+        case .projectRequirements, .projectRequirementsSkipped:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects + requirementsProjects, clock: clock)
+            model.selection = .projects
+            model.selectedItemKey = requirementsProjects[scenario == .projectRequirements ? 0 : 1].path
+            return model
+        case .cargoDependencies, .cargoWorkspace:
+            let model = DashboardModel(engine: engine, state: state(status: .complete, finished: ago(2),
+                                                                    lastComplete: ago(2)),
+                                       projects: projects + cargoProjects, clock: clock)
+            model.selection = .projects
+            model.selectedItemKey = cargoProjects[scenario == .cargoDependencies ? 0 : 1].path
+            return model
         case .menubarFindings, .menubarNever:
             return model(scenario == .menubarNever ? .neverRefreshed : .complete)
         case .menubarStale:
@@ -714,6 +742,81 @@ extension SampleData {
                                                   ok: verified)])
     }
 
+    /// A finding from the exact pin `requests==2.31.0` in a requirements-only project (#80).
+    static func requirementsFinding(refused: Bool) -> FindingRecord {
+        FindingRecord(id: "SEC-0009", ecosystem: "PyPI", package: "requests",
+                      title: "Requests leaks .netrc credentials to third parties", severity: .medium,
+                      advisoryIds: ["GHSA-9hjg-9r4m-mvj7", "PYSEC-2026-1872"], fixedIn: "2.32.4",
+                      firstSeen: days(1), lastSeen: ago(2), sourceAt: ago(6),
+                      paths: [FindingPath(project: "script", projectPath: "~/Real/script", lockfile: "requirements.txt",
+                                          version: "2.31.0",
+                                          updateBlock: refused ? "No environment found. Watchtower does not create environments." : nil,
+                                          evidence: PathEvidence(declared: "requests==2.31.0", evidence: "Exact pin",
+                                                                 installed: refused ? nil : "2.31.0"))])
+    }
+
+    /// Two requirements-only projects (#80): one scanned with range lines, one skipped.
+    public static let requirementsProjects: [ProjectRecord] = [
+        ProjectRecord(name: "script", path: NSHomeDirectory() + "/Real/script", root: "~/Real",
+                      manifests: ["requirements.txt"], state: "active",
+                      requirements: [RequirementsFile(file: "requirements.txt", pins: 12, otherLines: 3)]),
+        ProjectRecord(name: "legacy", path: NSHomeDirectory() + "/Real/legacy", root: "~/Real",
+                      manifests: ["requirements.txt"], state: "active",
+                      requirements: [RequirementsFile(file: "requirements.txt", pins: 0, otherLines: 0,
+                                                      skipped: "-r includes or hashes are not supported")]),
+    ]
+
+    /// Two Cargo projects (#15): one with the Dependencies table, one workspace that is refused.
+    public static let cargoProjects: [ProjectRecord] = [
+        ProjectRecord(name: "tool", path: NSHomeDirectory() + "/Projects/tool", root: "~/Projects",
+                      manifests: ["Cargo.lock", "Cargo.toml"], state: "active",
+                      dependencies: [
+                          DependencyRecord(package: "itoa", declared: "=1.0.9", locked: "1.0.9", evidence: "exact_pin",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "memchr", declared: "2.6", locked: "2.8.0", evidence: "range",
+                                           ecosystem: "crates.io", table: "dev-dependencies", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "serde", declared: "1.0.190", locked: "1.0.190", evidence: "range",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                          DependencyRecord(package: "smallvec", declared: "1.6.0", locked: "1.6.0", evidence: "range",
+                                           ecosystem: "crates.io", manifest: "Cargo.toml"),
+                      ]),
+        ProjectRecord(name: "engine-ws", path: NSHomeDirectory() + "/Projects/engine-ws", root: "~/Projects",
+                      manifests: ["Cargo.lock", "Cargo.toml", "member/Cargo.toml"], state: "active",
+                      dependencyNote: "Cargo workspaces are not supported yet."),
+    ]
+
+    /// A Cargo plan with the real `cargo update` change of serde_derive (#15).
+    public static func cargoPlan(refusal: String? = nil) -> UpdatePlan {
+        let rows = refusal != nil ? [PlanRow(label: "Project", value: "~/Projects/engine-ws")] : [
+            PlanRow(label: "Project", value: "~/Projects/tool"),
+            PlanRow(label: "Cargo.toml", value: "No change"),
+            PlanRow(label: "Cargo.lock", value: "serde 1.0.190 → 1.0.210"),
+            PlanRow(label: "Other packages", value: "1 package changes", items: ["serde_derive 1.0.190 → 1.0.210"]),
+            PlanRow(label: "Build", value: "Not run. Cargo builds on next use."),
+        ]
+        let project = refusal != nil ? "~/Projects/engine-ws" : "~/Projects/tool"
+        return UpdatePlan(id: "5be1d2c3a4f50617", itemKey: "cargo/serde@1.0.210|\(project)|Cargo.lock", name: "serde",
+                          kind: "cargo", fullName: "serde", installedVersion: refusal == nil ? "1.0.190" : nil,
+                          targetVersion: "1.0.210",
+                          // A refused plan has no command line: the engine sends the cargo path only.
+                          command: refusal != nil ? ["/Users/me/.cargo/bin/cargo"] :
+                              ["/Users/me/.cargo/bin/cargo", "update", "--manifest-path",
+                               "/Users/me/Projects/tool/Cargo.toml", "-p", "serde@1.0.190", "--precise", "1.0.210"],
+                          manualSteps: refusal != nil ? [] : ["Build or test the project to use the new version."],
+                          refusal: refusal, rows: rows)
+    }
+
+    public static func cargoAttempt() -> UpdateAttempt {
+        UpdateAttempt(id: 11, itemKey: "cargo/serde@1.0.210|~/Projects/tool|Cargo.lock", name: "serde", kind: "cargo",
+                      command: cargoPlan().command, beforeVersion: "1.0.190", targetVersion: "1.0.210",
+                      afterVersion: "1.0.210", status: .lockfileUpdated, exitCode: 0,
+                      output: "    Updating crates.io index\n    Updating serde v1.0.190 -> v1.0.210", error: nil,
+                      manualSteps: ["Build or test the project to use the new version."],
+                      startedAt: ago(0.1), finishedAt: ago(0.09),
+                      resultRows: [PlanRow(label: "Lockfile", value: "serde 1.0.210", ok: true),
+                                   PlanRow(label: "Installed", value: "not checked. Cargo builds crates on next use.")])
+    }
+
     public enum UpdateScenario: String, CaseIterable, Sendable {
         case plan = "update-plan"
         case majorAlert = "update-major-alert"
@@ -730,6 +833,9 @@ extension SampleData {
         case uvVerified = "update-uv-verified"
         case uvLockOnly = "update-uv-lock-only"
         case uvNoEnv = "update-uv-no-env"
+        case cargoPlan = "update-cargo-plan"
+        case cargoLockfileUpdated = "update-cargo-lockfile-updated"
+        case cargoWorkspace = "update-cargo-workspace"
         case npmPlan = "update-npm-plan"
         case npmScripts = "update-npm-scripts"
         case npmVerified = "update-npm-verified"
@@ -740,6 +846,61 @@ extension SampleData {
         case masCurrent = "update-mas-current"
         case masSignedOut = "update-mas-signed-out"
         case masAdmin = "update-mas-admin"
+        case reqPlan = "update-req-plan"
+        case reqBuild = "update-req-build"
+        case reqVerified = "update-req-verified"
+        case reqNotVerified = "update-req-not-verified"
+        case reqInclude = "update-req-include"
+    }
+
+    /// A requirements-only project plan (#30). `refusal` is the explicit state from the engine.
+    public static func reqPlan(build: Bool = false, refusal: String? = nil) -> UpdatePlan {
+        let python = "/Users/me/Real/script/.venv/bin/python"
+        let rows = [
+            PlanRow(label: "Project", value: "~/Real/script"),
+            PlanRow(label: "Environment", value: ".venv (exists)"),
+            PlanRow(label: "requirements.txt", value: build ? "pycrypto==2.6.0 → pycrypto==2.6.1"
+                                                           : "requests==2.31.0 → requests==2.32.3"),
+            PlanRow(label: "Evidence", value: build ? "Exact pin (==2.6.0)" : "Exact pin (==2.31.0)"),
+            PlanRow(label: "Lockfile", value: "No lockfile."),
+            PlanRow(label: "Other packages", value: build ? "Not known before the build step" : "2 packages change",
+                    items: build ? nil : ["idna 3.4 → 3.20", "charset-normalizer 3.5.2 (new)"]),
+            PlanRow(label: "Build", value: "Disabled (wheels only)"),
+        ]
+        if let refusal {
+            // The engine refuses before it has a target: the plan holds the project row and the reason.
+            return UpdatePlan(id: "0", itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt",
+                              name: "requests", kind: "requirements", fullName: "requests", installedVersion: nil,
+                              targetVersion: nil, command: [python], refusal: refusal,
+                              rows: [PlanRow(label: "Project", value: "~/Real/script")])
+        }
+        let name = build ? "pycrypto" : "requests"
+        let reason = "pycrypto needs a source build: no wheel for this platform."
+        return UpdatePlan(id: "7a3d1c9e5b2f4a60", itemKey: "requirements/\(name)@\(build ? "2.6.1" : "2.32.3")|~/Real/script|requirements.txt",
+                          name: name, kind: "requirements", fullName: name,
+                          installedVersion: build ? "2.6.0" : "2.31.0", targetVersion: build ? "2.6.1" : "2.32.3",
+                          command: [python, "-m", "pip", "install", "--only-binary=:all:",
+                                    "--disable-pip-version-check", "--no-input", "\(name)==\(build ? "2.6.1" : "2.32.3")"],
+                          scripts: build ? [reason] : [], manualSteps: ["Restart the dev server after the update."],
+                          refusal: refusal, rows: rows, scriptsMessage: build ? reason : nil)
+    }
+
+    public static func reqAttempt(verified: Bool) -> UpdateAttempt {
+        let installed = verified ? "2.32.3" : "2.31.0"
+        return UpdateAttempt(
+            id: 8, itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt", name: "requests",
+            kind: "requirements",
+            command: ["/Users/me/Real/script/.venv/bin/python", "-m", "pip", "install", "--only-binary=:all:",
+                      "--disable-pip-version-check", "--no-input", "requests==2.32.3"],
+            beforeVersion: "2.31.0", targetVersion: "2.32.3", afterVersion: installed,
+            status: verified ? .verified : .notVerified, exitCode: 0,
+            output: "Collecting requests==2.32.3\nSuccessfully installed requests-2.32.3",
+            error: verified ? nil : "Not verified: the environment still has 2.31.0.",
+            manualSteps: verified ? ["Restart the dev server after the update."] : [],
+            startedAt: ago(0.1), finishedAt: ago(0.09),
+            resultRows: [PlanRow(label: "requirements.txt", value: verified ? "requests==2.32.3" : "requests==2.31.0",
+                                 ok: verified),
+                         PlanRow(label: "Installed (.venv)", value: "requests \(installed)", ok: verified)])
     }
 
     /// An App Store app plan (#13). `refusal` is the explicit state from the engine.
@@ -801,6 +962,14 @@ extension SampleData {
         case .uvVerified: .result(uvAttempt(verified: true), uvPlan())
         case .uvLockOnly: .result(uvAttempt(verified: false), uvPlan())
         case .uvNoEnv: .plan(uvPlan(refusal: "No environment found. Watchtower does not create environments."))
+        case .cargoPlan: .plan(cargoPlan())
+        case .cargoLockfileUpdated: .result(cargoAttempt(), cargoPlan())
+        case .cargoWorkspace: .plan(cargoPlan(refusal: "Cargo workspaces are not supported yet."))
+        case .reqPlan: .plan(reqPlan())
+        case .reqBuild: .confirmScripts(reqPlan(build: true))
+        case .reqVerified: .result(reqAttempt(verified: true), reqPlan())
+        case .reqNotVerified: .result(reqAttempt(verified: false), reqPlan())
+        case .reqInclude: .plan(reqPlan(refusal: "requirements.txt with -r includes or hashes is not supported."))
         case .npmPlan: .plan(npmPlan())
         case .npmScripts: .confirmScripts(npmPlan(scripts: true))
         case .npmVerified: .result(npmAttempt(installed: "4.19.2"), npmPlan())

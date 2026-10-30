@@ -1,7 +1,7 @@
 """Local OSV vulnerability databases for offline OSV-Scanner runs.
 
 External call (see README): GET https://osv-vulnerabilities.storage.googleapis.com/{ECOSYSTEM}/all.zip
-for `npm` and `PyPI` only. The request names the ecosystem. Nothing about this Mac is sent.
+for `npm`, `PyPI` and `crates.io` (#15) only. The request names the ecosystem. Nothing about this Mac is sent.
 
 Layout, as OSV-Scanner expects it with OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=<data dir>/osv:
 <data dir>/osv/osv-scalibr/<ECOSYSTEM>/all.zip (OSV-Scanner v2.7.0). Retrieval time and SHA-256 go in
@@ -25,7 +25,7 @@ from ..models import utc_now
 from ..store import ensure_private_dir, ensure_private_file
 
 URL = "https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip"
-ECOSYSTEMS = ("npm", "PyPI")
+ECOSYSTEMS = ("npm", "PyPI", "crates.io")
 MAX_BYTES = 2 * 1024 * 1024 * 1024
 TIMEOUT_SECONDS = 300
 STALE_AFTER_DAYS = 7  # Owner decision 2026-10-29.

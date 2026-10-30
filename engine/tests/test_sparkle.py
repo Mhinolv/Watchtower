@@ -370,7 +370,7 @@ def test_tls_still_checks_the_host_name(monkeypatch):
             raise Stop()
 
     monkeypatch.setattr(socket, "create_connection", lambda *a, **kw: object())
-    conn = sparkle._PinnedHTTPSConnection("updates.example.com", address="93.184.216.34", context=Context())
+    conn = sparkle._PinnedHTTPSConnection("updates.example.com", addresses=["93.184.216.34"], context=Context())
     with pytest.raises(Stop):
         conn.connect()
     assert wrapped == ["updates.example.com"]
@@ -390,3 +390,221 @@ def test_numeric_hosts_are_still_refused_before_any_lookup(tmp_path):
     run([Target(item, "https://127.1/appcast.xml", "330")], tmp_path, resolving(resolver))
     assert (item.state, item.note) == ("unknown", NOTE_LOCAL)
     assert resolver.calls == []
+
+
+# #77: try each checked address in order until one connects. A fake resolver and a fake connection, no network.
+
+import io
+import ssl
+
+A1, A2, A3 = "93.184.216.34", "93.184.216.35", "2606:2800:220:1::1"
+HOST_URL = "https://updates.example.com/appcast.xml"
+
+
+class FakeSocket:
+    """A connected socket that answers one HTTP request with a canned response."""
+
+    def __init__(self, body: bytes):
+        self.response = (b"HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\nContent-Length: "
+                         + str(len(body)).encode() + b"\r\nConnection: close\r\n\r\n" + body)
+        self.sent = b""
+
+    def sendall(self, data):
+        self.sent += data
+
+    def makefile(self, mode="rb", buffering=None):
+        return io.BytesIO(self.response)
+
+    def settimeout(self, value):
+        pass
+
+    def close(self):
+        pass
+
+
+class FakeNetwork:
+    """Stands in for `socket.create_connection` and the TLS wrap. `up` lists the addresses that answer."""
+
+    def __init__(self, monkeypatch, up=(), body=b"", tls_error=None):
+        self.up, self.body, self.tls_error = set(up), body, tls_error
+        self.connects, self.wrapped = [], []
+        monkeypatch.setattr(socket, "create_connection", self.connect)
+        monkeypatch.setattr(ssl.SSLContext, "wrap_socket", self.wrap)
+
+    def connect(self, address, timeout=None, source_address=None):
+        self.connects.append(address)
+        if address[0] not in self.up:
+            raise ConnectionRefusedError(f"{address[0]} does not answer")
+        return FakeSocket(self.body)
+
+    def wrap(self, sock, server_hostname=None, **kwargs):
+        self.wrapped.append(server_hostname)
+        if self.tls_error:
+            raise self.tls_error
+        return sock
+
+
+def second_address_check(tmp_path, monkeypatch, up, addresses=(A1, A2), now=T2):
+    net = FakeNetwork(monkeypatch, up, appcast("stable.xml"))
+    resolver = FakeResolver(list(addresses))
+    item = app_item("3.3.0")
+    result = run([Target(item, HOST_URL, "330")], tmp_path, resolving(resolver), now=now)
+    return net, resolver, item, result
+
+
+def test_the_second_address_is_tried_when_the_first_does_not_connect(tmp_path, monkeypatch):
+    net, resolver, item, result = second_address_check(tmp_path, monkeypatch, up={A2})
+    assert net.connects == [(A1, 443), (A2, 443)]  # In the order of the answer.
+    assert (item.state, item.latest_version, item.error) == ("update_available", "3.4.1", None)
+    assert result.coverage.state == "complete" and result.coverage.note == "1 of 1 read"
+    assert resolver.calls == [("updates.example.com", 443)]  # One lookup: no later DNS answer moves the connection.
+    assert net.wrapped == ["updates.example.com"]  # TLS checks the certificate against the host name.
+
+
+def test_the_first_address_that_connects_is_the_only_one_used(tmp_path, monkeypatch):
+    net, _, item, _ = second_address_check(tmp_path, monkeypatch, up={A1, A2})
+    assert net.connects == [(A1, 443)] and item.latest_version == "3.4.1"
+
+
+def test_a_later_address_in_a_longer_list_is_reached(tmp_path, monkeypatch):
+    net, _, item, _ = second_address_check(tmp_path, monkeypatch, up={A3}, addresses=(A1, A2, A3))
+    assert net.connects == [(A1, 443), (A2, 443), (A3, 443)] and item.latest_version == "3.4.1"
+
+
+def test_every_address_failing_is_a_failed_check_that_keeps_the_last_good_result(tmp_path, monkeypatch):
+    second_address_check(tmp_path, monkeypatch, up={A2}, now=T1)  # A good check fills the cache.
+    net, _, again, result = second_address_check(tmp_path, monkeypatch, up=set(), now=T2)
+    assert net.connects == [(A1, 443), (A2, 443)]  # Each checked address was tried.
+    assert (again.state, again.latest_version) == ("update_available", "3.4.1")  # The earlier badge and version.
+    assert again.error == "Feed check failed." and again.attributes["sparkleChecked"] == T1
+    assert result.coverage.state == "failed" and "does not answer" in result.coverage.detail
+
+
+def test_a_local_address_anywhere_in_the_answer_is_refused_before_any_connect(tmp_path, monkeypatch):
+    for addresses in ((A1, "192.168.1.2"), ("10.0.0.5", A1), (A1, A2, "127.0.0.1"), (A1, "fd00::5")):
+        net, _, item, _ = second_address_check(tmp_path, monkeypatch, up={A1, A2}, addresses=addresses)
+        assert (item.state, item.note) == ("unknown", NOTE_LOCAL)
+        assert net.connects == []  # The global address is not used either.
+
+
+def test_a_tls_failure_on_a_connected_address_is_not_retried_on_the_next(tmp_path, monkeypatch):
+    net = FakeNetwork(monkeypatch, {A1, A2}, appcast("stable.xml"), tls_error=ssl.SSLCertVerificationError("bad host"))
+    item = app_item("3.3.0")
+    result = run([Target(item, HOST_URL, "330")], tmp_path, resolving(FakeResolver([A1, A2])))
+    assert net.connects == [(A1, 443)] and net.wrapped == ["updates.example.com"]
+    assert item.error == "Feed check failed." and result.coverage.state == "failed"
+
+
+def test_checked_addresses_keep_the_order_drop_repeats_and_scope_ids():
+    resolver = FakeResolver([A2, A1, A2, A3 + "%en0"])
+    assert sparkle.checked_addresses("updates.example.com", 443, resolver) == [A2, A1, A3]
+
+
+def test_checked_addresses_refuse_the_whole_list_for_one_local_address():
+    with pytest.raises(sparkle.LocalAddress):
+        sparkle.checked_addresses("updates.example.com", 443, FakeResolver([A1, "100.64.0.1"]))
+    with pytest.raises(OSError):
+        sparkle.checked_addresses("updates.example.com", 443, FakeResolver([]))
+
+
+def test_a_redirect_host_is_checked_and_tried_the_same_way(tmp_path, monkeypatch):
+    redirect = (b"HTTP/1.1 302 Found\r\nLocation: https://cdn.example.net/appcast.xml\r\nContent-Length: 0\r\n\r\n")
+
+    class Net(FakeNetwork):
+        def connect(self, address, timeout=None, source_address=None):
+            self.connects.append(address)
+            if address[0] in ("93.184.216.40",):
+                raise ConnectionRefusedError("down")
+            sock = FakeSocket(self.body)
+            if len(self.connects) == 1:
+                sock.response = redirect
+            return sock
+
+    net = Net(monkeypatch, up=(), body=appcast("stable.xml"))
+    resolver = FakeResolver([A1], ["93.184.216.40", A2])  # The second host: first address down, second up.
+    item = app_item("3.3.0")
+    run([Target(item, HOST_URL, "330")], tmp_path, resolving(resolver))
+    assert [h for h, _ in resolver.calls] == ["updates.example.com", "cdn.example.net"]
+    assert net.connects == [(A1, 443), ("93.184.216.40", 443), (A2, 443)]
+    assert item.latest_version == "3.4.1" and net.wrapped == ["updates.example.com", "cdn.example.net"]
+
+
+# #83: one shared deadline for all address tries of a host. A fake clock and a fake connection, no network.
+
+EIGHT = [f"93.184.216.{i}" for i in range(40, 48)]
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class SlowNetwork(FakeNetwork):
+    """No address answers. Each try waits its full timeout on the fake clock, then fails."""
+
+    def __init__(self, monkeypatch, clock, up=(), body=b""):
+        super().__init__(monkeypatch, up, body)
+        self.clock, self.timeouts = clock, []
+
+    def connect(self, address, timeout=None, source_address=None):
+        self.connects.append(address)
+        self.timeouts.append(timeout)
+        if address[0] in self.up:
+            return FakeSocket(self.body)
+        self.clock.now += timeout
+        raise TimeoutError(f"{address[0]} timed out")
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    fake = FakeClock()
+    monkeypatch.setattr(sparkle, "_now", fake, raising=False)
+    return fake
+
+
+def test_eight_silent_addresses_finish_within_the_host_deadline(tmp_path, monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock)
+    start = clock.now
+    item = app_item()
+    result = run([Target(item, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert clock.now - start <= 30  # The host deadline. Not 8 x 20 s = 160 s.
+    assert net.timeouts == [20, 10]  # The second try gets only the time that is left.
+    assert net.connects == [(EIGHT[0], 443), (EIGHT[1], 443)]  # No try starts after the deadline.
+    assert item.error == "Feed check failed." and result.coverage.state == "failed"
+
+
+def test_no_connect_runs_after_the_deadline(monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock)
+    with pytest.raises(OSError):
+        sparkle.fetch_feed(HOST_URL, resolve=FakeResolver(EIGHT))
+    deadline = 1000.0 + 30  # HOST_DEADLINE_SECONDS
+    assert clock.now == deadline and len(net.connects) == 2
+    assert all(t > 0 for t in net.timeouts)
+
+
+def test_addresses_are_still_tried_in_order_within_the_deadline(tmp_path, monkeypatch, clock):
+    net = SlowNetwork(monkeypatch, clock, up={EIGHT[1]}, body=appcast("stable.xml"))
+    item = app_item("3.3.0")
+    run([Target(item, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert net.connects == [(EIGHT[0], 443), (EIGHT[1], 443)] and net.timeouts == [20, 10]
+    assert (item.state, item.latest_version, item.error) == ("update_available", "3.4.1", None)
+
+
+def test_fast_failures_try_every_address(tmp_path, monkeypatch, clock):
+    net = FakeNetwork(monkeypatch, up=(), body=b"")  # Refused at once: no time passes.
+    run([Target(app_item(), HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)))
+    assert net.connects == [(a, 443) for a in EIGHT]
+
+
+def test_the_deadline_path_keeps_the_last_good_result(tmp_path, monkeypatch, clock):
+    SlowNetwork(monkeypatch, clock, up={EIGHT[0]}, body=appcast("stable.xml"))
+    run([Target(app_item("3.3.0"), HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)), now=T1)
+    SlowNetwork(monkeypatch, clock)
+    again = app_item("3.3.0")
+    result = run([Target(again, HOST_URL, "330")], tmp_path, resolving(FakeResolver(EIGHT)), now=T2)
+    assert (again.state, again.latest_version) == ("update_available", "3.4.1")
+    assert again.error == "Feed check failed." and again.attributes["sparkleChecked"] == T1
+    assert "timed out" in result.coverage.detail

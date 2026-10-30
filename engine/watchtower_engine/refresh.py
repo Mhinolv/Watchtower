@@ -65,7 +65,7 @@ def default_sources(data_dir: Path) -> list[Source]:
     from .feeds import epss, github, kev, sofa
     from .inventory import apps, homebrew, macos, runtimes, sparkle
     from .scanners import osv
-    from .scope import list_projects
+    from .scope import discovery_coverage, list_projects
 
     runs: dict[tuple, object] = {}
     fetches: dict[str, object] = {}
@@ -92,9 +92,12 @@ def default_sources(data_dir: Path) -> list[Source]:
         return SourceResult(sofa.check(inventory, data_dir), [])
 
     def osv_source() -> SourceResult:
-        result = osv.collect(data_dir, list_projects(data_dir).projects)
+        found = list_projects(data_dir)
+        result = osv.collect(data_dir, found.projects)
         scans.append(result)
-        return ScanSourceResult(result.coverage, [], result)
+        out = ScanSourceResult(result.coverage, [], result)
+        out.extra_coverage = [discovery_coverage(found)]  # The Projects row: a cut walk is a gap (#88).
+        return out
 
     def kev_source() -> SourceResult:
         data = kev.load(data_dir)

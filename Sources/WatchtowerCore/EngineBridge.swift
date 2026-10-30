@@ -27,17 +27,110 @@ public struct ProjectRecord: Codable, Hashable, Sendable, Identifiable {
     public var manifests: [String]
     /// `active`, `inactive` or `inaccessible`.
     public var state: String
+    /// requirements.txt files of requirements-only folders (#80). nil: none.
+    public var requirements: [RequirementsFile]?
+    /// The `Dependencies` table of a Cargo project (#15). nil: the project has no table.
+    public var dependencies: [DependencyRecord]?
+    /// Why the table is incomplete or missing, for example `Cargo workspaces are not supported yet.`
+    public var dependencyNote: String?
 
     public var id: String { path }
     public var isActive: Bool { state != "inactive" }
     public var displayPath: String { DisplayPath.abbreviate(path) }
 
-    public init(name: String, path: String, root: String, manifests: [String], state: String) {
+    public init(name: String, path: String, root: String, manifests: [String], state: String,
+                requirements: [RequirementsFile]? = nil, dependencies: [DependencyRecord]? = nil,
+                dependencyNote: String? = nil) {
         self.name = name
         self.path = path
         self.root = root
         self.manifests = manifests
         self.state = state
+        self.requirements = requirements
+        self.dependencies = dependencies
+        self.dependencyNote = dependencyNote
+    }
+}
+
+/// One row of the `Dependencies` table (#15). Exact pins and ranges are separate evidence types.
+public struct DependencyRecord: Codable, Hashable, Sendable, Identifiable {
+    public var package: String
+    /// The requirement in the manifest, for example `=1.0.9` or `1.0.190`, or `git` and `path`.
+    public var declared: String
+    public var locked: String?
+    /// `exact_pin`, `range`, `git`, `path`, `workspace` or `other-registry`.
+    public var evidence: String
+    public var ecosystem: String
+    /// `dev-dependencies` or `build-dependencies`. nil: normal dependencies.
+    public var table: String?
+    /// The manifest, relative to the project, for example `Cargo.toml` or `capture/Cargo.toml`.
+    public var manifest: String?
+
+    public var id: String { [manifest ?? "", table ?? "", package].joined(separator: "|") }
+
+    public init(package: String, declared: String, locked: String?, evidence: String, ecosystem: String,
+                table: String? = nil, manifest: String? = nil) {
+        self.package = package
+        self.declared = declared
+        self.locked = locked
+        self.evidence = evidence
+        self.ecosystem = ecosystem
+        self.table = table
+        self.manifest = manifest
+    }
+
+    /// `Exact pin`, `Range`, `Git`, `Path`. Never one word for both pins and ranges.
+    public var evidenceText: String {
+        switch evidence {
+        case "exact_pin": "Exact pin"
+        case "range": "Range"
+        case "git": "Git"
+        case "path": "Path"
+        case "workspace": "Workspace"
+        case "other-registry": "Other registry"
+        default: evidence
+        }
+    }
+
+    /// `serde`, or `memchr (dev)` for a dev or build dependency.
+    public var packageText: String {
+        switch table {
+        case "dev-dependencies": "\(package) (dev)"
+        case "build-dependencies": "\(package) (build)"
+        default: package
+        }
+    }
+}
+
+/// One requirements.txt in the Projects detail (#80): how many exact pins Watchtower scans.
+public struct RequirementsFile: Codable, Hashable, Sendable, Identifiable {
+    public var file: String
+    public var pins: Int
+    /// Ranges and unpinned lines: evidence only, never a version.
+    public var otherLines: Int
+    /// Why the file is not scanned, for example `-r includes or hashes are not supported`.
+    public var skipped: String?
+
+    public var id: String { file }
+
+    public init(file: String, pins: Int, otherLines: Int, skipped: String? = nil) {
+        self.file = file
+        self.pins = pins
+        self.otherLines = otherLines
+        self.skipped = skipped
+    }
+
+    /// `requirements.txt: 12 exact pins scanned`, or `requirements.txt: not scanned (<reason>)`.
+    public var statusText: String {
+        if let skipped { return "\(file): not scanned (\(skipped))" }
+        return "\(file): \(pins) exact \(pins == 1 ? "pin" : "pins") scanned"
+    }
+
+    /// `3 lines use ranges. Watchtower scans exact pins only.` nil when every line is an exact pin.
+    public var rangeText: String? {
+        guard skipped == nil, otherLines > 0 else { return nil }
+        let lines = otherLines == 1 ? "1 line uses a range" : "\(otherLines) lines use ranges"
+        return "\(lines). Watchtower scans exact pins only."
     }
 }
 

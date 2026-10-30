@@ -17,9 +17,11 @@ from .inventory import mas as mas_inventory
 from .inventory.homebrew import find_brew, version_key
 from .store import Store
 from .update_log import Attempt, UpdateLog
+from .updates import cargo as cargo_updates
 from .updates import homebrew as brew_updates
 from .updates import mas as mas_updates
 from .updates import npm as npm_updates
+from .updates import requirements as req_updates
 from .updates import uv as uv_updates
 
 ERROR_NOT_UPDATABLE = "Watchtower can update Homebrew formulae and casks only."
@@ -50,9 +52,14 @@ def _item(store: Store, item_key: str):
 
 def plan_update(store: Store, item_key: str, brew: str | None = None, run: Callable = subprocess.run,
                 uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-                npm: str | None = None, get=None, mas: str | None = None, **platform) -> brew_updates.Plan:
+                npm: str | None = None, get=None, mas: str | None = None, cargo: str | None = None,
+                **platform) -> brew_updates.Plan:
+    if item_key.startswith(cargo_updates.KEY_PREFIX):
+        return cargo_updates.make_plan(item_key, cargo, run)
     if item_key.startswith(uv_updates.KEY_PREFIX):
         return uv_updates.make_plan(item_key, uv, run, fetch, **(uv_options or {}))
+    if item_key.startswith(req_updates.KEY_PREFIX):
+        return req_updates.make_plan(item_key, run, fetch, **(uv_options or {}))
     if item_key.startswith(npm_updates.KEY_PREFIX):
         options = {"get": get} if get else {}
         return npm_updates.make_plan(item_key, npm, run, **options)
@@ -83,10 +90,11 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
                brew: str | None = None, run: Callable = subprocess.run,
                runner: brew_updates.RunStreaming = brew_updates.run_streaming,
                uv: str | None = None, fetch: Callable = http_fetch, uv_options: dict | None = None,
-               npm: str | None = None, get=None, mas: str | None = None, **platform) -> tuple[Attempt, dict]:
+               npm: str | None = None, get=None, mas: str | None = None, cargo: str | None = None,
+               **platform) -> tuple[Attempt, dict]:
     """Run one confirmed update. Returns the logged attempt and the plan that was checked."""
     log = UpdateLog(store)
-    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, **platform)
+    plan = plan_update(store, item_key, brew, run, uv, fetch, uv_options, npm, get, mas, cargo, **platform)
     if plan.id != plan_id:
         attempt_id = log.begin(plan, confirm_major, confirm_scripts, "plan_changed", ERROR_PLAN_CHANGED)
         return log.get(attempt_id), plan.to_dict()
@@ -106,8 +114,12 @@ def run_update(store: Store, item_key: str, plan_id: str, confirm_major: bool = 
         output.append(text)
         on_line(text)
 
+    if plan.kind == cargo_updates.KIND:
+        return _run_cargo(store, log, plan, attempt_id, line, output, runner)
     if plan.kind == uv_updates.KIND:
         return _run_uv(store, log, plan, attempt_id, confirm_scripts, line, output, runner)
+    if plan.kind == req_updates.KIND:
+        return _run_requirements(store, log, plan, attempt_id, confirm_scripts, line, output, runner), plan.to_dict()
     if plan.kind == npm_updates.KIND:
         return _run_npm(log, attempt_id, plan, confirm_scripts, line, runner, output), plan.to_dict()
 
@@ -199,6 +211,38 @@ def _run_npm(log: UpdateLog, attempt_id: int, plan, confirm_scripts: bool, line,
     return log.get(attempt_id)
 
 
+def _run_requirements(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,
+                      line: Callable[[str], None], output: list[str], runner) -> Attempt:
+    """Run one pip install, edit requirements.txt only if the environment shows the target, read both again."""
+    req = req_updates.parse_key(plan.item_key)
+    before = uv_updates.snapshot(req.root)
+    backup = req_updates.backup_file(req.path, store.data_dir, attempt_id)
+    if backup:
+        line(f"Backup of requirements.txt: {backup}")
+    command = req_updates.command_to_run(plan, confirm_scripts)
+    line("$ " + " ".join(command))
+    try:
+        code = runner(command, req_updates.pip_env(), line)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id)
+    edit_failed = False
+    if code == 0 and uv_updates.installed_version(req.root, req.name) == plan.target_version:
+        edit_failed = not req_updates.apply_edit(req.path, req.name, plan.target_version)
+        if not edit_failed:
+            line(f"Edited requirements.txt: {next(r['value'] for r in plan.rows if r['label'] == 'requirements.txt')}")
+    outcome = req_updates.read_outcome(req, before, uv_updates.snapshot(req.root))
+    status, error = req_updates.verdict(outcome, plan.target_version, req.name, code, edit_failed)
+    if status == "failed":
+        error = ERROR_FAILED.format(code=code)
+    log.finish(attempt_id, status, outcome.installed, code, "\n".join(output), error,
+               outcome.result_rows(req.name, plan.target_version))
+    return log.get(attempt_id)
+
+
 def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts: bool,
             line: Callable[[str], None], output: list[str], runner) -> tuple[Attempt, dict]:
     """Run one uv sync, then read the lockfile and the environment again. Success needs both."""
@@ -223,6 +267,33 @@ def _run_uv(store: Store, log: UpdateLog, plan, attempt_id: int, confirm_scripts
     if status == "failed":
         error = ERROR_FAILED.format(code=code)
     log.finish(attempt_id, status, outcome.installed, code, "\n".join(output), error,
+               outcome.result_rows(req.name, plan.target_version))
+    return log.get(attempt_id), plan.to_dict()
+
+
+def _run_cargo(store: Store, log: UpdateLog, plan, attempt_id: int, line: Callable[[str], None],
+               output: list[str], runner) -> tuple[Attempt, dict]:
+    """Run one cargo update, then read Cargo.lock again. Success is `lockfile_updated`, not `verified` (#15)."""
+    req = cargo_updates.parse_key(plan.item_key)
+    root = req.root
+    before = cargo_updates.snapshot(root)
+    backup = cargo_updates.backup_files(root, store.data_dir, attempt_id)
+    if backup:
+        line(f"Backup of Cargo.toml and Cargo.lock: {backup}")
+    line("$ " + " ".join(plan.command))
+    try:
+        code = runner(list(plan.command), cargo_updates.cargo_env(), line)
+    except Interrupted:
+        log.finish(attempt_id, "interrupted", None, None, "\n".join(output), ERROR_INTERRUPTED)
+        raise
+    except Exception as exc:
+        log.finish(attempt_id, "failed", None, None, "\n".join(output + [repr(exc)]), ERROR_FAILED.format(code="none"))
+        return log.get(attempt_id), plan.to_dict()
+    outcome = cargo_updates.read_outcome(root, req.name, before)
+    status, error = cargo_updates.verdict(outcome, plan.target_version, req.name, code)
+    if status == "failed":
+        error = ERROR_FAILED.format(code=code)
+    log.finish(attempt_id, status, outcome.locked, code, "\n".join(output), error,
                outcome.result_rows(req.name, plan.target_version))
     return log.get(attempt_id), plan.to_dict()
 

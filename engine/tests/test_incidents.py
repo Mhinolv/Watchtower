@@ -558,3 +558,53 @@ def test_a_blog_post_saved_by_a_check_stays_possible_and_the_google_incident_rec
     assert inc["What to do if your account was compromised"]["status"] == "possible"
     assert inc["Unauthorized access to a test account was found and fixed"]["status"] == "confirmed"
     assert not any(i["status"] == "confirmed" for i in state["incidents"] if i["source"] != "google")
+
+
+# Bad data from one source fails only that source (#76)
+
+NESTED = b"[" * 200_000 + b"]" * 200_000  # 400 KB of nested arrays: json.loads raises RecursionError.
+
+
+def test_the_nested_body_is_under_the_size_limit_and_breaks_the_json_parser():
+    assert len(NESTED) < sources.MAX_BYTES
+    with pytest.raises(RecursionError):
+        json.loads(NESTED)
+
+
+@pytest.mark.parametrize("source", [GOOGLE, HIBP], ids=["google", "hibp"])
+def test_fetch_items_turns_a_deeply_nested_body_into_bad_data(source):
+    with pytest.raises(SourceError, match="bad data"):
+        fetch_items(source, lambda url, headers: Response(200, {}, NESTED))
+
+
+@pytest.mark.parametrize("source,body", [
+    (GITHUB, b"<rss><channel><item>" * 100_000), (GITHUB, b"\xff\xfe not xml"),
+    (GOOGLE, b"\xff\xfe not json"), (HIBP, b"\xff\xfe not json"), (HIBP, b'[{"Name": "GitHub", "PwnCount": 1e999999}'),
+    (APPLE, b"<html>" + b"<table><tr><td>" * 50_000)], ids=["rss-deep", "rss-binary", "google-binary",
+                                                         "hibp-binary", "hibp-cut", "apple-deep"])
+def test_any_parser_failure_is_bad_data_and_not_an_escape(source, body):
+    try:
+        fetch_items(source, lambda url, headers: Response(200, {}, body))
+    except SourceError as exc:
+        assert str(exc) == "bad data"
+
+
+@pytest.mark.parametrize("key", ["google", "hibp"])
+def test_one_nested_source_fails_alone_and_the_other_sources_finish(store, key):
+    state = check(store, FakeFetch(**{key: Response(200, {}, NESTED)}))
+    rows = {s["source"]: s for s in state["sources"]}
+    assert rows[key]["state"] == "failed" and rows[key]["note"] == "bad data"
+    assert rows[key]["error"].endswith("check failed. The review is not complete.")
+    assert [rows[k]["state"] for k in rows if k != key] == ["complete"] * 3
+    assert state["review"]["last_attempt_state"] == "partial"
+
+
+def test_a_failed_source_keeps_the_incidents_of_earlier_checks(store):
+    first = check(store, FakeFetch())
+    assert len(first["incidents"]) == TOTAL
+    state = check(store, FakeFetch(google=Response(200, {}, NESTED), hibp=Response(200, {}, NESTED)),
+                  now="2026-10-30T08:00:00Z")
+    assert len(state["incidents"]) == TOTAL  # Nothing is dropped.
+    assert {s["source"] for s in state["sources"] if s["state"] == "failed"} == {"google", "hibp"}
+    google = next(s for s in state["sources"] if s["source"] == "google")
+    assert google["last_success_at"] == NOW  # The time of the last good check stays.

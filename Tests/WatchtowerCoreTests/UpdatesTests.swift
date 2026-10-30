@@ -439,3 +439,40 @@ private let keynote = ItemRecord(id: "com.apple.iWork.Keynote", source: "apps", 
     await model.start(gitItem)
     #expect(!model.checkingStore)
 }
+
+// MARK: - Requirements-only projects (#30)
+
+private func requirementsFinding(fixed: String? = "2.32.3", status: FindingStatus = .open) -> FindingRecord {
+    FindingRecord(id: "SEC-0007", ecosystem: "PyPI", package: "requests", title: "t", severity: .high,
+                  advisoryIds: ["CVE-2024-35195"], fixedIn: fixed, status: status, firstSeen: date, lastSeen: date)
+}
+
+private let requirementsPath = FindingPath(project: "script", projectPath: "~/Real/script",
+                                           lockfile: "requirements.txt", version: "2.31.0")
+
+@Test func aRequirementsFileGetsItsOwnUpdateKey() {
+    #expect(UpdateKeys.forFinding(requirementsFinding(), requirementsPath)
+        == "requirements/requests@2.32.3|~/Real/script|requirements.txt")
+    #expect(RequirementsUpdate.key(finding: requirementsFinding(fixed: nil), path: requirementsPath) == nil)
+    #expect(RequirementsUpdate.key(finding: requirementsFinding(status: .resolved), path: requirementsPath) == nil)
+    var npm = requirementsFinding()
+    npm.ecosystem = "npm"
+    #expect(RequirementsUpdate.key(finding: npm, path: requirementsPath) == nil)
+}
+
+@Test func theRequirementsBlockReasonsAreExact() {
+    #expect(UpdateKeys.blockReason(requirementsFinding(fixed: nil), requirementsPath) == "No fixed version is known.")
+    var blocked = requirementsPath
+    blocked.updateBlock = "requirements.txt with -r includes or hashes is not supported."
+    #expect(UpdateKeys.blockReason(requirementsFinding(), blocked)
+        == "requirements.txt with -r includes or hashes is not supported.")
+}
+
+@Test func aNotVerifiedRequirementsResultShowsTheEngineText() {
+    let result = UpdateResultStyle(UpdateAttempt(
+        id: 1, itemKey: "requirements/requests@2.32.3|~/Real/script|requirements.txt", name: "requests",
+        kind: "requirements", command: ["python"], beforeVersion: "2.31.0", targetVersion: "2.32.3",
+        afterVersion: "2.31.0", status: .notVerified, exitCode: 0, output: "",
+        error: "Not verified: the environment still has 2.31.0.", startedAt: date))
+    #expect(result.text == "Not verified: the environment still has 2.31.0.")
+}

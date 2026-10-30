@@ -1,0 +1,367 @@
+{
+ "version": "1",
+ "pip_version": "26.2.2",
+ "install": [
+  {
+   "download_info": {
+    "url": "https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl",
+    "archive_info": {
+     "hashes": {
+      "sha256": "70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
+     },
+     "hash": "sha256=70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
+    }
+   },
+   "is_direct": false,
+   "is_yanked": false,
+   "requested": true,
+   "metadata": {
+    "metadata_version": "2.1",
+    "name": "requests",
+    "version": "2.32.3",
+    "summary": "Python HTTP for Humans.",
+    "description": "",
+    "description_content_type": "text/markdown",
+    "home_page": "https://requests.readthedocs.io",
+    "author": "Kenneth Reitz",
+    "author_email": "me@kennethreitz.org",
+    "license": "Apache-2.0",
+    "license_file": [
+     "LICENSE"
+    ],
+    "classifier": [
+     "Development Status :: 5 - Production/Stable",
+     "Environment :: Web Environment",
+     "Intended Audience :: Developers",
+     "License :: OSI Approved :: Apache Software License",
+     "Natural Language :: English",
+     "Operating System :: OS Independent",
+     "Programming Language :: Python",
+     "Programming Language :: Python :: 3",
+     "Programming Language :: Python :: 3.8",
+     "Programming Language :: Python :: 3.9",
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
+     "Programming Language :: Python :: 3.12",
+     "Programming Language :: Python :: 3 :: Only",
+     "Programming Language :: Python :: Implementation :: CPython",
+     "Programming Language :: Python :: Implementation :: PyPy",
+     "Topic :: Internet :: WWW/HTTP",
+     "Topic :: Software Development :: Libraries"
+    ],
+    "requires_dist": [
+     "charset-normalizer <4,>=2",
+     "idna <4,>=2.5",
+     "urllib3 <3,>=1.21.1",
+     "certifi >=2017.4.17",
+     "PySocks !=1.5.7,>=1.5.6 ; extra == 'socks'",
+     "chardet <6,>=3.0.2 ; extra == 'use_chardet_on_py3'"
+    ],
+    "requires_python": ">=3.8",
+    "project_url": [
+     "Documentation, https://requests.readthedocs.io",
+     "Source, https://github.com/psf/requests"
+    ],
+    "provides_extra": [
+     "security",
+     "socks",
+     "use_chardet_on_py3"
+    ]
+   }
+  },
+  {
+   "download_info": {
+    "url": "https://files.pythonhosted.org/packages/ca/e9/34e597dee616d0b8ee4b34d29399e85c2204ade174157a48505d42baa4ff/charset_normalizer-3.5.2-cp315-cp315-macosx_10_15_universal2.whl",
+    "archive_info": {
+     "hashes": {
+      "sha256": "87475fabc8d9996fd9c27debb395e642e8c838d78a00b6e932227a0e06b81e26"
+     },
+     "hash": "sha256=87475fabc8d9996fd9c27debb395e642e8c838d78a00b6e932227a0e06b81e26"
+    }
+   },
+   "is_direct": false,
+   "is_yanked": false,
+   "requested": false,
+   "metadata": {
+    "metadata_version": "2.4",
+    "name": "charset-normalizer",
+    "version": "3.5.2",
+    "dynamic": [
+     "license-file"
+    ],
+    "summary": "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet.",
+    "description": "",
+    "description_content_type": "text/markdown",
+    "keywords": [
+     "encoding",
+     "charset",
+     "charset-detector",
+     "detector",
+     "normalization",
+     "unicode",
+     "chardet",
+     "detect"
+    ],
+    "author_email": "\"Ahmed R. TAHRI\" <tahri.ahmed@proton.me>",
+    "maintainer_email": "\"Ahmed R. TAHRI\" <tahri.ahmed@proton.me>",
+    "license": "MIT",
+    "license_file": [
+     "LICENSE"
+    ],
+    "classifier": [
+     "Development Status :: 5 - Production/Stable",
+     "Intended Audience :: Developers",
+     "Operating System :: OS Independent",
+     "Programming Language :: Python",
+     "Programming Language :: Python :: 3",
+     "Programming Language :: Python :: 3.7",
+     "Programming Language :: Python :: 3.8",
+     "Programming Language :: Python :: 3.9",
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
+     "Programming Language :: Python :: 3.12",
+     "Programming Language :: Python :: 3.13",
+     "Programming Language :: Python :: 3.14",
+     "Programming Language :: Python :: 3.15",
+     "Programming Language :: Python :: 3 :: Only",
+     "Programming Language :: Python :: Implementation :: CPython",
+     "Programming Language :: Python :: Implementation :: PyPy",
+     "Programming Language :: Python :: Free Threading :: 4 - Resilient",
+     "Environment :: WebAssembly",
+     "Environment :: WebAssembly :: Emscripten",
+     "Topic :: Text Processing :: Linguistic",
+     "Topic :: Utilities",
+     "Typing :: Typed"
+    ],
+    "requires_python": ">=3.7",
+    "project_url": [
+     "Changelog, https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md",
+     "Documentation, https://charset-normalizer.readthedocs.io/",
+     "Code, https://github.com/jawah/charset_normalizer",
+     "Issue tracker, https://github.com/jawah/charset_normalizer/issues"
+    ],
+    "provides_extra": [
+     "unicode-backport"
+    ]
+   }
+  },
+  {
+   "download_info": {
+    "url": "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl",
+    "archive_info": {
+     "hashes": {
+      "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+     },
+     "hash": "sha256=ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+    }
+   },
+   "is_direct": false,
+   "is_yanked": false,
+   "requested": false,
+   "metadata": {
+    "metadata_version": "2.5",
+    "name": "idna",
+    "version": "3.20",
+    "summary": "Internationalized Domain Names in Applications (IDNA)",
+    "description": "",
+    "description_content_type": "text/markdown",
+    "author_email": "Kim Davies <kim+pypi@gumleaf.org>",
+    "license_expression": "BSD-3-Clause",
+    "license_file": [
+     "LICENSE.md"
+    ],
+    "classifier": [
+     "Development Status :: 5 - Production/Stable",
+     "Intended Audience :: Developers",
+     "Intended Audience :: System Administrators",
+     "Operating System :: OS Independent",
+     "Programming Language :: Python",
+     "Programming Language :: Python :: 3",
+     "Programming Language :: Python :: 3 :: Only",
+     "Programming Language :: Python :: 3.9",
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
+     "Programming Language :: Python :: 3.12",
+     "Programming Language :: Python :: 3.13",
+     "Programming Language :: Python :: 3.14",
+     "Programming Language :: Python :: 3.15",
+     "Programming Language :: Python :: Implementation :: CPython",
+     "Programming Language :: Python :: Implementation :: PyPy",
+     "Topic :: Internet :: Name Service (DNS)",
+     "Topic :: Software Development :: Libraries :: Python Modules",
+     "Topic :: Utilities"
+    ],
+    "requires_dist": [
+     "ruff >= 0.16.0 ; extra == \"all\"",
+     "mypy >= 1.11.2 ; extra == \"all\"",
+     "ty >= 0.0.37 ; extra == \"all\"",
+     "pytest >= 8.3.2 ; extra == \"all\"",
+     "hypothesis >= 6.141.1 ; extra == \"all\"",
+     "coverage >= 7.10.0 ; extra == \"all\""
+    ],
+    "requires_python": ">=3.9",
+    "project_url": [
+     "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+     "Issue tracker, https://github.com/kjd/idna/issues",
+     "Source, https://github.com/kjd/idna"
+    ],
+    "provides_extra": [
+     "all"
+    ]
+   }
+  },
+  {
+   "download_info": {
+    "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+    "archive_info": {
+     "hashes": {
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+     },
+     "hash": "sha256=0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+    }
+   },
+   "is_direct": false,
+   "is_yanked": false,
+   "requested": false,
+   "metadata": {
+    "metadata_version": "2.5",
+    "name": "urllib3",
+    "version": "2.8.0",
+    "summary": "HTTP library with thread-safe connection pooling, file post, and more.",
+    "description": "",
+    "description_content_type": "text/markdown",
+    "keywords": [
+     "filepost",
+     "http",
+     "httplib",
+     "https",
+     "pooling",
+     "ssl",
+     "threadsafe",
+     "urllib"
+    ],
+    "author_email": "Andrey Petrov <andrey.petrov@shazow.net>",
+    "maintainer_email": "Seth Michael Larson <sethmichaellarson@gmail.com>, Quentin Pradet <quentin@pradet.me>, Illia Volochii <illia.volochii@gmail.com>",
+    "license_expression": "MIT",
+    "license_file": [
+     "LICENSE.txt"
+    ],
+    "classifier": [
+     "Environment :: Web Environment",
+     "Intended Audience :: Developers",
+     "Operating System :: OS Independent",
+     "Programming Language :: Python",
+     "Programming Language :: Python :: 3",
+     "Programming Language :: Python :: 3 :: Only",
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
+     "Programming Language :: Python :: 3.12",
+     "Programming Language :: Python :: 3.13",
+     "Programming Language :: Python :: 3.14",
+     "Programming Language :: Python :: 3.15",
+     "Programming Language :: Python :: Free Threading :: 2 - Beta",
+     "Programming Language :: Python :: Implementation :: CPython",
+     "Programming Language :: Python :: Implementation :: PyPy",
+     "Topic :: Internet :: WWW/HTTP",
+     "Topic :: Software Development :: Libraries"
+    ],
+    "requires_dist": [
+     "brotli>=1.2.0; (platform_python_implementation == 'CPython') and extra == 'brotli'",
+     "brotlicffi>=1.2.0.0; (platform_python_implementation != 'CPython') and extra == 'brotli'",
+     "h2<5,>=4; extra == 'h2'",
+     "pysocks!=1.5.7,<2.0,>=1.5.6; extra == 'socks'",
+     "backports-zstd>=1.0.0; (python_version < '3.14') and extra == 'zstd'"
+    ],
+    "requires_python": ">=3.10",
+    "project_url": [
+     "Changelog, https://github.com/urllib3/urllib3/blob/main/CHANGES.rst",
+     "Documentation, https://urllib3.readthedocs.io",
+     "Code, https://github.com/urllib3/urllib3",
+     "Issue tracker, https://github.com/urllib3/urllib3/issues",
+     "Security policy, https://urllib3.readthedocs.io/en/latest/security.html"
+    ],
+    "provides_extra": [
+     "brotli",
+     "h2",
+     "socks",
+     "zstd"
+    ]
+   }
+  },
+  {
+   "download_info": {
+    "url": "https://files.pythonhosted.org/packages/32/d1/a3652fe2c19134d0d15922177821d863cbd7e842d53a21bbe7e8e3a1b5ac/certifi-2026.10.23-py3-none-any.whl",
+    "archive_info": {
+     "hashes": {
+      "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
+     },
+     "hash": "sha256=e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
+    }
+   },
+   "is_direct": false,
+   "is_yanked": false,
+   "requested": false,
+   "metadata": {
+    "metadata_version": "2.4",
+    "name": "certifi",
+    "version": "2026.10.23",
+    "dynamic": [
+     "author",
+     "author-email",
+     "classifier",
+     "description",
+     "home-page",
+     "license",
+     "license-file",
+     "project-url",
+     "requires-python",
+     "summary"
+    ],
+    "summary": "Python package for providing Mozilla's CA Bundle.",
+    "description": "",
+    "home_page": "https://github.com/certifi/python-certifi",
+    "author": "Kenneth Reitz",
+    "author_email": "me@kennethreitz.com",
+    "license": "MPL-2.0",
+    "license_file": [
+     "LICENSE"
+    ],
+    "classifier": [
+     "Development Status :: 5 - Production/Stable",
+     "Intended Audience :: Developers",
+     "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+     "Natural Language :: English",
+     "Programming Language :: Python",
+     "Programming Language :: Python :: 3",
+     "Programming Language :: Python :: 3 :: Only",
+     "Programming Language :: Python :: 3.7",
+     "Programming Language :: Python :: 3.8",
+     "Programming Language :: Python :: 3.9",
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
+     "Programming Language :: Python :: 3.12",
+     "Programming Language :: Python :: 3.13",
+     "Programming Language :: Python :: 3.14",
+     "Programming Language :: Python :: 3.15"
+    ],
+    "requires_python": ">=3.7",
+    "project_url": [
+     "Source, https://github.com/certifi/python-certifi"
+    ]
+   }
+  }
+ ],
+ "environment": {
+  "implementation_name": "cpython",
+  "implementation_version": "3.15.0",
+  "os_name": "posix",
+  "platform_machine": "arm64",
+  "platform_release": "24.6.0",
+  "platform_system": "Darwin",
+  "platform_version": "Darwin Kernel Version 24.6.0: Tue Jul 21 20:50:11 PDT 2026; root:xnu-11417.140.69.711.44~1/RELEASE_ARM64_T6041",
+  "python_full_version": "3.15.0",
+  "platform_python_implementation": "CPython",
+  "python_version": "3.15",
+  "sys_platform": "darwin"
+ }
+}
