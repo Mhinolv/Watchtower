@@ -430,37 +430,7 @@ private final class ProgressBox: @unchecked Sendable {
     #expect(DisplayPath.abbreviate("/Applications/Zed.app", home: "/Users/me") == "/Applications/Zed.app")
 }
 
-// MARK: - Real process runner (/bin/sh only)
-
-private final class Lines: @unchecked Sendable {
-    private let lock = NSLock()
-    private var items: [String] = []
-    func add(_ s: String) { lock.withLock { items.append(s) } }
-    var all: [String] { lock.withLock { items } }
-}
-
-@Test func processRunnerReturnsOutputAndStreamsStderrLines() async throws {
-    let lines = Lines()
-    let result = try await ProcessCommandRunner().run(
-        URL(fileURLWithPath: "/bin/sh"), ["-c", "printf 'one\\ntwo\\n' >&2; printf '{\"a\": 1}'; printf 'last' >&2; exit 3"],
-        environment: [:], onStderrLine: { lines.add($0) })
-    #expect(result.status == 3)
-    #expect(String(decoding: result.stdout, as: UTF8.self) == #"{"a": 1}"#)
-    #expect(lines.all == ["one", "two", "last"])
-}
-
-@Test func processRunnerCancelStopsTheProcess() async {
-    let task = Task {
-        try await ProcessCommandRunner().run(URL(fileURLWithPath: "/bin/sh"), ["-c", "exec sleep 30"],
-                                             environment: [:], onStderrLine: { _ in })
-    }
-    try? await Task.sleep(for: .milliseconds(200))
-    let started = Date()
-    task.cancel()
-    let result = await task.result
-    #expect(Date().timeIntervalSince(started) < 5)
-    if case .success = result { Issue.record("a cancelled run must throw") }
-}
+// The real process runner tests are in EngineProcessTests.swift (serialized, with a time limit, #52).
 
 
 // MARK: - Findings
