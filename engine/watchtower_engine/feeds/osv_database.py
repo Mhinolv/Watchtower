@@ -4,7 +4,7 @@ External call (see README): GET https://osv-vulnerabilities.storage.googleapis.c
 for `npm` and `PyPI` only. The request names the ecosystem. Nothing about this Mac is sent.
 
 Layout, as OSV-Scanner expects it with OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=<data dir>/osv:
-<data dir>/osv/osv-scanner/<ECOSYSTEM>/all.zip. Retrieval time and SHA-256 go in
+<data dir>/osv/osv-scalibr/<ECOSYSTEM>/all.zip (OSV-Scanner v2.7.0). Retrieval time and SHA-256 go in
 <data dir>/osv/databases.json. Every refresh asks for a new copy (owner decision 2026-10-29).
 If the download fails, the old copy stays and keeps its original age.
 """
@@ -86,6 +86,28 @@ def _check_md5(path: Path, headers: dict) -> None:
                 raise ValueError("download does not match its x-goog-hash md5")
 
 
+# OSV-Scanner v2.7.0 reads <cache>/osv-scalibr/<ECOSYSTEM>/all.zip (#49). Engines before #49 saved to
+# osv-scanner/, where the scanner never looks. The next refresh moves those copies.
+LAYOUT = "osv-scalibr"
+OLD_LAYOUT = "osv-scanner"
+
+
+def _move_old_copy(root: Path, ecosystem: str, path: Path) -> None:
+    """Move a database from the pre-#49 folder. If the new folder has one already, drop the old copy."""
+    old_folder = root / OLD_LAYOUT / ecosystem
+    old = old_folder / "all.zip"
+    if old.is_file():
+        if path.is_file():
+            old.unlink()
+        else:
+            os.replace(old, path)
+    for folder in (old_folder, root / OLD_LAYOUT):
+        try:
+            folder.rmdir()  # only when empty
+        except OSError:
+            pass
+
+
 def update_database(
     ecosystem: str,
     data_dir: Path,
@@ -95,8 +117,9 @@ def update_database(
     """Download a new copy of one ecosystem database, or keep the old copy on failure."""
     download = download or functools.partial(net.download, max_bytes=MAX_BYTES, timeout=TIMEOUT_SECONDS)
     root = ensure_private_dir(ensure_private_dir(Path(data_dir)) / "osv")
-    folder = ensure_private_dir(ensure_private_dir(root / "osv-scanner") / ecosystem)
+    folder = ensure_private_dir(ensure_private_dir(root / LAYOUT) / ecosystem)
     path = folder / "all.zip"
+    _move_old_copy(root, ecosystem, path)
     meta = _read_meta(root)
     old = meta.get(ecosystem) if isinstance(meta.get(ecosystem), dict) and path.is_file() else None
     headers = {"If-None-Match": old["etag"]} if old and old.get("etag") else {}

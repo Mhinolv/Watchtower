@@ -240,11 +240,12 @@ public enum FindingFilter: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// `Deferred` also holds the findings in the backlog.
+    /// `Deferred` shows deferred findings only. A finding in the backlog is in the Backlog section,
+    /// and `All` still shows it (#40).
     public func matches(_ finding: FindingRecord) -> Bool {
         switch self {
         case .open: finding.status == .open
-        case .deferred: finding.status == .deferred || finding.status == .backlog
+        case .deferred: finding.status == .deferred
         case .resolved: finding.status == .resolved
         case .all: true
         }
@@ -381,6 +382,64 @@ public struct CoverageRow: Equatable, Sendable, Identifiable {
                                error: c.error)
         }
     }
+}
+
+// MARK: - Backlog
+
+/// One row of the Backlog section: an inactive project or a finding that the owner moved there.
+public enum BacklogEntry: Identifiable, Equatable, Sendable {
+    case project(ProjectRecord)
+    case finding(FindingRecord)
+
+    /// The path of a project, or the id of a finding (`SEC-0008`). It is the selection key.
+    public var id: String {
+        switch self {
+        case .project(let p): p.path
+        case .finding(let f): f.id
+        }
+    }
+
+    /// `old-site`, or `SEC-0008 yaml-tools`.
+    public var name: String {
+        switch self {
+        case .project(let p): p.name
+        case .finding(let f): "\(f.id) \(f.package)"
+        }
+    }
+
+    /// The path of a project, or the title of a finding. Secondary text under the name.
+    public var secondary: String {
+        switch self {
+        case .project(let p): p.displayPath
+        case .finding(let f): f.title
+        }
+    }
+
+    public var kind: String {
+        switch self {
+        case .project: "Project"
+        case .finding: "Finding"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .project: "folder"
+        case .finding: "exclamationmark.shield"
+        }
+    }
+
+    /// The status column. The engine does not keep the day that an item moved here.
+    public var statusText: String {
+        switch self {
+        case .project: "Inactive"
+        case .finding(let f): f.status == .backlog ? "In the backlog" : "Inactive project"
+        }
+    }
+
+    public static let emptyTitle = "Backlog is empty"
+    public static let emptyText = "Inactive projects and findings you move here appear in this list."
+    public static let headline = "Items you moved here. They stay here until you move them back."
 }
 
 // MARK: - Model
@@ -535,7 +594,7 @@ public final class DashboardModel {
         case .apps, .homebrew: items(in: section).count
         case .findings: findingsInScope.filter(\.isOpen).count
         case .projects: activeProjects.count
-        case .backlog: backlogProjects.count
+        case .backlog: backlogProjects.count + backlogFindings.count
         case .incidents, .updateLog: 0  // The counts come from IncidentModel and UpdateModel.
         }
     }
@@ -558,6 +617,30 @@ public final class DashboardModel {
         let inactive = inactivePaths
         return (state?.findings ?? []).filter { f in
             f.paths.isEmpty || f.paths.contains { !inactive.contains($0.projectPath) }
+        }
+    }
+
+    /// Findings that the owner moved to the backlog, and findings that are only in inactive projects.
+    /// A resolved finding is not part of the Backlog.
+    public var backlogFindings: [FindingRecord] {
+        let inactive = inactivePaths
+        return (state?.findings ?? []).filter { f in
+            guard f.status != .resolved else { return false }
+            return f.status == .backlog || (!f.paths.isEmpty && f.paths.allSatisfy { inactive.contains($0.projectPath) })
+        }
+    }
+
+    /// The rows of the Backlog section: projects first (by name), then findings (by id). The search box
+    /// matches names, paths, ids, packages and titles.
+    public func visibleBacklog() -> [BacklogEntry] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        let projects = backlogProjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .map(BacklogEntry.project)
+        let findings = backlogFindings.sorted { $0.id < $1.id }.map(BacklogEntry.finding)
+        let all = projects + findings
+        guard !query.isEmpty else { return all }
+        return all.filter { entry in
+            [entry.name, entry.secondary].contains { $0.localizedCaseInsensitiveContains(query) }
         }
     }
 

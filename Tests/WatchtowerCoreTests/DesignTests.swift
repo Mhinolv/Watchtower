@@ -180,3 +180,13 @@ private func model(_ status: RefreshStatus? = .complete, finished: Double = 2, i
     #expect(UpdateResultStyle(attempt(.failed, after: "2.46.0")).detail == "Watchtower did not confirm any change.")
     #expect(UpdateResultStyle(attempt(.planChanged, after: nil)).detail == nil)
 }
+
+
+@MainActor
+@Test func theNeverRefreshedPopoverSaysItOnceAndTheBodyAddsNoRepeat() {
+    let model = DashboardModel(engine: NoEngine(), state: nil, projects: [], clock: { Date() })
+    #expect(model.menuBarSummary.mode == .never)
+    #expect(model.refreshLabel.text == "Never refreshed. Click Refresh.")  // The header.
+    #expect(MenuBarSummary.neverBody == "No scan data yet.")
+    #expect(MenuBarSummary.neverBody != model.refreshLabel.text)
+}
